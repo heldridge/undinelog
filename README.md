@@ -10,13 +10,29 @@ layouts in one run, on one host, under one statistical protocol.
 - `borg/` is the BorgLog implementation, configured with the same segment
   size `kappa^2` and threshold `kappa`.
 
-No paper source or typesetting toolchain is required. New runs are written
-under `results/runs/`. A completed full run is packaged under
-`reference-results/` and is immutable once packaged.
+The reference run `20261002T054218Z-full-bb80da561d` and all of its
+measurements are included under `reference-results/`. No paper source or
+typesetting toolchain is required. The reference run is immutable; new runs
+are written under `results/runs/`.
 
 ## Quick Start
 
-Build and test both implementations and the pipeline:
+From the repository root, verify the packaged reference run:
+
+```bash
+./artifact verify
+```
+
+This performs no benchmarking. A successful report has:
+
+```text
+jobs: 48
+result_cells: 439
+timing_series: 210
+publishable: true
+```
+
+Then build and test both implementations and the pipeline:
 
 ```bash
 ./artifact test
@@ -32,12 +48,6 @@ The smoke run covers every benchmark family of both layouts with reduced
 work. It validates the pipeline and result shapes, but it is not a
 replacement for the full statistical run.
 
-When a reference run is packaged, verify it without benchmarking:
-
-```bash
-./artifact verify
-```
-
 ## Prerequisites
 
 - x86-64 Linux. The runner uses Linux file locks and CPU affinity.
@@ -46,6 +56,11 @@ When a reference run is packaged, verify it without benchmarking:
 - Rust and Cargo with edition 2024 support.
 - `taskset`, normally provided by Linux `util-linux`.
 
+The reference machine had an Intel Core Ultra 7 255U, 32 GiB RAM, and 14
+logical CPUs, and ran Linux with Rust 1.98.0. The benchmark processes were
+pinned to logical CPU 2, a performance core, with the `performance` energy
+preference. Exact environment details are retained in
+[`environment.json`](reference-results/20261002T054218Z-full-bb80da561d/provenance/environment.json).
 Cargo may need network access once to fetch locked dependencies.
 
 ## Reviewer Commands
@@ -90,8 +105,11 @@ Do not edit source or orchestration files between starting and resuming a run;
 the runner rejects source drift. Only one experiment process may use the
 repository at a time.
 
-Runtime depends on host speed, load, and variance. The generated preflight
-reports a host-calibrated range.
+The included full run took 1.51 hours of benchmark batches. Runtime depends on
+host speed, load, and variance; the generated preflight reports a
+host-calibrated range, which was 1.8 to 21.3 hours on the reference host
+because adaptive series may stop at 10 repetitions or continue to 160. The
+canary took 13.9 minutes.
 
 ## Statistical Protocol
 
@@ -127,6 +145,25 @@ except the range group, which uses threshold 64. The manifest schedules only
 measurements consumed by these groups, and output parsing rejects unconsumed
 timing fields. See [Experiments](documentation/experiments.md) for exact
 workloads and benchmark targets.
+
+## Reference Results
+
+The packaged run is
+[`reference-results/20261002T054218Z-full-bb80da561d/`](reference-results/20261002T054218Z-full-bb80da561d/).
+Start with its [rendered result groups](reference-results/20261002T054218Z-full-bb80da561d/tables/README.md).
+Machine-readable values, units, samples, confidence intervals, raw benchmark
+documents, logs, environment data, and source hashes are retained alongside
+them. The run has 6,660 independent timing samples in 69 batches, and every
+one of its 210 timing series met the precision target.
+
+`./artifact verify` checks the complete file-integrity manifest, both crates'
+source hashes, job and measurement semantics, checkpoint completion, every raw
+batch artifact, the raw-sample export, statistical precision, and regenerated
+CSV/JSON/Markdown outputs. It does not compare timings from different
+machines.
+
+See [Results and Provenance](documentation/results.md) for the directory
+schema and interpretation rules.
 
 ## Success Criteria
 

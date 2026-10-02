@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 13,
+    "committed_bulk_update_batches": 3,
+    "query_bulk_update_batch": 1,
+    "query_value_offset": 65536,
+    "query_value_index": 196608,
+    "timestamp_unix_ms": 1790921150463,
+    "git": "86c25e080e3116cef93c14cfae5b5c0ef96d87bc",
+    "notes": "simulated append-only-log client point-open benchmark: warm local auth state from canonical field-entry bulk-update batches through the app codec and frontier path, split a full read reply into helper replies, then time client-side Combine+Verify with kappa replies and 0 bad helpers, and with 3*kappa replies containing kappa staggered bad helpers"
+  },
+  "entries": [
+    {
+      "Seg": 256,
+      "encoded_cells_N": 256,
+      "encoded_segment_bytes": 8192,
+      "kappa": 16,
+      "primary_slice_field_elements": 16,
+      "registry_helper_count": 48,
+      "bulk_updates_bytes": 4194304,
+      "inserted_values": 131072,
+      "zero_bad_helper_replies": 16,
+      "correcting_helper_replies": 48,
+      "bad_helper_replies": 16,
+      "auth_nodes_per_helper": 51,
+      "array_shares_per_helper": 20,
+      "zero_bad_array_shares": 320,
+      "correcting_array_shares": 960,
+      "client_zero_bad_helpers_combine_verify_ns": {
+        "mean": 368932,
+        "p50": 364429,
+        "p95": 389215,
+        "trials": 13,
+        "samples": [
+          389215,
+          371042,
+          367574,
+          369098,
+          364429,
+          364160,
+          389266,
+          362564,
+          360668,
+          363179,
+          362687,
+          367950,
+          364285
+        ]
+      },
+      "client_kappa_bad_helpers_combine_verify_ns": {
+        "mean": 10406676,
+        "p50": 10405693,
+        "p95": 10599949,
+        "trials": 13,
+        "samples": [
+          10533218,
+          10340547,
+          10486815,
+          10405693,
+          10320135,
+          10613527,
+          10599949,
+          10311521,
+          10417743,
+          10356326,
+          10457972,
+          10235527,
+          10207816
+        ]
+      }
+    }
+  ]
+}

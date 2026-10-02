@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 13,
+    "committed_bulk_update_batches": 3,
+    "query_bulk_update_batch": 1,
+    "query_value_offset": 65536,
+    "query_value_index": 196608,
+    "timestamp_unix_ms": 1790921118812,
+    "git": "86c25e080e3116cef93c14cfae5b5c0ef96d87bc",
+    "notes": "simulated append-only-log client point-open benchmark: warm local auth state from canonical field-entry bulk-update batches through the app codec and frontier path, split a full read reply into helper replies, then time client-side Combine+Verify with kappa replies and 0 bad helpers, and with 3*kappa replies containing kappa staggered bad helpers"
+  },
+  "entries": [
+    {
+      "Seg": 64,
+      "encoded_cells_N": 64,
+      "encoded_segment_bytes": 2048,
+      "kappa": 8,
+      "primary_slice_field_elements": 8,
+      "registry_helper_count": 24,
+      "bulk_updates_bytes": 4194304,
+      "inserted_values": 131072,
+      "zero_bad_helper_replies": 8,
+      "correcting_helper_replies": 24,
+      "bad_helper_replies": 8,
+      "auth_nodes_per_helper": 51,
+      "array_shares_per_helper": 20,
+      "zero_bad_array_shares": 160,
+      "correcting_array_shares": 480,
+      "client_zero_bad_helpers_combine_verify_ns": {
+        "mean": 215930,
+        "p50": 213057,
+        "p95": 221744,
+        "trials": 13,
+        "samples": [
+          242579,
+          220544,
+          220827,
+          221744,
+          212098,
+          213480,
+          209900,
+          215933,
+          211427,
+          210496,
+          213057,
+          207882,
+          207125
+        ]
+      },
+      "client_kappa_bad_helpers_combine_verify_ns": {
+        "mean": 1155228,
+        "p50": 1144851,
+        "p95": 1212822,
+        "trials": 13,
+        "samples": [
+          1228719,
+          1212822,
+          1150638,
+          1154681,
+          1137619,
+          1130160,
+          1144851,
+          1123237,
+          1172988,
+          1128930,
+          1148292,
+          1144217,
+          1140813
+        ]
+      }
+    }
+  ]
+}

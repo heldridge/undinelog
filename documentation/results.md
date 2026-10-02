@@ -1,5 +1,15 @@
 # Results and Provenance
 
+## Included Run
+
+The immutable reference is
+[`20261002T054218Z-full-bb80da561d`](../reference-results/20261002T054218Z-full-bb80da561d/).
+It completed all 48 jobs and 210 timing series and is marked
+publication-ready. The run contains 6,660 independent timing samples and 69
+raw batch records. Its
+[audit report](../reference-results/20261002T054218Z-full-bb80da561d/audit-report.md)
+lists the shared measurements and the deliberately omitted work.
+
 ## Runs
 
 New runs are written under `results/runs/RUN_ID/`. A completed,
@@ -23,6 +33,7 @@ checkpoint, and retained batch outputs can be verified without executing them.
 | `tables/tables.json` | All rendered result groups |
 | `tables/*.csv` | One CSV per result group |
 | `tables/README.md` | Human-readable tables with units and conventions |
+| `audit-report.md` | Statistical status, shared measurements, and omitted work |
 | `result-validation.json` | Expected and actual dimensions for every group |
 | `provenance/environment.json` | Host, toolchain, CPU, memory, affinity, and the benchmark CPU's frequency-scaling settings and sibling threads |
 | `provenance/source-snapshot.json` | Source file hashes and Git state |

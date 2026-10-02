@@ -1,0 +1,386 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 13,
+    "committed_bulk_update_batches": 16,
+    "query_bulk_update_batch": 0,
+    "query_byte_offset": 0,
+    "query_global_byte_offset": 0,
+    "query_byte_len": 1048576,
+    "query_leaf_start": 0,
+    "query_leaf_count": 32768,
+    "timestamp_unix_ms": 1790921305211,
+    "git": "86c25e080e3116cef93c14cfae5b5c0ef96d87bc",
+    "notes": "clean append-only-log range-opening benchmark: warm one full local app state and one one-claim helper from the same real bulk-update appends; time the helper's answer to the captured optimized range request (handler, and handler plus serialization), split the full server's answer into registry-index helper replies, and time the local client verified range-open metrics for each requested range length; results are flushed after each completed range length",
+    "metrics": [
+      "serialized"
+    ]
+  },
+  "entries": [
+    {
+      "Seg": 4096,
+      "encoded_cells_N": 4096,
+      "encoded_segment_bytes": 131072,
+      "kappa": 64,
+      "primary_slice_field_elements": 64,
+      "registry_helper_count": 192,
+      "bulk_updates_bytes": 8388608,
+      "inserted_values": 262144,
+      "range_bytes": 1048576,
+      "range_leaf_count": 32768,
+      "request_objects": 57,
+      "request_segments": 16,
+      "request_points": 41,
+      "threshold_helper_replies": 64,
+      "helper_segment_shards": 16,
+      "helper_point_shares": 41,
+      "helper_response_field_elements": 1065,
+      "helper_response_serialized_bytes": 34670,
+      "correcting_helper_replies": 192,
+      "bad_helper_replies": 64,
+      "proof_nodes": 32836,
+      "client_returned_leaves": 32768,
+      "helper_range_share_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "helper_range_share_serialized_ns": {
+        "mean": 30756,
+        "p50": 30182,
+        "p95": 30361,
+        "trials": 13,
+        "samples": [
+          38141,
+          30274,
+          30182,
+          30182,
+          30181,
+          30134,
+          30227,
+          30361,
+          30241,
+          29994,
+          29972,
+          29967,
+          29975
+        ]
+      },
+      "client_threshold_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_correction_budget_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_kappa_failures_filtered_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      }
+    },
+    {
+      "Seg": 4096,
+      "encoded_cells_N": 4096,
+      "encoded_segment_bytes": 131072,
+      "kappa": 64,
+      "primary_slice_field_elements": 64,
+      "registry_helper_count": 192,
+      "bulk_updates_bytes": 8388608,
+      "inserted_values": 262144,
+      "range_bytes": 4194304,
+      "range_leaf_count": 131072,
+      "request_objects": 101,
+      "request_segments": 64,
+      "request_points": 37,
+      "threshold_helper_replies": 64,
+      "helper_segment_shards": 64,
+      "helper_point_shares": 37,
+      "helper_response_field_elements": 4133,
+      "helper_response_serialized_bytes": 133086,
+      "correcting_helper_replies": 192,
+      "bad_helper_replies": 64,
+      "proof_nodes": 131136,
+      "client_returned_leaves": 131072,
+      "helper_range_share_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "helper_range_share_serialized_ns": {
+        "mean": 94356,
+        "p50": 93802,
+        "p95": 95327,
+        "trials": 13,
+        "samples": [
+          100338,
+          94973,
+          94016,
+          93417,
+          93824,
+          93339,
+          93583,
+          93876,
+          93711,
+          93802,
+          95327,
+          92686,
+          93748
+        ]
+      },
+      "client_threshold_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_correction_budget_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_kappa_failures_filtered_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      }
+    },
+    {
+      "Seg": 4096,
+      "encoded_cells_N": 4096,
+      "encoded_segment_bytes": 131072,
+      "kappa": 64,
+      "primary_slice_field_elements": 64,
+      "registry_helper_count": 192,
+      "bulk_updates_bytes": 8388608,
+      "inserted_values": 262144,
+      "range_bytes": 8388608,
+      "range_leaf_count": 262144,
+      "request_objects": 163,
+      "request_segments": 128,
+      "request_points": 35,
+      "threshold_helper_replies": 64,
+      "helper_segment_shards": 128,
+      "helper_point_shares": 35,
+      "helper_response_field_elements": 8227,
+      "helper_response_serialized_bytes": 264454,
+      "correcting_helper_replies": 192,
+      "bad_helper_replies": 64,
+      "proof_nodes": 262206,
+      "client_returned_leaves": 262144,
+      "helper_range_share_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "helper_range_share_serialized_ns": {
+        "mean": 183069,
+        "p50": 181644,
+        "p95": 188804,
+        "trials": 13,
+        "samples": [
+          192017,
+          181508,
+          180092,
+          180480,
+          183125,
+          183205,
+          182748,
+          188804,
+          181644,
+          185588,
+          180522,
+          180201,
+          179974
+        ]
+      },
+      "client_threshold_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_correction_budget_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_kappa_failures_filtered_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      }
+    },
+    {
+      "Seg": 4096,
+      "encoded_cells_N": 4096,
+      "encoded_segment_bytes": 131072,
+      "kappa": 64,
+      "primary_slice_field_elements": 64,
+      "registry_helper_count": 192,
+      "bulk_updates_bytes": 8388608,
+      "inserted_values": 262144,
+      "range_bytes": 33554432,
+      "range_leaf_count": 1048576,
+      "request_objects": 543,
+      "request_segments": 512,
+      "request_points": 31,
+      "threshold_helper_replies": 64,
+      "helper_segment_shards": 512,
+      "helper_point_shares": 31,
+      "helper_response_field_elements": 32799,
+      "helper_response_serialized_bytes": 1053600,
+      "correcting_helper_replies": 192,
+      "bad_helper_replies": 64,
+      "proof_nodes": 1048634,
+      "client_returned_leaves": 1048576,
+      "helper_range_share_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "helper_range_share_serialized_ns": {
+        "mean": 794764,
+        "p50": 797525,
+        "p95": 813878,
+        "trials": 13,
+        "samples": [
+          833418,
+          810851,
+          805766,
+          783115,
+          786866,
+          813878,
+          784071,
+          775474,
+          797525,
+          810909,
+          807938,
+          751658,
+          770467
+        ]
+      },
+      "client_threshold_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_correction_budget_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_kappa_failures_filtered_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      }
+    },
+    {
+      "Seg": 4096,
+      "encoded_cells_N": 4096,
+      "encoded_segment_bytes": 131072,
+      "kappa": 64,
+      "primary_slice_field_elements": 64,
+      "registry_helper_count": 192,
+      "bulk_updates_bytes": 8388608,
+      "inserted_values": 262144,
+      "range_bytes": 134217728,
+      "range_leaf_count": 4194304,
+      "request_objects": 2075,
+      "request_segments": 2048,
+      "request_points": 27,
+      "threshold_helper_replies": 64,
+      "helper_segment_shards": 2048,
+      "helper_point_shares": 27,
+      "helper_response_field_elements": 131099,
+      "helper_response_serialized_bytes": 4211432,
+      "correcting_helper_replies": 192,
+      "bad_helper_replies": 64,
+      "proof_nodes": 4194358,
+      "client_returned_leaves": 4194304,
+      "helper_range_share_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "helper_range_share_serialized_ns": {
+        "mean": 3452098,
+        "p50": 3481506,
+        "p95": 3500987,
+        "trials": 13,
+        "samples": [
+          3481506,
+          3550325,
+          3379064,
+          3490646,
+          3497553,
+          3491338,
+          3496004,
+          3397768,
+          3500987,
+          3481292,
+          3387664,
+          3365051,
+          3358079
+        ]
+      },
+      "client_threshold_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_correction_budget_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_kappa_failures_filtered_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      }
+    }
+  ]
+}
