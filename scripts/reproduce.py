@@ -1629,7 +1629,32 @@ def validate_current_source_snapshot(
         )
 
 
-def collect_environment() -> dict[str, Any]:
+def _read_cpu_text(cpu: int, relative: str) -> str | None:
+    path = pathlib.Path(f"/sys/devices/system/cpu/cpu{cpu}") / relative
+    try:
+        return path.read_text().strip()
+    except OSError:
+        return None
+
+
+def benchmark_cpu_settings(cpu: int | None) -> dict[str, Any] | None:
+    """Frequency-scaling settings and topology of the benchmark CPU."""
+    if cpu is None:
+        return None
+    return {
+        "cpu": cpu,
+        "scaling_governor": _read_cpu_text(cpu, "cpufreq/scaling_governor"),
+        "energy_performance_preference": _read_cpu_text(
+            cpu, "cpufreq/energy_performance_preference"
+        ),
+        "scaling_driver": _read_cpu_text(cpu, "cpufreq/scaling_driver"),
+        "cpuinfo_max_freq_khz": _read_cpu_integer(cpu, "cpufreq/cpuinfo_max_freq"),
+        "core_id": _read_cpu_integer(cpu, "topology/core_id"),
+        "thread_siblings_list": _read_cpu_text(cpu, "topology/thread_siblings_list"),
+    }
+
+
+def collect_environment(benchmark_cpu: int | None = None) -> dict[str, Any]:
     commands: dict[str, dict[str, Any]] = {}
     for name, command in (
         ("python", [sys.executable, "--version"]),
@@ -1663,6 +1688,7 @@ def collect_environment() -> dict[str, Any]:
             if hasattr(os, "sched_getaffinity")
             else None
         ),
+        "benchmark_cpu": benchmark_cpu_settings(benchmark_cpu),
         "commands": commands,
         "proc": proc_files,
     }
@@ -1918,7 +1944,10 @@ def initialize_run(
     (run_dir / "provenance").mkdir()
     atomic_write_json(run_dir / "manifest.json", manifest.as_dict())
     atomic_write_json(run_dir / "provenance" / "source-snapshot.json", snapshot)
-    atomic_write_json(run_dir / "provenance" / "environment.json", collect_environment())
+    atomic_write_json(
+        run_dir / "provenance" / "environment.json",
+        collect_environment(benchmark_cpu),
+    )
     git_status = run_capture(
         ["git", "status", "--short", "--untracked-files=all"]
     ).stdout.decode()

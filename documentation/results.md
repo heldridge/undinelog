@@ -24,7 +24,7 @@ checkpoint, and retained batch outputs can be verified without executing them.
 | `tables/*.csv` | One CSV per result group |
 | `tables/README.md` | Human-readable tables with units and conventions |
 | `result-validation.json` | Expected and actual dimensions for every group |
-| `provenance/environment.json` | Host, toolchain, CPU, memory, and affinity |
+| `provenance/environment.json` | Host, toolchain, CPU, memory, affinity, and the benchmark CPU's frequency-scaling settings and sibling threads |
 | `provenance/source-snapshot.json` | Source file hashes and Git state |
 | `integrity.json` | Size and SHA-256 for every other retained reference file |
 
