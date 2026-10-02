@@ -55,6 +55,8 @@ replacement for the full statistical run.
 - Git.
 - Rust and Cargo with edition 2024 support.
 - `taskset`, normally provided by Linux `util-linux`.
+- A C++ compiler, used by the build script of the PIR backend.
+- About 20 GiB of free memory for the largest private-opening job.
 
 The reference machine had an Intel Core Ultra 7 255U, 32 GiB RAM, and 14
 logical CPUs, and ran Linux with Rust 1.98.0. The benchmark processes were
@@ -89,7 +91,7 @@ For unattended execution:
 nohup ./artifact full > artifact-run.log 2>&1 &
 ```
 
-Before starting the 48-job run, the command validates the manifest, runs the
+Before starting the 66-job run, the command validates the manifest, runs the
 pipeline unit tests and a smoke experiment, proves interruption/resume
 behavior, and executes a publication-sized canary. Gates are cached by source
 snapshot, so successful work is not repeated.
@@ -130,7 +132,7 @@ the same CPU, and the same protocol. They alternate in the schedule.
 
 ## Evaluation Map
 
-The artifact generates five result groups:
+The artifact generates nine result groups:
 
 | Result group | What is measured |
 | --- | --- |
@@ -139,9 +141,15 @@ The artifact generates five result groups:
 | `tab:range-open` | Range-opening helper work, response size, and client work at threshold 64, both layouts |
 | `tab:maintenance` | Repair, threshold doubling and halving, and the resulting fragment size, both layouts |
 | `tab:on-the-fly-open` | UndineLog openings answered above the stored threshold |
+| `tab:private-maintainer` | Private openings of one position: one maintainer claim's answer, preprocessing, and preprocessing update on logs of 1 to 64 GiB |
+| `tab:private-single` | The same measurements for a single server that stores the whole tree |
+| `tab:private-table` | The maintainer's records against YPIR over the table of complete openings |
+| `tab:private-client` | Client work for a private opening next to a public one |
 
-Every group uses thresholds 8, 16, 32, and 64 with segment size `kappa^2`,
-except the range group, which uses threshold 64. The manifest schedules only
+The first five groups use thresholds 8, 16, 32, and 64 with segment size
+`kappa^2`, except the range group, which uses threshold 64. The private-opening
+groups use threshold 64 for the log-size series and all four thresholds at a
+4 GiB log and for the client. The manifest schedules only
 measurements consumed by these groups, and output parsing rejects unconsumed
 timing fields. See [Experiments](documentation/experiments.md) for exact
 workloads and benchmark targets.

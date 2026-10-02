@@ -96,6 +96,30 @@ impl AppendOnlyLogClient {
             .map_err(ArchiveError::Auth)
     }
 
+    /// Open one leaf privately: one PIR query, the same to every maintainer,
+    /// over records of `segments_per_record` segments. The replies are
+    /// combined and verified like those of a public opening, correcting up
+    /// to `max_errors` bad ones when given.
+    #[cfg(feature = "private")]
+    pub fn read_leaf_private_with_path(
+        &mut self,
+        index: u64,
+        segments_per_record: usize,
+        max_errors: Option<usize>,
+    ) -> Result<(Value256, AuthPath), ArchiveError> {
+        self.ensure_trusted_root_for_read()?;
+        if index >= self.archive.anchor.committed_leaves {
+            return Err(ArchiveError::LeafIndexNotCommitted {
+                index,
+                committed_leaves: self.archive.anchor.committed_leaves,
+            });
+        }
+        self.archive
+            .inner
+            .read_private_with_path(index, segments_per_record, max_errors)
+            .map_err(ArchiveError::Auth)
+    }
+
     pub fn read_bulk_updates(&mut self, height: u64) -> Result<Vec<u8>, ArchiveError> {
         self.ensure_trusted_root_for_read()?;
         if !bulk_updates_are_committed(self.archive.anchor.committed_leaves, height) {

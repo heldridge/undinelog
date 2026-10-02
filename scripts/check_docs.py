@@ -20,11 +20,19 @@ class DocumentationError(RuntimeError):
     pass
 
 
+def is_upstream_document(path: pathlib.Path) -> bool:
+    """A document of a third-party crate, kept as its upstream ships it."""
+    parts = path.relative_to(ROOT).parts
+    return "third_party" in parts and parts[-2] != "third_party"
+
+
 def markdown_files() -> set[pathlib.Path]:
     return {
         path.resolve()
         for path in ROOT.rglob("*.md")
-        if ".git" not in path.parts and "results" not in path.parts
+        if ".git" not in path.parts
+        and "results" not in path.parts
+        and not is_upstream_document(path)
     }
 
 

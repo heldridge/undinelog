@@ -81,6 +81,7 @@ pub fn serve_auth_from_registry(
                 | net::Message::AuthWriteFreshSubtree { .. }
                 | net::Message::AuthExtend { .. }
                 | net::Message::AuthGetLen
+                | net::Message::AuthReadPrivate { .. }
                 | net::Message::UnauthMultiRead { .. } => {
                     net::auth::handle_message(&mut *server, msg)
                 }

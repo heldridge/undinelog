@@ -117,6 +117,10 @@ pub enum Message {
         new_leaves: u64,
     },
     AuthGetLen,
+    /// Private opening of one position.
+    AuthReadPrivate {
+        req: wire::AuthPrivateReadRequest,
+    },
 }
 
 /// RPC response message.
@@ -209,6 +213,9 @@ pub enum Response {
     Error {
         message: String,
     },
+    AuthReadPrivate {
+        resp: wire::AuthPrivateReadResponse,
+    },
 }
 
 /// RPC client/server errors.
@@ -244,6 +251,21 @@ fn rpc_timeout() -> Duration {
             .filter(|value| *value > 0)
             .unwrap_or(3_000);
         Duration::from_millis(timeout_ms)
+    })
+}
+
+/// Read timeout of a private opening. The server passes over its whole
+/// database to answer, and prepares the database on the first request, so
+/// the reply takes longer than that of other requests.
+fn private_rpc_timeout() -> Duration {
+    static PRIVATE_RPC_TIMEOUT: OnceLock<Duration> = OnceLock::new();
+    *PRIVATE_RPC_TIMEOUT.get_or_init(|| {
+        let timeout_ms = std::env::var("NET_PRIVATE_RPC_TIMEOUT_MS")
+            .ok()
+            .and_then(|value| value.parse::<u64>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(120_000);
+        Duration::from_millis(timeout_ms).max(rpc_timeout())
     })
 }
 
@@ -307,6 +329,7 @@ fn message_kind(msg: &Message) -> &'static str {
         Message::AuthWriteFreshSubtree { .. } => "AuthWriteFreshSubtree",
         Message::AuthExtend { .. } => "AuthExtend",
         Message::AuthGetLen => "AuthGetLen",
+        Message::AuthReadPrivate { .. } => "AuthReadPrivate",
     }
 }
 
@@ -341,6 +364,7 @@ fn response_kind(resp: &Response) -> &'static str {
         Response::AuthExtend { .. } => "AuthExtend",
         Response::AuthLen { .. } => "AuthLen",
         Response::Error { .. } => "Error",
+        Response::AuthReadPrivate { .. } => "AuthReadPrivate",
     }
 }
 
@@ -437,6 +461,11 @@ pub fn rpc_call(addr: &str, msg: &Message) -> Result<Response, NetError> {
         eprintln!("rpc -> {} {}", addr, message_kind(msg));
     }
     let mut stream = connect_with_timeout(addr)?;
+    if matches!(msg, Message::AuthReadPrivate { .. }) {
+        stream
+            .set_read_timeout(Some(private_rpc_timeout()))
+            .map_err(|err| NetError::Io(err.to_string()))?;
+    }
     let payload = encode_binary(msg).map_err(NetError::Codec)?;
     write_frame(&mut stream, &payload).map_err(|err| NetError::Io(err.to_string()))?;
     let frame = read_frame(&mut stream, MAX_FRAME_LEN)

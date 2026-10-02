@@ -5,6 +5,7 @@ edition = "2024"
 
 [workspace]
 members = ["apps/appendOnlyLog"]
+exclude = ["third_party"]
 resolver = "2"
 
 [dependencies]
@@ -17,12 +18,17 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 bincode = { version = "2.0.1", features = ["serde"] }
 base64 = "0.22"
+ypir = { path = "third_party/ypir", optional = true }
+spiral-rs = { path = "third_party/spiral-rs", optional = true }
 
 [dev-dependencies]
 append-only-log-demo = { path = "apps/appendOnlyLog" }
 
 [features]
+default = ["private"]
 bench = []
+# Private openings of one position (PIR over the primary columns).
+private = ["dep:ypir", "dep:spiral-rs"]
 dev-tools = []
 rs_bw = []
 evm = []
@@ -39,6 +45,16 @@ required-features = ["bench"]
 name = "bench_append_only_log_point_open_local"
 harness = false
 required-features = ["bench"]
+
+[[bench]]
+name = "bench_append_only_log_on_the_fly_open_local"
+harness = false
+required-features = ["bench"]
+
+[[bench]]
+name = "bench_private_opening_local"
+harness = false
+required-features = ["bench", "private"]
 
 [[bench]]
 name = "bench_append_only_log_client_point_open_local"
@@ -60,7 +76,8 @@ name = "bench_append_only_log_one_server_kappa_rescale_local"
 harness = false
 required-features = ["bench"]
 
-[[bench]]
-name = "bench_append_only_log_on_the_fly_open_local"
-harness = false
-required-features = ["bench"]
+[profile.dev.package.ypir]
+opt-level = 3
+
+[profile.dev.package.spiral-rs]
+opt-level = 3

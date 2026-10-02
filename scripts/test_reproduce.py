@@ -18,6 +18,12 @@ sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 
 
+UNDINE_ONLY_BENCHMARKS = {
+    "bench_append_only_log_on_the_fly_open_local",
+    MODULE.PRIVATE_BENCHMARK,
+}
+
+
 class ManifestTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -44,8 +50,7 @@ class ManifestTests(unittest.TestCase):
             layout: {
                 job.id.replace(f"-{layout}-", "-"): job
                 for job in self.manifest.jobs.values()
-                if job.layout == layout and job.benchmark
-                != "bench_append_only_log_on_the_fly_open_local"
+                if job.layout == layout and job.benchmark not in UNDINE_ONLY_BENCHMARKS
             }
             for layout in MODULE.LAYOUTS
         }
@@ -72,6 +77,11 @@ class ManifestTests(unittest.TestCase):
     def test_operating_points_have_segment_equal_kappa_squared(self) -> None:
         for job in self.manifest.jobs.values():
             env = job.env_dict()
+            if env.get(f"{MODULE.PRIVATE_PREFIX}_ROLE") == "single":
+                # The single server stores the tree itself: it has a record
+                # size and no threshold.
+                self.assertFalse(any(name.endswith("_KAPPA") for name in env), job.id)
+                continue
             kappa = int(job.id.rsplit("-k", 1)[1])
             if job.layout == "undine":
                 thresholds = [value for name, value in env.items() if name.endswith("_KAPPA")]
@@ -96,6 +106,40 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(len(jobs), len(MODULE.KAPPAS))
         self.assertTrue(all(job.layout == "undine" for job in jobs))
 
+    def test_private_openings_are_measured_for_undine_only(self) -> None:
+        jobs = [
+            job
+            for job in self.manifest.jobs.values()
+            if job.benchmark == MODULE.PRIVATE_BENCHMARK
+        ]
+        self.assertTrue(all(job.layout == "undine" for job in jobs))
+        roles = [job.env_dict()[f"{MODULE.PRIVATE_PREFIX}_ROLE"] for job in jobs]
+        self.assertEqual(
+            {role: roles.count(role) for role in set(roles)},
+            {
+                "maintainer": len(MODULE.PRIVATE_LOGS_GIB)
+                + len(MODULE.KAPPAS)
+                - 1
+                + len(MODULE.PRIVATE_RECORD_SWEEP),
+                "single": len(MODULE.PRIVATE_SINGLE_CELL_SWEEP)
+                + len(MODULE.PRIVATE_SINGLE_MEASURED_GIB)
+                - 1,
+                "table": len(MODULE.PRIVATE_TABLE_LOGS_GIB),
+                "client": len(MODULE.KAPPAS),
+            },
+        )
+
+    def test_private_records_hold_the_same_entries_at_every_threshold(self) -> None:
+        for job in self.manifest.jobs.values():
+            env = job.env_dict()
+            role = env.get(f"{MODULE.PRIVATE_PREFIX}_ROLE")
+            if role not in {"maintainer", "client"}:
+                continue
+            kappa = int(env[f"{MODULE.PRIVATE_PREFIX}_KAPPA"])
+            segments = int(env[f"{MODULE.PRIVATE_PREFIX}_SEGMENTS_PER_RECORD"])
+            if kappa != MODULE.PRIVATE_KAPPA:
+                self.assertEqual(kappa * segments, MODULE.PRIVATE_RECORD_ENTRIES, job.id)
+
     def test_fragment_sizes_agree_between_layouts_at_segment_kappa_squared(self) -> None:
         for kappa in MODULE.KAPPAS:
             self.assertEqual(
@@ -104,8 +148,8 @@ class ManifestTests(unittest.TestCase):
             )
 
     def test_exact_full_job_count_is_stable(self) -> None:
-        self.assertEqual(len(self.manifest.jobs), 48)
-        self.assertEqual(len(self.manifest.cells), 439)
+        self.assertEqual(len(self.manifest.jobs), 66)
+        self.assertEqual(len(self.manifest.cells), 663)
 
     def test_every_table_cell_satisfies_its_unit_contract(self) -> None:
         for cell in self.manifest.cells.values():
@@ -524,6 +568,20 @@ class ResultOutputTests(unittest.TestCase):
         self.assertEqual(render("milliseconds-3", 12_345_000), "12.345")
         self.assertEqual(render("milliseconds-3-div3", 36_000_000), "12.000")
         self.assertEqual(render("seconds-3", 5_610_000_000), "5.610")
+        self.assertEqual(render("seconds-1", 5_660_000_000), "5.7")
+
+    def test_preprocessing_renderer_scales_its_two_samples(self) -> None:
+        cell = MODULE.CellSpec(
+            "table", "row", "column", (), "preprocess-core-seconds-1", ""
+        )
+        # 64 sampled columns in 2 s, 6400 record columns; 1 s per table, 13
+        # reply ciphertexts.
+        self.assertEqual(
+            MODULE.render_cell_value(
+                cell, [2_000_000_000, 6400, 64, 1_000_000_000, 13]
+            ),
+            "213.0",
+        )
 
     def test_size_renderers_scale_bytes(self) -> None:
         def render(name: str, value: float) -> str:
@@ -533,6 +591,8 @@ class ResultOutputTests(unittest.TestCase):
         self.assertEqual(render("kib-1", 1536), "1.5")
         self.assertEqual(render("mib-3", 3 * 1024 * 1024), "3.000")
         self.assertEqual(render("mib-3-div3", 3 * 1024 * 1024), "1.000")
+        self.assertEqual(render("mib-1", 3 * 1024 * 1024 + 512 * 1024), "3.5")
+        self.assertEqual(render("gib-1", 5 * 1024**3 // 2), "2.5")
 
 
 if __name__ == "__main__":

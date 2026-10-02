@@ -143,6 +143,11 @@ pub enum AuthRequest {
         new_leaves: u64,
     },
     GetLen,
+    /// Private opening of one position, answered from the primary columns.
+    #[cfg(feature = "private")]
+    PrivateRead {
+        req: crate::private::PrivateReadRequest,
+    },
 }
 
 /// Core authenticated responses for transport adapters.
@@ -175,6 +180,10 @@ pub enum AuthResponse {
     Len {
         len: u64,
     },
+    #[cfg(feature = "private")]
+    PrivateRead {
+        resp: crate::private::PrivateReadResponse,
+    },
     Error {
         message: String,
     },
@@ -195,6 +204,9 @@ pub struct AuthServer {
     allocated_leaves: usize,
     assigned_indices: Option<Vec<usize>>,
     claims: Option<Vec<ClaimBundle>>,
+    /// Preprocessed state for private openings, built on first use.
+    #[cfg(feature = "private")]
+    pub(crate) private_state: Option<std::sync::Arc<crate::private::PrivateState>>,
 }
 
 impl AuthServer {
@@ -301,6 +313,8 @@ impl AuthServer {
             allocated_leaves: 0,
             assigned_indices,
             claims,
+            #[cfg(feature = "private")]
+            private_state: None,
         };
         server.ensure_allocated(allocated_leaves)?;
         Ok(server)
@@ -675,6 +689,11 @@ impl AuthService for AuthServer {
             }
             AuthRequest::GetLen => AuthResponse::Len {
                 len: self.allocated_leaves as u64,
+            },
+            #[cfg(feature = "private")]
+            AuthRequest::PrivateRead { req } => match self.handle_private_read(&req) {
+                Ok(resp) => AuthResponse::PrivateRead { resp },
+                Err(message) => AuthResponse::Error { message },
             },
         }
     }

@@ -144,6 +144,17 @@ pub fn handle_message<S: AuthService>(service: &mut S, msg: Message) -> Response
         Message::UnauthMultiRead { idxs } => ServiceAuthRequest::UnauthMultiRead { idxs },
         Message::AuthExtend { new_leaves } => ServiceAuthRequest::Extend { new_leaves },
         Message::AuthGetLen => ServiceAuthRequest::GetLen,
+        #[cfg(feature = "private")]
+        Message::AuthReadPrivate { req } => match crate::private::wire::request_from_net(&req) {
+            Ok(req) => ServiceAuthRequest::PrivateRead { req },
+            Err(message) => return Response::Error { message },
+        },
+        #[cfg(not(feature = "private"))]
+        Message::AuthReadPrivate { .. } => {
+            return Response::Error {
+                message: "this server is built without private openings".to_string(),
+            };
+        }
         other => {
             return Response::Error {
                 message: format!("unsupported auth message: {:?}", other),
@@ -178,6 +189,10 @@ pub fn handle_message<S: AuthService>(service: &mut S, msg: Message) -> Response
         },
         ServiceAuthResponse::Extend { ok } => Response::AuthExtend { ok },
         ServiceAuthResponse::Len { len } => Response::AuthLen { len },
+        #[cfg(feature = "private")]
+        ServiceAuthResponse::PrivateRead { resp } => Response::AuthReadPrivate {
+            resp: crate::private::wire::response_to_net(resp),
+        },
         ServiceAuthResponse::Error { message } => Response::Error { message },
     }
 }
@@ -621,6 +636,42 @@ impl AuthTransport for NetAuthTransport {
             Response::AuthRead { resp } => {
                 let owned_indices = self.owned_indices_for_server(server)?;
                 net_read_response_to_service(owned_indices, resp)
+            }
+            Response::Error { message } => Err(ClientError::Net(message)),
+            other => Err(ClientError::InvalidResponse(format!(
+                "invalid response: {:?}",
+                other
+            ))),
+        }
+    }
+
+    #[cfg(feature = "private")]
+    fn auth_read_private(
+        &self,
+        server: &Self::Server,
+        request: &crate::private::PrivateReadRequest,
+    ) -> Result<crate::private::PrivateReadResponse, ClientError> {
+        let req = Message::AuthReadPrivate {
+            req: crate::private::wire::request_to_net(request),
+        };
+        let resp = crate::net::rpc_call(&server.rpc_host, &req)
+            .map_err(|err| ClientError::Net(format!("{:?}", err)))?;
+        match resp {
+            Response::AuthReadPrivate { resp } => {
+                let owned_indices = self.owned_indices_for_server(server)?;
+                let resp = crate::private::wire::response_from_net(resp);
+                // A server answers for the claims the registry assigns it.
+                if resp
+                    .replies
+                    .iter()
+                    .any(|reply| !owned_indices.contains(&reply.registry_index))
+                {
+                    return Err(ClientError::InvalidResponse(
+                        "private reply for a claim outside the server's registry entry"
+                            .to_string(),
+                    ));
+                }
+                Ok(resp)
             }
             Response::Error { message } => Err(ClientError::Net(message)),
             other => Err(ClientError::InvalidResponse(format!(

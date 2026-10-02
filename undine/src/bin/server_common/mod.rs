@@ -200,6 +200,17 @@ fn corrupt_demo_response(mut response: net::Response) -> net::Response {
             }
         }
         net::Response::AuthRead { resp } => corrupt_auth_nodes(&mut resp.nodes),
+        net::Response::AuthReadPrivate { resp } => {
+            // Flip bits of every ciphertext: the client decrypts wrong
+            // entries for every node of the opening.
+            for reply in &mut resp.replies {
+                for ciphertext in &mut reply.ciphertexts {
+                    for byte in ciphertext.0.iter_mut().step_by(7) {
+                        *byte ^= 0x5a;
+                    }
+                }
+            }
+        }
         net::Response::AuthReadSubtree { resp } => {
             corrupt_auth_nodes(&mut resp.leaf_nodes);
             corrupt_auth_nodes(&mut resp.upper_path_nodes);
@@ -395,6 +406,7 @@ pub fn run(response_fault: ResponseFault) {
                         | net::Message::AuthWriteFreshSubtree { .. }
                         | net::Message::AuthExtend { .. }
                         | net::Message::AuthGetLen
+                        | net::Message::AuthReadPrivate { .. }
                         | net::Message::UnauthMultiRead { .. } => {
                             net::auth::handle_message(&mut *server, msg)
                         }

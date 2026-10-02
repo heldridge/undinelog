@@ -34,8 +34,12 @@ def sha256_file(path: pathlib.Path) -> str:
 def crate_file_records(crate: str) -> dict[str, dict[str, object]]:
     root = ROOT / crate
     paths = [root / "Cargo.toml", root / "Cargo.lock"]
-    for base in ("src", "benches", "apps/appendOnlyLog"):
-        paths.extend(path for path in (root / base).rglob("*") if path.is_file())
+    for base in ("src", "benches", "apps/appendOnlyLog", "third_party"):
+        paths.extend(
+            path
+            for path in (root / base).rglob("*")
+            if path.is_file() and "target" not in path.relative_to(root).parts
+        )
     return {
         path.relative_to(ROOT).as_posix(): {
             "bytes": path.stat().st_size,

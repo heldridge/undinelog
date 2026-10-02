@@ -59,6 +59,23 @@ ON_THE_FLY_LEVELS = 3
 ON_THE_FLY_RANGES_MIB = (1, 4)
 PREFIX_BATCHES = 3
 BATCH_VALUES_4MIB = 4 * MIB // FIELD_BYTES
+GIB = 1024 * MIB
+PRIVATE_BENCHMARK = "bench_private_opening_local"
+PRIVATE_PREFIX = "BENCH_PRIVATE_OPENING"
+PRIVATE_KAPPA = 64
+PRIVATE_LOGS_GIB = (1, 4, 16, 64)
+PRIVATE_SWEEP_LOG_GIB = 4
+# A record holds this many column entries at every threshold.
+PRIVATE_RECORD_ENTRIES = 64
+PRIVATE_RECORD_SWEEP = (2,)
+PRIVATE_HINT_SAMPLE_COLUMNS = 64
+PRIVATE_SINGLE_CELLS = 64
+PRIVATE_SINGLE_CELL_SWEEP = (32, 64, 128)
+PRIVATE_SINGLE_MEASURED_GIB = (1, 4)
+PRIVATE_SINGLE_SHAPE_GIB = (16, 64)
+PRIVATE_TABLE_LOGS_GIB = (1, 4)
+PRIVATE_SMOKE_LEAVES = 32768
+PRIVATE_SMOKE_APPEND_LEAVES = 1024
 
 TABLE_LABELS = (
     "tab:append",
@@ -66,6 +83,10 @@ TABLE_LABELS = (
     "tab:range-open",
     "tab:maintenance",
     "tab:on-the-fly-open",
+    "tab:private-maintainer",
+    "tab:private-single",
+    "tab:private-table",
+    "tab:private-client",
 )
 
 TABLE_METADATA: dict[str, dict[str, Any]] = {
@@ -123,6 +144,67 @@ TABLE_METADATA: dict[str, dict[str, Any]] = {
     },
 }
 
+TABLE_METADATA.update(
+    {
+        "tab:private-maintainer": {
+            "title": "Private openings of one position: one claim of a maintainer",
+            "notes": (
+                "One claim answers from its primary columns, held as records "
+                "of 64 column entries (2 KiB) unless the row gives another "
+                "record size. A log of 1 GiB has 2^25 leaves. Database is "
+                "the bytes of the records; state adds the row table and the "
+                "preprocessing; both are MiB. Request and reply are "
+                "serialized KiB. The client's request (key, query, "
+                "serialization), the first pass, the complete answer from "
+                "serialized request to serialized reply, and the client's "
+                "decoding of one reply are milliseconds on one core. "
+                "Preprocessing is core-seconds: the measured hint of 64 "
+                "database columns scaled to all record columns, plus the "
+                "measured packing tables of one reply ciphertext times the "
+                "ciphertext count. The update cells follow a 4 MiB append: "
+                "the hint patch in milliseconds and the packing tables in "
+                "seconds."
+            ),
+        },
+        "tab:private-single": {
+            "title": "Private openings of one position: a single server with the whole tree",
+            "notes": (
+                "The server stores every cell of the tree in records of the "
+                "given size and answers with the code path of a maintainer. "
+                "Database and state are GiB, the request is MiB, and the "
+                "reply is KiB. Client request and decoding are milliseconds; "
+                "first pass and answer are seconds on one core. "
+                "Preprocessing is core-seconds, measured as for a "
+                "maintainer. The rows at 16 and 64 GiB give the database "
+                "dimensions and message sizes of those logs."
+            ),
+        },
+        "tab:private-table": {
+            "title": "Records against the table of complete openings at kappa = 64",
+            "notes": (
+                "The table holds one complete opening per pattern and is "
+                "answered by YPIR's server; the records are the maintainer's "
+                "database of the same claim. Both give the same reply bytes. "
+                "Sizes are MiB; first pass and answer are milliseconds on "
+                "one core."
+            ),
+        },
+        "tab:private-client": {
+            "title": "Client work for one private opening",
+            "notes": (
+                "A 12 MiB log, records of 64 column entries. Request and "
+                "reply are serialized KiB; the reply is one claim's. Request "
+                "is key generation, the query, and serialization in "
+                "milliseconds. Private cells decode the replies and run "
+                "Combine+Verify; public cells run Combine+Verify on the "
+                "public replies of the same claims. The first pair uses "
+                "kappa correct replies; the second uses 3*kappa replies of "
+                "which kappa lie about one node. All are milliseconds."
+            ),
+        },
+    }
+)
+
 OMITTED_EXPERIMENTS = (
     "append batches other than 4 MiB",
     "append generic, codec, preparation-only, and prepared-without-slack paths",
@@ -132,18 +214,37 @@ OMITTED_EXPERIMENTS = (
     "repair component, correction, replay, and rebuild timings",
     "reconfiguration component and all-helper serial timing variants",
     "segment sizes other than kappa^2",
+    "private openings of ranges",
+    "private-opening baselines with one query per tree level, TreePIR, "
+    "replicated full-copy servers, and BorgLog under the same PIR pipeline",
+    "private openings over an emulated wide-area network",
+    "the single server's preprocessing update after an append",
+    "the maintainer service's update that compares every record; the "
+    "measured update reads the records an append changes",
 )
 
 RENDER_UNIT_CONTRACTS: dict[str, tuple[frozenset[str], ...]] = {
     "bytes-integer": (frozenset({"bytes"}),),
+    "gib-1": (frozenset({"bytes"}),),
     "integer": (frozenset({"", "reads", "segments"}),),
     "kib-1": (frozenset({"bytes"}),),
+    "mib-1": (frozenset({"bytes"}),),
     "mib-3": (frozenset({"bytes"}),),
     "mib-3-div3": (frozenset({"bytes"}),),
     "microseconds-1": (frozenset({"ns"}),),
     "milliseconds-1": (frozenset({"ns"}),),
     "milliseconds-3": (frozenset({"ns"}),),
     "milliseconds-3-div3": (frozenset({"ns"}),),
+    # A hint sample scaled to all record columns, plus the packing tables of
+    # one reply ciphertext times the ciphertext count.
+    "preprocess-core-seconds-1": (
+        frozenset({"ns"}),
+        frozenset({"columns"}),
+        frozenset({"columns"}),
+        frozenset({"ns"}),
+        frozenset({"ciphertexts"}),
+    ),
+    "seconds-1": (frozenset({"ns"}),),
     "seconds-3": (frozenset({"ns"}),),
     "text": (frozenset({""}),),
 }
@@ -449,7 +550,7 @@ def validate_measurement_value(
     measurement: MeasurementSpec,
     value: Any,
 ) -> None:
-    numeric_units = {"ns", "bytes", "reads", "segments"}
+    numeric_units = {"ns", "bytes", "reads", "segments", "columns", "ciphertexts"}
     is_numeric = not isinstance(value, bool) and isinstance(value, (int, float))
     if is_numeric:
         numeric = float(value)
@@ -586,6 +687,10 @@ def build_manifest() -> Manifest:
     _build_range_table(manifest)
     _build_maintenance_table(manifest)
     _build_on_the_fly_table(manifest)
+    _build_private_maintainer_table(manifest)
+    _build_private_single_table(manifest)
+    _build_private_table_table(manifest)
+    _build_private_client_table(manifest)
     validate_manifest(manifest)
     return manifest
 
@@ -1276,6 +1381,437 @@ def _build_on_the_fly_table(manifest: Manifest) -> None:
             manifest.add_row(table, row, cells)
 
 
+def leaves_of_gib(gib: int) -> int:
+    return gib * GIB // FIELD_BYTES
+
+
+def _private_job(
+    manifest: Manifest,
+    *,
+    identifier: str,
+    role: str,
+    env: Mapping[str, Any],
+    setup: str,
+    setup_seconds: float,
+    repetition_seconds: float,
+) -> JobSpec:
+    existing = manifest.jobs.get(identifier)
+    if existing is not None:
+        return existing
+    return add_job(
+        manifest,
+        identifier=identifier,
+        layout="undine",
+        family=f"undine-private-{role}",
+        benchmark=PRIVATE_BENCHMARK,
+        features=("bench",),
+        env=job_env(
+            **{
+                f"{PRIVATE_PREFIX}_ROLE": role,
+                f"{PRIVATE_PREFIX}_TREE_HEIGHT": TREE_HEIGHT,
+                f"{PRIVATE_PREFIX}_HINT_SAMPLE_COLUMNS": PRIVATE_HINT_SAMPLE_COLUMNS,
+                **{f"{PRIVATE_PREFIX}_{key}": value for key, value in env.items()},
+            }
+        ),
+        result_relpath=f"results/{PRIVATE_BENCHMARK}.json",
+        trial_env=f"{PRIVATE_PREFIX}_TRIALS",
+        setup=setup,
+        setup_seconds=setup_seconds,
+        repetition_seconds=repetition_seconds,
+    )
+
+
+PRIVATE_SIZE_FIELDS = {
+    "record_bytes": "Bytes of one record.",
+    "database_bytes": "Bytes of the records the server answers from.",
+    "request_bytes": "Serialized bytes of the client's request.",
+    "reply_bytes": "Serialized bytes of the reply of one claim.",
+}
+PRIVATE_SERVER_TIMINGS = {
+    "client_request_ns": "Key generation, the query, and the serialized request.",
+    "server_first_pass_ns": "The query's inner product with every database column.",
+    "server_answer_ns": "From the serialized request to the serialized reply.",
+    "client_decode_ns": "From the serialized reply to the entries of the opening.",
+    "hint_sample_ns": "The hint of a sample of database columns.",
+    "packing_table_ns": "The response-packing tables of one reply ciphertext.",
+}
+
+
+def _private_outputs(
+    manifest: Manifest,
+    job: JobSpec,
+    match: tuple[tuple[str, Any], ...],
+    *,
+    tag: str = "",
+    sizes: Mapping[str, str] = PRIVATE_SIZE_FIELDS,
+    timings: Mapping[str, str] = {},
+    counts: Mapping[str, tuple[str, str]] = {},
+) -> dict[str, str]:
+    outputs: dict[str, str] = {}
+    for name, description in sizes.items():
+        outputs[name] = ensure_output(
+            manifest, job, f"{tag}{name}", entry_selector=match, path=name,
+            kind="value", unit="bytes", description=description,
+        )
+    for name, (unit, description) in counts.items():
+        outputs[name] = ensure_output(
+            manifest, job, f"{tag}{name}", entry_selector=match, path=name,
+            kind="value", unit=unit, description=description,
+        )
+    for name, description in timings.items():
+        outputs[name] = ensure_output(
+            manifest, job, f"{tag}{name}", entry_selector=match, path=name,
+            kind="timing", unit="ns", description=description,
+        )
+    return outputs
+
+
+def _private_server_outputs(
+    manifest: Manifest, job: JobSpec, role: str, *, updates: bool
+) -> dict[str, str]:
+    timings = dict(PRIVATE_SERVER_TIMINGS)
+    if updates:
+        timings |= {
+            "update_hint_ns": "The changed records and the patched hint after an append.",
+            "update_packing_ns": "The packing tables of the patched hint.",
+        }
+    return _private_outputs(
+        manifest,
+        job,
+        selector(role=role),
+        sizes=PRIVATE_SIZE_FIELDS
+        | {"serving_state_bytes": "Bytes of the records, the row table, and the preprocessing."},
+        timings=timings,
+        counts={
+            "record_columns": ("columns", "Database columns that hold records."),
+            "hint_sample_columns": ("columns", "Database columns of the hint sample."),
+            "outputs": ("ciphertexts", "Ciphertexts of one reply."),
+        },
+    )
+
+
+def _private_preprocess_cell(
+    table: str, row: str, outputs: Mapping[str, str]
+) -> CellSpec:
+    return cell(
+        table,
+        row,
+        "preprocess-core-s",
+        (
+            outputs["hint_sample_ns"],
+            outputs["record_columns"],
+            outputs["hint_sample_columns"],
+            outputs["packing_table_ns"],
+            outputs["outputs"],
+        ),
+        "preprocess-core-seconds-1",
+        "Hint of all record columns and packing tables of all reply ciphertexts.",
+    )
+
+
+def _private_maintainer(
+    manifest: Manifest, kappa: int, gib: int, segments_per_record: int
+) -> tuple[JobSpec, dict[str, str]]:
+    leaves = leaves_of_gib(gib)
+    database_gib = 2 * gib / kappa
+    ciphertexts = 13 * segments_per_record * kappa // PRIVATE_RECORD_ENTRIES
+    job = _private_job(
+        manifest,
+        identifier=f"private-maintainer-undine-log{gib}gib-r{segments_per_record}-k{kappa}",
+        role="maintainer",
+        env={
+            "KAPPA": kappa,
+            "LEAVES": leaves,
+            "SEGMENTS_PER_RECORD": segments_per_record,
+            "APPEND_LEAVES": BATCH_VALUES_4MIB,
+        },
+        setup=(
+            "Build one claim's primary columns for the seeded log on all "
+            "cores and preprocess them."
+        ),
+        setup_seconds=30.0 + 8.0 * gib + 100.0 * database_gib,
+        repetition_seconds=6.0 + 1.2 * ciphertexts + 4.0 * database_gib,
+    )
+    return job, _private_server_outputs(manifest, job, "maintainer", updates=True)
+
+
+def _private_server_cells(
+    table: str,
+    row: str,
+    outputs: Mapping[str, str],
+    *,
+    size_render: str,
+    request_render: str,
+    answer_render: str,
+) -> list[CellSpec]:
+    return [
+        cell(table, row, "record-kib", outputs["record_bytes"], "kib-1",
+             "KiB of one record."),
+        cell(table, row, "database", outputs["database_bytes"], size_render,
+             "Records the server answers from."),
+        cell(table, row, "state", outputs["serving_state_bytes"], size_render,
+             "Records, row table, and preprocessing."),
+        cell(table, row, "request", outputs["request_bytes"], request_render,
+             "Serialized request."),
+        cell(table, row, "reply-kib", outputs["reply_bytes"], "kib-1",
+             "Serialized reply of one claim."),
+        cell(table, row, "client-request-ms", outputs["client_request_ns"],
+             "milliseconds-1", "Key generation, the query, and serialization."),
+        cell(table, row, "first-pass", outputs["server_first_pass_ns"], answer_render,
+             "The query's inner product with every database column."),
+        cell(table, row, "answer", outputs["server_answer_ns"], answer_render,
+             "From the serialized request to the serialized reply."),
+        cell(table, row, "client-decode-ms", outputs["client_decode_ns"],
+             "milliseconds-1", "Decoding the reply of one claim."),
+        _private_preprocess_cell(table, row, outputs),
+    ]
+
+
+def _build_private_maintainer_table(manifest: Manifest) -> None:
+    table = "tab:private-maintainer"
+    manifest.table_columns[table] = [
+        "kappa", "log-gib", "record-kib", "database", "state", "request",
+        "reply-kib", "client-request-ms", "first-pass", "answer",
+        "client-decode-ms", "preprocess-core-s", "update-hint-ms",
+        "update-packing-s",
+    ]
+    points = [("log", PRIVATE_KAPPA, gib, 1) for gib in PRIVATE_LOGS_GIB]
+    points += [
+        ("kappa", kappa, PRIVATE_SWEEP_LOG_GIB, PRIVATE_RECORD_ENTRIES // kappa)
+        for kappa in KAPPAS
+        if kappa != PRIVATE_KAPPA
+    ]
+    points += [
+        ("record", PRIVATE_KAPPA, PRIVATE_SWEEP_LOG_GIB, segments_per_record)
+        for segments_per_record in PRIVATE_RECORD_SWEEP
+    ]
+    for panel, kappa, gib, segments_per_record in points:
+        _, outputs = _private_maintainer(manifest, kappa, gib, segments_per_record)
+        row = f"{panel}:k{kappa}-log{gib}gib-r{segments_per_record}"
+        cells = [
+            cell(table, row, "kappa", ensure_formula(manifest, "integer", kappa),
+                 "integer", "Threshold."),
+            cell(table, row, "log-gib", ensure_formula(manifest, "integer", gib),
+                 "integer", "GiB of the log."),
+            *_private_server_cells(
+                table, row, outputs,
+                size_render="mib-1", request_render="kib-1",
+                answer_render="milliseconds-1",
+            ),
+            cell(table, row, "update-hint-ms", outputs["update_hint_ns"],
+                 "milliseconds-1", "The hint patch after a 4 MiB append."),
+            cell(table, row, "update-packing-s", outputs["update_packing_ns"],
+                 "seconds-1", "The packing tables after a 4 MiB append."),
+        ]
+        manifest.add_row(table, row, cells)
+
+
+def _private_single(
+    manifest: Manifest, gib: int, cells_per_record: int
+) -> tuple[JobSpec, dict[str, str]]:
+    env: dict[str, Any] = {
+        "LEAVES": leaves_of_gib(gib),
+        "CELLS_PER_RECORD": cells_per_record,
+    }
+    if gib == PRIVATE_SINGLE_MEASURED_GIB[0] and cells_per_record == PRIVATE_SINGLE_CELLS:
+        env["SHAPE_LEAVES_LIST"] = ",".join(
+            str(leaves_of_gib(shape)) for shape in PRIVATE_SINGLE_SHAPE_GIB
+        )
+    job = _private_job(
+        manifest,
+        identifier=f"private-single-undine-log{gib}gib-c{cells_per_record}",
+        role="single",
+        env=env,
+        setup="Build the cells of the whole tree on all cores and preprocess them.",
+        setup_seconds=250.0 * gib,
+        repetition_seconds=10.0 * gib,
+    )
+    return job, _private_server_outputs(manifest, job, "single", updates=False)
+
+
+def _build_private_single_table(manifest: Manifest) -> None:
+    table = "tab:private-single"
+    manifest.table_columns[table] = [
+        "log-gib", "record-kib", "database", "state", "request", "reply-kib",
+        "client-request-ms", "first-pass", "answer", "client-decode-ms",
+        "preprocess-core-s",
+    ]
+    dash = _dash(manifest)
+    points = [
+        (PRIVATE_SINGLE_MEASURED_GIB[0], cells) for cells in PRIVATE_SINGLE_CELL_SWEEP
+    ] + [(gib, PRIVATE_SINGLE_CELLS) for gib in PRIVATE_SINGLE_MEASURED_GIB[1:]]
+    for gib, cells_per_record in points:
+        _, outputs = _private_single(manifest, gib, cells_per_record)
+        row = f"measured:log{gib}gib-c{cells_per_record}"
+        manifest.add_row(
+            table,
+            row,
+            [
+                cell(table, row, "log-gib", ensure_formula(manifest, "integer", gib),
+                     "integer", "GiB of the log."),
+                *_private_server_cells(
+                    table, row, outputs,
+                    size_render="gib-1", request_render="mib-1",
+                    answer_render="seconds-3",
+                ),
+            ],
+        )
+    shape_job, _ = _private_single(
+        manifest, PRIVATE_SINGLE_MEASURED_GIB[0], PRIVATE_SINGLE_CELLS
+    )
+    for gib in PRIVATE_SINGLE_SHAPE_GIB:
+        outputs = _private_outputs(
+            manifest,
+            shape_job,
+            selector(role="single-shape", leaves=leaves_of_gib(gib)),
+            tag=f"shape-log{gib}gib-",
+        )
+        row = f"shape:log{gib}gib-c{PRIVATE_SINGLE_CELLS}"
+        cells = [
+            cell(table, row, "log-gib", ensure_formula(manifest, "integer", gib),
+                 "integer", "GiB of the log."),
+            cell(table, row, "record-kib", outputs["record_bytes"], "kib-1",
+                 "KiB of one record."),
+            cell(table, row, "database", outputs["database_bytes"], "gib-1",
+                 "Records the server answers from."),
+            cell(table, row, "request", outputs["request_bytes"], "mib-1",
+                 "Serialized request."),
+            cell(table, row, "reply-kib", outputs["reply_bytes"], "kib-1",
+                 "Serialized reply."),
+        ]
+        cells += [
+            cell(table, row, column, dash, "text", "Measured at 1 and 4 GiB.")
+            for column in (
+                "state", "client-request-ms", "first-pass", "answer",
+                "client-decode-ms", "preprocess-core-s",
+            )
+        ]
+        manifest.add_row(table, row, cells)
+
+
+def _build_private_table_table(manifest: Manifest) -> None:
+    table = "tab:private-table"
+    manifest.table_columns[table] = [
+        "log-gib", "records-mib", "table-mib", "records-first-pass-ms",
+        "table-first-pass-ms", "records-answer-ms", "table-answer-ms",
+    ]
+    for gib in PRIVATE_TABLE_LOGS_GIB:
+        _, records = _private_maintainer(manifest, PRIVATE_KAPPA, gib, 1)
+        job = _private_job(
+            manifest,
+            identifier=f"private-table-undine-log{gib}gib-k{PRIVATE_KAPPA}",
+            role="table",
+            env={
+                "KAPPA": PRIVATE_KAPPA,
+                "LEAVES": leaves_of_gib(gib),
+                "SEGMENTS_PER_RECORD": 1,
+            },
+            setup="Build the table of complete openings of one claim and preprocess it.",
+            setup_seconds=60.0 * gib,
+            repetition_seconds=1.0 * gib,
+        )
+        outputs = _private_outputs(
+            manifest,
+            job,
+            selector(role="table"),
+            sizes={"table_bytes": "Bytes of the table of complete openings."},
+            timings={
+                "server_first_pass_ns": "First pass over the table.",
+                "server_answer_ns": "From the serialized request to the serialized reply.",
+            },
+        )
+        row = f"log{gib}gib"
+        manifest.add_row(
+            table,
+            row,
+            [
+                cell(table, row, "log-gib", ensure_formula(manifest, "integer", gib),
+                     "integer", "GiB of the log."),
+                cell(table, row, "records-mib", records["database_bytes"], "mib-1",
+                     "The maintainer's records."),
+                cell(table, row, "table-mib", outputs["table_bytes"], "mib-1",
+                     "The table of complete openings."),
+                cell(table, row, "records-first-pass-ms", records["server_first_pass_ns"],
+                     "milliseconds-1", "First pass over the records."),
+                cell(table, row, "table-first-pass-ms", outputs["server_first_pass_ns"],
+                     "milliseconds-1", "First pass over the table."),
+                cell(table, row, "records-answer-ms", records["server_answer_ns"],
+                     "milliseconds-1", "Answer from the records."),
+                cell(table, row, "table-answer-ms", outputs["server_answer_ns"],
+                     "milliseconds-1", "Answer from the table."),
+            ],
+        )
+
+
+def _build_private_client_table(manifest: Manifest) -> None:
+    table = "tab:private-client"
+    manifest.table_columns[table] = [
+        "kappa", "request-kib", "reply-kib", "client-request-ms",
+        "private-kappa-ms", "public-kappa-ms", "private-3kappa-ms",
+        "public-3kappa-ms",
+    ]
+    for kappa in KAPPAS:
+        job = _private_job(
+            manifest,
+            identifier=f"private-client-undine-k{kappa}",
+            role="client",
+            env={
+                "KAPPA": kappa,
+                "LEAVES": PREFIX_BATCHES * BATCH_VALUES_4MIB,
+                "SEGMENTS_PER_RECORD": PRIVATE_RECORD_ENTRIES // kappa,
+            },
+            setup=(
+                "Each of 3*kappa claims preprocesses its primary columns and "
+                "answers one request."
+            ),
+            setup_seconds=8.0 * kappa,
+            repetition_seconds=max(0.1, (kappa / 8) ** 3 * 0.004),
+        )
+        outputs = _private_outputs(
+            manifest,
+            job,
+            selector(role="client"),
+            sizes={
+                "request_bytes": PRIVATE_SIZE_FIELDS["request_bytes"],
+                "reply_bytes": PRIVATE_SIZE_FIELDS["reply_bytes"],
+            },
+            timings={
+                "client_request_ns": PRIVATE_SERVER_TIMINGS["client_request_ns"],
+                "client_private_zero_bad_ns": "Decoding kappa replies, then Combine+Verify.",
+                "client_private_kappa_bad_ns": (
+                    "Decoding 3*kappa replies with kappa lying, then Combine+Verify."
+                ),
+                "client_public_zero_bad_ns": "Combine+Verify from kappa public replies.",
+                "client_public_kappa_bad_ns": (
+                    "Combine+Verify from 3*kappa public replies with kappa lying."
+                ),
+            },
+        )
+        row = f"k{kappa}"
+        manifest.add_row(
+            table,
+            row,
+            [
+                cell(table, row, "kappa", ensure_formula(manifest, "integer", kappa),
+                     "integer", "Threshold."),
+                cell(table, row, "request-kib", outputs["request_bytes"], "kib-1",
+                     "Serialized request."),
+                cell(table, row, "reply-kib", outputs["reply_bytes"], "kib-1",
+                     "Serialized reply of one claim."),
+                cell(table, row, "client-request-ms", outputs["client_request_ns"],
+                     "milliseconds-1", "Key generation, the query, and serialization."),
+                cell(table, row, "private-kappa-ms", outputs["client_private_zero_bad_ns"],
+                     "milliseconds-3", "Private opening from kappa replies."),
+                cell(table, row, "public-kappa-ms", outputs["client_public_zero_bad_ns"],
+                     "milliseconds-3", "Public opening from kappa replies."),
+                cell(table, row, "private-3kappa-ms", outputs["client_private_kappa_bad_ns"],
+                     "milliseconds-3", "Private opening from 3*kappa replies, kappa lying."),
+                cell(table, row, "public-3kappa-ms", outputs["client_public_kappa_bad_ns"],
+                     "milliseconds-3", "Public opening from 3*kappa replies, kappa lying."),
+            ],
+        )
+
+
 def evaluate_formula(spec: MeasurementSpec) -> Any:
     name = spec.formula
     args = spec.formula_args
@@ -1584,10 +2120,19 @@ def source_files() -> list[pathlib.Path]:
     for crate in CRATE_ROOTS.values():
         direct.extend([crate / "Cargo.toml", crate / "Cargo.lock"])
         direct.extend(crate.glob("rust-toolchain*"))
-        for base in (crate / "src", crate / "benches", crate / "apps" / "appendOnlyLog"):
+        for base in (
+            crate / "src",
+            crate / "benches",
+            crate / "apps" / "appendOnlyLog",
+            crate / "third_party",
+        ):
             if not base.exists():
                 continue
-            direct.extend(path for path in base.rglob("*") if path.is_file())
+            direct.extend(
+                path
+                for path in base.rglob("*")
+                if path.is_file() and "target" not in path.relative_to(base).parts
+            )
     return sorted(set(path.resolve() for path in direct if path.exists()))
 
 
@@ -1885,6 +2430,27 @@ def select_run_jobs(manifest: Manifest, mode: str) -> list[RunJob]:
         )
     else:
         add(f"on-the-fly-undine-k{RANGE_KAPPA}")
+    first_gib = PRIVATE_LOGS_GIB[0]
+    if mode == "smoke":
+        small = {f"{PRIVATE_PREFIX}_LEAVES": PRIVATE_SMOKE_LEAVES}
+        smallest = KAPPAS[0]
+        add(
+            f"private-maintainer-undine-log{PRIVATE_SWEEP_LOG_GIB}gib"
+            f"-r{PRIVATE_RECORD_ENTRIES // smallest}-k{smallest}",
+            overrides=small
+            | {f"{PRIVATE_PREFIX}_APPEND_LEAVES": PRIVATE_SMOKE_APPEND_LEAVES},
+        )
+        add(
+            f"private-single-undine-log{first_gib}gib-c{PRIVATE_SINGLE_CELLS}",
+            overrides=small,
+        )
+        add(f"private-table-undine-log{first_gib}gib-k{PRIVATE_KAPPA}", overrides=small)
+        add(f"private-client-undine-k{smallest}", overrides=small)
+    else:
+        add(f"private-maintainer-undine-log{first_gib}gib-r1-k{PRIVATE_KAPPA}")
+        add(f"private-single-undine-log{first_gib}gib-c{PRIVATE_SINGLE_CELLS}")
+        add(f"private-table-undine-log{first_gib}gib-k{PRIVATE_KAPPA}")
+        add(f"private-client-undine-k{PRIVATE_KAPPA}")
     return selected
 
 
@@ -2313,6 +2879,29 @@ def validate_output_contract(
             "max_levels"
         ) != int(env[f"{prefix}_MAX_LEVELS"]):
             raise PipelineError(f"{run_job.spec.id}: on-the-fly parameter echo mismatch")
+    elif benchmark == PRIVATE_BENCHMARK:
+        role = env[f"{PRIVATE_PREFIX}_ROLE"]
+        echoes: dict[str, Any] = {
+            "role": role,
+            "leaves": int(env[f"{PRIVATE_PREFIX}_LEAVES"]),
+            "tree_height": int(env[f"{PRIVATE_PREFIX}_TREE_HEIGHT"]),
+            "hint_sample_columns": int(env[f"{PRIVATE_PREFIX}_HINT_SAMPLE_COLUMNS"]),
+        }
+        if role == "single":
+            echoes["cells_per_record"] = int(env[f"{PRIVATE_PREFIX}_CELLS_PER_RECORD"])
+        else:
+            echoes["kappa"] = int(env[f"{PRIVATE_PREFIX}_KAPPA"])
+            echoes["segments_per_record"] = int(
+                env[f"{PRIVATE_PREFIX}_SEGMENTS_PER_RECORD"]
+            )
+        if role == "maintainer":
+            echoes["append_leaves"] = int(env[f"{PRIVATE_PREFIX}_APPEND_LEAVES"])
+        for key, expected_value in echoes.items():
+            if meta.get(key) != expected_value:
+                raise PipelineError(
+                    f"{run_job.spec.id}: private-opening parameter echo mismatch "
+                    f"for {key}: {meta.get(key)!r} != {expected_value!r}"
+                )
 
     for measurement in run_job.measurements:
         find_entry(document, measurement)
@@ -2414,6 +3003,40 @@ def validate_output_contract(
                 raise PipelineError(
                     f"{run_job.spec.id}: serialized range response is smaller "
                     "than its field-element payload"
+                )
+    elif benchmark == PRIVATE_BENCHMARK:
+        for entry in entries:
+            leaves = int(entry["leaves"])
+            if int(entry["log_bytes"]) != leaves * FIELD_BYTES:
+                raise PipelineError(f"{run_job.spec.id}: log bytes fail 32 per leaf")
+            if entry["role"] in {"single", "single-shape"}:
+                cells_per_record = int(entry["cells_per_record"])
+            else:
+                kappa = int(entry["kappa"])
+                cells_per_record = int(entry["segments_per_record"]) * kappa * kappa
+                if int(entry["record_bytes"]) != cells_per_record // kappa * FIELD_BYTES:
+                    raise PipelineError(
+                        f"{run_job.spec.id}: record bytes fail kappa entries per segment"
+                    )
+            expected_records = ceil_div(
+                cursor_preorder(TREE_HEIGHT, leaves), cells_per_record
+            )
+            if int(entry["records"]) != expected_records:
+                raise PipelineError(
+                    f"{run_job.spec.id}: record count fails the preorder formula"
+                )
+            if int(entry["database_bytes"]) != expected_records * int(entry["record_bytes"]):
+                raise PipelineError(
+                    f"{run_job.spec.id}: database bytes fail records times record bytes"
+                )
+            if not (
+                int(entry["patterns"]) <= int(entry["db_rows"])
+                and int(entry["record_columns"]) <= int(entry["db_cols"])
+                and int(entry["outputs"]) * 2048 == int(entry["db_cols"])
+                and int(entry["request_bytes"]) > 7 * int(entry["db_rows"])
+            ):
+                raise PipelineError(
+                    f"{run_job.spec.id}: database dimensions are inconsistent"
                 )
     elif benchmark == "bench_append_only_log_on_the_fly_open_local":
         for entry in entries:
@@ -2925,6 +3548,10 @@ def render_cell_value(cell_spec: CellSpec, values: Sequence[Any]) -> str:
         return str(int(round(values[0])))
     if render == "kib-1":
         return f"{float(values[0]) / KIB:.1f}"
+    if render == "mib-1":
+        return f"{float(values[0]) / MIB:.1f}"
+    if render == "gib-1":
+        return f"{float(values[0]) / GIB:.1f}"
     if render == "mib-3":
         return f"{float(values[0]) / MIB:.3f}"
     if render == "mib-3-div3":
@@ -2939,6 +3566,14 @@ def render_cell_value(cell_spec: CellSpec, values: Sequence[Any]) -> str:
         return f"{float(values[0]) / 3.0 / 1.0e6:.3f}"
     if render == "seconds-3":
         return f"{float(values[0]) / 1.0e9:.3f}"
+    if render == "seconds-1":
+        return f"{float(values[0]) / 1.0e9:.1f}"
+    if render == "preprocess-core-seconds-1":
+        hint_sample, record_columns, sample_columns, packing_table, outputs = (
+            float(value) for value in values
+        )
+        total = hint_sample * record_columns / sample_columns + packing_table * outputs
+        return f"{total / 1.0e9:.1f}"
     raise PipelineError(f"{cell_spec.id}: unknown renderer {render}")
 
 
@@ -3587,6 +4222,8 @@ def full_preflight_risks() -> list[str]:
         f"{DEFAULT_MIN_REPETITIONS} independent repetitions.",
         "The 64-batch append sequences and the large corrupted range openings "
         "are the dominant CPU costs.",
+        "The private-opening jobs build and preprocess their databases on all "
+        "cores; the single server at a 4 GiB log holds about 18 GiB of memory.",
         "Thermal throttling or competing host load can widen confidence intervals "
         f"and push individual jobs toward {DEFAULT_MAX_REPETITIONS} repetitions.",
         f"A timing series that misses the precision target at "

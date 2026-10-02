@@ -472,6 +472,18 @@ pub trait AuthTransport: Clone {
         ))
     }
     fn auth_extend(&self, server: &Self::Server, new_len: u64) -> Result<bool, ClientError>;
+
+    /// Send a private opening request to one server.
+    #[cfg(feature = "private")]
+    fn auth_read_private(
+        &self,
+        _server: &Self::Server,
+        _request: &crate::private::PrivateReadRequest,
+    ) -> Result<crate::private::PrivateReadResponse, ClientError> {
+        Err(ClientError::Net(
+            "this transport does not carry private openings".to_string(),
+        ))
+    }
 }
 
 /// Authenticated client that orchestrates reads/writes over a transport.
@@ -2197,6 +2209,75 @@ where
         }
         self.trusted_root = Some(root);
         Ok((value, path))
+    }
+
+    /// Open leaf `index` privately and return its value and path.
+    ///
+    /// The client sends one PIR query, the same to every server, over records
+    /// of `segments_per_record` segments. It decodes each reply into the
+    /// shares of a public opening and then combines and verifies them as a
+    /// public opening does, correcting up to `max_errors` bad replies when
+    /// given.
+    #[cfg(feature = "private")]
+    pub fn read_private_with_path(
+        &mut self,
+        index: u64,
+        segments_per_record: usize,
+        max_errors: Option<usize>,
+    ) -> Result<(Value256, AuthPath), ClientError> {
+        self.refresh_allocated_leaves()?;
+        if index >= self.allocated_leaves as u64 {
+            return Err(ClientError::InvalidIndex);
+        }
+        let opening = crate::private::PrivateOpening::new(
+            &self.params,
+            &self.auth,
+            self.node_linearization,
+            self.allocated_leaves as u64,
+            segments_per_record,
+            index,
+        )
+        .map_err(|err| ClientError::InvalidResponse(err.to_string()))?;
+        let request = std::sync::Arc::new(opening.request());
+        let share_target = match max_errors {
+            Some(max_errors) => error_correcting_share_target(self.params.need, max_errors),
+            None => self.params.need,
+        };
+
+        let transport = self.transport.clone();
+        let fetches = spawn_parallel_fetches(&self.servers, move |server| {
+            transport.auth_read_private(&server, &request)
+        });
+        let mut responses = Vec::new();
+        let mut shares = 0usize;
+        for _ in 0..self.servers.len() {
+            let Ok((_, resp)) = fetches.recv() else {
+                break;
+            };
+            let Ok(resp) = resp else {
+                continue;
+            };
+            let decoded = opening.decode(&resp);
+            // Every claim that decodes contributes one share to the leaf.
+            shares += decoded.nodes.first().map_or(0, |leaf| leaf.shares.len());
+            responses.push(decoded);
+            if shares >= share_target {
+                fetches.cancel();
+                break;
+            }
+        }
+        self.read_with_path_from_responses_internal(index, &responses, max_errors)
+    }
+
+    /// Open leaf `index` privately and return its value.
+    #[cfg(feature = "private")]
+    pub fn read_private(
+        &mut self,
+        index: u64,
+        segments_per_record: usize,
+    ) -> Result<Value256, ClientError> {
+        let (value, _) = self.read_private_with_path(index, segments_per_record, None)?;
+        Ok(value)
     }
 
     /// Read a leaf value and verify it against the trusted root.

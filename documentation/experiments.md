@@ -106,6 +106,56 @@ the log at the opened threshold. Before timing, the two serialized answers
 are checked to be equal. The time of those doublings on the whole state is
 measured as well. The trials of all series of a job are interleaved.
 
+### Private Openings (`tab:private-maintainer`, `tab:private-single`, `tab:private-table`, `tab:private-client`)
+
+Benchmark: `bench_private_opening_local` (UndineLog only)
+
+A private opening of one position is a PIR query over the records a server
+holds. One process measures one configuration.
+
+**One claim of a maintainer** (`tab:private-maintainer`). The claim's primary
+columns are built for a seeded log of 1, 4, 16, and 64 GiB at threshold 64,
+and for a 4 GiB log at thresholds 8, 16, and 32. A record holds 64 column
+entries (2 KiB) at every threshold; one more job uses records of 128 entries
+at threshold 64. Each repetition opens one position: the client's request
+(key generation, query, serialization), the maintainer's first pass, the
+complete answer from the serialized request to the serialized reply, and the
+client's decoding of the reply. Each repetition also computes the hint of 64
+database columns spread over the row and the response-packing tables of one
+reply ciphertext; the preprocessing cell scales the two to the whole database
+by the column and ciphertext counts the benchmark reports. Then each
+repetition appends 4 MiB to the log and updates the preprocessing from the
+changed records, timing the hint patch and the packing tables.
+
+**A single server** (`tab:private-single`). The server stores every cell of
+the tree in records of 64 cells (2 KiB) and runs the same request, answer,
+decoding, and preprocessing measurements at 1 and 4 GiB, and with records of
+32 and 128 cells at 1 GiB. The job at 1 GiB also reports the database
+dimensions and message sizes of the 16 and 64 GiB logs.
+
+**The table of complete openings** (`tab:private-table`). YPIR's server
+answers over a table with one complete opening per pattern, for the claim of
+the maintainer jobs at 1 and 4 GiB. Its reply is checked to equal the
+record-based reply byte for byte.
+
+**The client** (`tab:private-client`). On a 12 MiB log, each of `3 kappa`
+claims preprocesses its own primary columns and answers one request; `kappa`
+of them lie about one node of the path. The client's request, its decoding
+plus Combine+Verify from `kappa` correct replies and from all `3 kappa`
+replies, and Combine+Verify from the public replies of the same claims are
+timed in one process.
+
+The benchmark checks, inside every run, that each decoded opening equals the
+stored entries, that the serialized sizes equal the reported ones, that the
+hint sample equals the stored hint, that after the appends the records, the
+patched hint, and openings across the log equal those of the longer log, that
+the single server's decoded cells hash to the root, and that a decoded
+private reply equals the public reply of its claim.
+
+The database is built and preprocessed on all cores before the timed
+repetitions, which run on the pinned CPU. The result document records both
+CPU sets.
+
 ## Execution and Sampling
 
 Each benchmark binary writes a structured JSON document. The runner builds

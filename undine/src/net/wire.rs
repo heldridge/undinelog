@@ -186,6 +186,44 @@ fn unpack_value_blob_bytes(bytes: &[u8]) -> Result<Vec<Value256>, String> {
     Ok(values)
 }
 
+/// Compact transport wrapper for raw bytes.
+///
+/// Human-readable serializers use base64; binary serializers emit the bytes
+/// directly.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NetByteBlob(pub Vec<u8>);
+
+impl Serialize for NetByteBlob {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if serializer.is_human_readable() {
+            let encoded = base64::engine::general_purpose::STANDARD.encode(&self.0);
+            serializer.serialize_str(&encoded)
+        } else {
+            serializer.serialize_bytes(&self.0)
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for NetByteBlob {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let bytes = if deserializer.is_human_readable() {
+            let s = String::deserialize(deserializer)?;
+            base64::engine::general_purpose::STANDARD
+                .decode(s.as_bytes())
+                .map_err(serde::de::Error::custom)?
+        } else {
+            Vec::<u8>::deserialize(deserializer)?
+        };
+        Ok(NetByteBlob(bytes))
+    }
+}
+
 /// Compact transport wrapper for a vector of field elements.
 ///
 /// Human-readable serializers use base64 so large blobs stay compact in JSON;
@@ -583,6 +621,32 @@ pub struct AuthSubtreeReadRequest {
 pub struct AuthSubtreeUpperPathReadRequest {
     pub start_index: u64,
     pub leaf_count: u64,
+}
+
+/// Private opening request: one PIR query over the primary columns, the
+/// same for every position of a log of `leaves` filled leaves.
+///
+/// `query` and `pack_keys` hold 56-bit words, seven bytes each.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AuthPrivateReadRequest {
+    pub leaves: u64,
+    pub kappa: u64,
+    pub segments_per_record: u64,
+    pub query: NetByteBlob,
+    pub pack_keys: NetByteBlob,
+}
+
+/// The PIR response of one claim to a private opening.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AuthPrivateReadReply {
+    pub registry_index: u32,
+    pub ciphertexts: Vec<NetByteBlob>,
+}
+
+/// Private opening response: one reply per claim the server holds.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AuthPrivateReadResponse {
+    pub replies: Vec<AuthPrivateReadReply>,
 }
 
 /// Authenticated read response with shard replies for each node.

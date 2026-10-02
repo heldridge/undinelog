@@ -326,21 +326,22 @@
       "adaptations": [
         "Cargo.toml retains only the append-only-log application and the measured benchmark targets.",
         "Cargo.lock prunes only packages made unreachable by the excluded targets.",
-        "tests/bench_compile.rs references only retained benchmark sources."
+        "tests/bench_compile.rs references only retained benchmark sources.",
+        "third_party/ holds the PIR backend sources of the same commit: YPIR and spiral-rs with the patches recorded in third_party/patches/."
       ],
-      "commit": "f3ae5dc341eef9274dad680b875693993010d85b",
+      "commit": "0705bfb5f3ada5c2524d86d83876689e606d8bdf",
       "files": {
         "undine/Cargo.lock": {
-          "bytes": 15261,
-          "sha256": "d48d241fe20a7d9bb7255119db8c7071c1d15ea9381065bce0e43495ea082c5e"
+          "bytes": 30683,
+          "sha256": "19694fe8600310306a9444f05296d47bd2017ae7f313cef74057e5c6ace190d9"
         },
         "undine/Cargo.toml": {
-          "bytes": 1476,
-          "sha256": "cb1c68c79b99e13e6d1f276a67a631b82479fa160c8bdd8e7bd81f364c69e265"
+          "bytes": 1943,
+          "sha256": "1c812bd353d32eca502fae140dbe994faa8ffdca9a60d2d7d20d12eaee77c168"
         },
         "undine/apps/appendOnlyLog/Cargo.toml": {
-          "bytes": 316,
-          "sha256": "50fc48de5f1021554bf747d0647d6c786c3612c7f6a540718a1d13a926136fb2"
+          "bytes": 440,
+          "sha256": "d65604c04e7ca2f6b993ebcf5b16b81b366742d19ac726a339ad996b87c8875e"
         },
         "undine/apps/appendOnlyLog/fixtures/mock-append-only-log-batch.txt": {
           "bytes": 556,
@@ -351,16 +352,16 @@
           "sha256": "2a291e7a759b930f0c5639e21b0a18d9c85c95acc32d20cfbde4646936f1e829"
         },
         "undine/apps/appendOnlyLog/src/bin/append_only_log_demo_client.rs": {
-          "bytes": 15855,
-          "sha256": "4648a655d6bf42c9d2f49f6c9910d7bab96b3269b9f65b86e6c893b92a8f653e"
+          "bytes": 17577,
+          "sha256": "c01ade69a025bd511b50a8178ab24fae846df9144620d8eed0e712448356667d"
         },
         "undine/apps/appendOnlyLog/src/bin/append_only_log_demo_server.rs": {
           "bytes": 6181,
           "sha256": "c0640b88fc5e00364f570afe818c2ea5e4307bcb0740c39c4e32c344762ae532"
         },
         "undine/apps/appendOnlyLog/src/client.rs": {
-          "bytes": 13305,
-          "sha256": "d353cb9bd16b714523bdfbf5a070ae22484206e5efbb678fd75f8a9bf468c238"
+          "bytes": 14263,
+          "sha256": "9fe28a07d43af4594545c601b8dafe1b437b30f0025d82b00852a374ebe90f64"
         },
         "undine/apps/appendOnlyLog/src/codec.rs": {
           "bytes": 9811,
@@ -391,12 +392,12 @@
           "sha256": "ed53b45d82c2d306dde529817264c1a6b1b66bbc04c90d4826e18882375865cd"
         },
         "undine/apps/appendOnlyLog/src/server.rs": {
-          "bytes": 9659,
-          "sha256": "9090a5f4c6aed51a91698213f447bfffbd594da0129e110800f9c079578f5e40"
+          "bytes": 9714,
+          "sha256": "2ac3a23d83e059c0faf55d0dc92d1a1c9948aa7395567a86c41632c6efef8d05"
         },
         "undine/apps/appendOnlyLog/tests/cli_correcting_read.rs": {
-          "bytes": 13696,
-          "sha256": "a71574ac41a77dfec2d4df253b85668a54931186ed1dfc08394cd8393f24dc94"
+          "bytes": 16501,
+          "sha256": "1a53d85b59cd5d81b9043580ed5aec34117e3b072f257fc3e78f20524da1f806"
         },
         "undine/benches/bench_append_only_log_bulk_updates_append_local.rs": {
           "bytes": 26521,
@@ -425,6 +426,10 @@
         "undine/benches/bench_append_only_log_repair_kernels_local.rs": {
           "bytes": 12849,
           "sha256": "faec1c3860c521a7d882621313b935af000fde11d279076b220bbf843c0faf30"
+        },
+        "undine/benches/bench_private_opening_local.rs": {
+          "bytes": 49722,
+          "sha256": "c4d2a895f10daa7011ce316d9ed8ef8f0ca8b90406ee8b61b25beae5814e5b23"
         },
         "undine/benches/support/append_only_log_repair.rs": {
           "bytes": 45006,
@@ -463,8 +468,8 @@
           "sha256": "681d569ef9dba16b2a1ede8f1fe61b4b471d644531dffccb06fa66540b77edc8"
         },
         "undine/src/auth/client.rs": {
-          "bytes": 98010,
-          "sha256": "1893aabeff2f725a441564bb93b62a4c7e0806dc8926e3779c89428ae378e9d8"
+          "bytes": 101045,
+          "sha256": "f000996b7d990bfd51e6216afd57b86159d990787cdb7f46862d2a17dd91af55"
         },
         "undine/src/auth/core.rs": {
           "bytes": 5485,
@@ -491,8 +496,8 @@
           "sha256": "4319a86b0ce57e33f2f30f1d53817cdd1251f0691efee3361b9e20cf49250b1d"
         },
         "undine/src/auth/service.rs": {
-          "bytes": 29949,
-          "sha256": "b57d0a23c51f2d1e320e7d39682b88c9aae33cdd47710c43bd27cb166568a227"
+          "bytes": 30768,
+          "sha256": "3c9ea6c15a8725a12f8db16a679a87f1bbf4ce3a0a2a6dcf69654256b2d38910"
         },
         "undine/src/auth/write.rs": {
           "bytes": 17950,
@@ -503,16 +508,16 @@
           "sha256": "4ae62388abb8f32fc72693bb9205c7a60b3ac7c62e4a8a05478cdf88c6c53bef"
         },
         "undine/src/bin/client.rs": {
-          "bytes": 39282,
-          "sha256": "6ef9c344e78d2209d18351f8e0ff0372a4438c1cd56485ac20cb9d21478685e5"
+          "bytes": 41425,
+          "sha256": "df81090bf92e947cf91a9f331f6036f0e77f52e5a51042a537f2596f1587a949"
         },
         "undine/src/bin/server.rs": {
           "bytes": 96,
           "sha256": "cf1b8b06310a0ee0ae30f96eb672353db4e31ecdefcea2bafd7ccbb6fb207ebe"
         },
         "undine/src/bin/server_common/mod.rs": {
-          "bytes": 17064,
-          "sha256": "73170c23e8addf62cc101081daab923c7036670ac33b11f140e17323b141698b"
+          "bytes": 17582,
+          "sha256": "1c86d91bb9e539f788885f5811637eb64ea760dc6e7d70f694e6ff2dcffe146b"
         },
         "undine/src/coded_array/axis.rs": {
           "bytes": 18780,
@@ -567,12 +572,12 @@
           "sha256": "4e2794a98cf81a7008a998cf25f5b9375564b773cd14e968f3f0ce1cbd721a55"
         },
         "undine/src/lib.rs": {
-          "bytes": 2410,
-          "sha256": "e5d923d0dc7737618f1c23bd4240ae6066cc0c2e34d3bd2e0a9cc025b369586f"
+          "bytes": 2455,
+          "sha256": "abc5a49de7ae66028d3b8f8b19f34c919380eb0ce916e24df456c2cfe7f36e9f"
         },
         "undine/src/net/auth.rs": {
-          "bytes": 32600,
-          "sha256": "c27408f5be02484aced6cc12c83e4decacff738c5be8ed6f8c098086df8acc2b"
+          "bytes": 34763,
+          "sha256": "76a2e901dd364a2a739550e811ab9b1d59ddde6990b3f3e96456089f17d9db31"
         },
         "undine/src/net/client.rs": {
           "bytes": 14244,
@@ -583,8 +588,8 @@
           "sha256": "83146f1794ce71f47648d76ac6425059492f78a2d0f28e4d3e98187207eedb06"
         },
         "undine/src/net/mod.rs": {
-          "bytes": 15609,
-          "sha256": "9a81257eb554bdc48675a2bf59e6b6254d538e23cff7c25a3e01adb2916896a8"
+          "bytes": 16759,
+          "sha256": "cd422b772b7590a3fab55dc7a03ac5aff31b18f5be7ab802bcc9a7e2ab464655"
         },
         "undine/src/net/registry.rs": {
           "bytes": 33893,
@@ -603,8 +608,36 @@
           "sha256": "6c3c85e594a6252cbcdda04fe7ec77cec2e4a7ac1c8834d2bca9d8637d1d3d7a"
         },
         "undine/src/net/wire.rs": {
-          "bytes": 26738,
-          "sha256": "17ab61bdbcbbafcde7c6d3fec8dc257db20970759d2c66ef320fe43c3e4c3b0c"
+          "bytes": 28725,
+          "sha256": "36a2750740d81da8cb08d357db623f8e48dca1edaa3b642098dcee1649d22b8e"
+        },
+        "undine/src/private/bulk.rs": {
+          "bytes": 20395,
+          "sha256": "90be76e653721c8ac564ee4fdecea1945e1fc2a663f987294370b7ecc11ed792"
+        },
+        "undine/src/private/layout.rs": {
+          "bytes": 16757,
+          "sha256": "a7d9f2d13b2b0dd6a39967a4511cb4ce718cb93f10d291923829d16c81ea0729"
+        },
+        "undine/src/private/mod.rs": {
+          "bytes": 1389,
+          "sha256": "0868b8b2e3d899518b2989a48feef65b1635b2ae43a613d3dc62a07451fd34e8"
+        },
+        "undine/src/private/opening.rs": {
+          "bytes": 10643,
+          "sha256": "3ac53300bf89cf7d9ece15ac622f9c59349488996c1aeb8ae89e95659a1e8311"
+        },
+        "undine/src/private/pir.rs": {
+          "bytes": 40073,
+          "sha256": "2b9836543a74fa9ff2cf6a1baa9ff9f1d6f03538005563c472b6d55864e3d010"
+        },
+        "undine/src/private/records.rs": {
+          "bytes": 1412,
+          "sha256": "e3e55a841b923dc4a518d49411cdd3a01ee9aae79401cecf66fb9aa17473f3dc"
+        },
+        "undine/src/private/wire.rs": {
+          "bytes": 4136,
+          "sha256": "45836952de5bb3116ff05c3aa5bb50a12b6c6b4238ae149a3ef2f91f2570d095"
         },
         "undine/src/shares.rs": {
           "bytes": 1176,
@@ -637,6 +670,202 @@
         "undine/src/value.rs": {
           "bytes": 2296,
           "sha256": "d4e6ccf295959593baee3927af7c72fef0df7bc63ef66fe3a9ff96691889f66b"
+        },
+        "undine/third_party/README.md": {
+          "bytes": 2399,
+          "sha256": "5a5993c216fabe7b2273d9c55c8719f676b56944699304816a63bcaae18eb849"
+        },
+        "undine/third_party/patches/spiral-rs.diff": {
+          "bytes": 1203,
+          "sha256": "a206c30c3097ada8a574d6369278456a4bdd402a25cf6455d9567f80e8f4a8fe"
+        },
+        "undine/third_party/patches/ypir.diff": {
+          "bytes": 29298,
+          "sha256": "93ebc89345feff44f646d7aa74f596201413ef6f284d6adf10fb110bd90947f6"
+        },
+        "undine/third_party/spiral-rs/.cargo/config.toml": {
+          "bytes": 55,
+          "sha256": "c6b1e24d64ee199513a20c8d9e72e4ec217db1f12db34c4f8cac25fe131b78a0"
+        },
+        "undine/third_party/spiral-rs/.gitignore": {
+          "bytes": 7,
+          "sha256": "937456f730114c410243b25f3587e29a6c608b3a79356adafeefb6b960e004b2"
+        },
+        "undine/third_party/spiral-rs/Cargo.lock": {
+          "bytes": 10964,
+          "sha256": "e05421fc2778d21dc913423cd4da266addde4f7a3fff56d43641d6430cb9fbff"
+        },
+        "undine/third_party/spiral-rs/Cargo.toml": {
+          "bytes": 754,
+          "sha256": "890f21314a712860ab8bb9dbfdcdb5bd42ee372dc45e6a28941e695b6df84cf5"
+        },
+        "undine/third_party/spiral-rs/README.md": {
+          "bytes": 94,
+          "sha256": "e588285f50dca1754cfe1bc9c395e683fb045467a363174ecbdbbe64b928f350"
+        },
+        "undine/third_party/spiral-rs/src/aligned_memory.rs": {
+          "bytes": 2523,
+          "sha256": "95f16d98d8b1adce781ffb98a2ab240f0a741e6273e370c36dfe857c21ef607d"
+        },
+        "undine/third_party/spiral-rs/src/arith.rs": {
+          "bytes": 15407,
+          "sha256": "8e2c502399243a51024a481c16e46face5506f2ca139aa676c70ea8f7bb98c16"
+        },
+        "undine/third_party/spiral-rs/src/client.rs": {
+          "bytes": 36085,
+          "sha256": "0fc94bd15653d7f9025f1a1464ac18e4b7c7bfefc03a8692ea8db760bf3b4f95"
+        },
+        "undine/third_party/spiral-rs/src/discrete_gaussian.rs": {
+          "bytes": 6268,
+          "sha256": "c588fea2419233208824a4343de9afa465aea92cc7d3775b37ccb5a0213419f7"
+        },
+        "undine/third_party/spiral-rs/src/gadget.rs": {
+          "bytes": 2819,
+          "sha256": "783600b408971ac2401b6825143718cddfeb830cf144ef1818bc8f9ece7a756d"
+        },
+        "undine/third_party/spiral-rs/src/key_value.rs": {
+          "bytes": 2358,
+          "sha256": "027438785266029d41cba75254c322b77098ba81503b118d4ca2d909c67d6ea7"
+        },
+        "undine/third_party/spiral-rs/src/lib.rs": {
+          "bytes": 289,
+          "sha256": "83405d59f709ed8803760d66730e016cc3c9f8f4b51a6eb0e24ab2d9a9ac3aec"
+        },
+        "undine/third_party/spiral-rs/src/noise_estimate.rs": {
+          "bytes": 5078,
+          "sha256": "a0fb7e61ec0241caabe2ec3110807720fd8629dde062604972572499a5a3ebba"
+        },
+        "undine/third_party/spiral-rs/src/ntt.rs": {
+          "bytes": 36212,
+          "sha256": "d60e916f5631ac621dcdeb94ba21e5b0af187750e559f710ecef5b8b8d0a80c1"
+        },
+        "undine/third_party/spiral-rs/src/number_theory.rs": {
+          "bytes": 2386,
+          "sha256": "1bee5e1038118a604817203ef5f4e9aa3c7113ce09ace8a8d0fda9cb99a55be4"
+        },
+        "undine/third_party/spiral-rs/src/params.rs": {
+          "bytes": 8186,
+          "sha256": "e2a26cbe72b6c07a03cfbc85168753ff3016dc3ad60fb3646653c8d98ed8ef32"
+        },
+        "undine/third_party/spiral-rs/src/poly.rs": {
+          "bytes": 30934,
+          "sha256": "5b960938aece99864ab585323ca95e187654d77e46f38b37e4670f136ddef948"
+        },
+        "undine/third_party/spiral-rs/src/server.rs": {
+          "bytes": 37612,
+          "sha256": "6a12fff8ebbd4aec62d1accd56cf682a94c1f692a1b390dadb847119647185dc"
+        },
+        "undine/third_party/spiral-rs/src/util.rs": {
+          "bytes": 11665,
+          "sha256": "8983484765a08bcfb6a2c3777dbba5138cca609da2b44098254977abb7e76dfb"
+        },
+        "undine/third_party/ypir/.cargo/config.toml": {
+          "bytes": 55,
+          "sha256": "c6b1e24d64ee199513a20c8d9e72e4ec217db1f12db34c4f8cac25fe131b78a0"
+        },
+        "undine/third_party/ypir/.gitignore": {
+          "bytes": 8,
+          "sha256": "44c92e3a70ad3307b7056871c2bdb096d8bfa9373f5bf06a79bb6324a20ff2fb"
+        },
+        "undine/third_party/ypir/.vscode/settings.json": {
+          "bytes": 159,
+          "sha256": "e0513f0b5bd700c34c53dfc7545231b2147930391f9b9a7b2815095a88895538"
+        },
+        "undine/third_party/ypir/Cargo.lock": {
+          "bytes": 16367,
+          "sha256": "cfb7a38b46e764532ed3f7075bbac59efdec22aaa7c980e2abf23e87bdaf063d"
+        },
+        "undine/third_party/ypir/Cargo.toml": {
+          "bytes": 524,
+          "sha256": "ef5d545adf53ea03b91908cc1188efc161023a3f333bd25f8e156b4808ae6260"
+        },
+        "undine/third_party/ypir/LICENSE": {
+          "bytes": 1068,
+          "sha256": "f347d29ccc30eed99f5840454b00c493a78f6c3958c43d5a276b14ab32c0938c"
+        },
+        "undine/third_party/ypir/README.md": {
+          "bytes": 6246,
+          "sha256": "326529534186bf312730014c53a2a23381ef2ab3f3578a1481a9028cdfa036a9"
+        },
+        "undine/third_party/ypir/build.rs": {
+          "bytes": 249,
+          "sha256": "873514ad4f0501542b30c8e456bccf6ee224dfa505686ac272ff792ae9c7805f"
+        },
+        "undine/third_party/ypir/src/bin/run.rs": {
+          "bytes": 2899,
+          "sha256": "8a9074b8183859c661883925eb76e6bd5dd16daec8d77f5ecc6b49406db11d9c"
+        },
+        "undine/third_party/ypir/src/bits.rs": {
+          "bytes": 4923,
+          "sha256": "5e67f53ad1069d966059dae75d0e5354ef444e8a0fa642f77934705ce0ccf9be"
+        },
+        "undine/third_party/ypir/src/client.rs": {
+          "bytes": 12448,
+          "sha256": "bc4b19a1ae48ef618e4e5fb7abc17627046d7685d2e7423ac000ebf5aa9f60d9"
+        },
+        "undine/third_party/ypir/src/convolution.rs": {
+          "bytes": 8089,
+          "sha256": "b3f980b132d942a7b9f8303b54e369c29433cd83ab5de15888e61759ffc196f6"
+        },
+        "undine/third_party/ypir/src/factored.rs": {
+          "bytes": 18955,
+          "sha256": "0dbc9761fd5f231816c30af7c6bc7e4f41ed492bbda570388869fd77f85b5a54"
+        },
+        "undine/third_party/ypir/src/kernel.rs": {
+          "bytes": 8271,
+          "sha256": "369fae95027411e2a4ada94861f0648680dfdf6f5255fbe0654b00da39b04608"
+        },
+        "undine/third_party/ypir/src/lib.rs": {
+          "bytes": 303,
+          "sha256": "a834ffe02d41df28befb1d2f2331d76f3f7aafa92cd18a55a76181c20a9fbc9f"
+        },
+        "undine/third_party/ypir/src/lwe.rs": {
+          "bytes": 3785,
+          "sha256": "9e7d4cd2ecfccac1e5a06064075ec43728a2273a72d93118a95d7372d716d96b"
+        },
+        "undine/third_party/ypir/src/matmul.cpp": {
+          "bytes": 44150,
+          "sha256": "a08244feafd55235ccbe25a4e935d403fd369ef5e55fb1ad12ce6cddac5a4835"
+        },
+        "undine/third_party/ypir/src/matmul.rs": {
+          "bytes": 4604,
+          "sha256": "d5414317b78e6ec5d713992edd69fb3657e1d767491b4aebb2b5e9e4dd6eca81"
+        },
+        "undine/third_party/ypir/src/measurement.rs": {
+          "bytes": 1722,
+          "sha256": "0e43bdaf50b1bfe90822a6544f68e4452d1938c0ad560ba40f6bd734980529c0"
+        },
+        "undine/third_party/ypir/src/modulus_switch.rs": {
+          "bytes": 2532,
+          "sha256": "1c31dc477c4c605059f53ab0a08370de23a9acf0c3c901e49fc553ff935fb6c3"
+        },
+        "undine/third_party/ypir/src/noise_analysis.rs": {
+          "bytes": 10076,
+          "sha256": "02dad2e6f0e37346af7e5a779b6ec33bb088ffec004444e5e7c27cbf656ade2e"
+        },
+        "undine/third_party/ypir/src/packing.rs": {
+          "bytes": 53274,
+          "sha256": "d2e26157dfba288b416099d8f20375c8bc4bcbe9c96c221bc0ea912694f973e4"
+        },
+        "undine/third_party/ypir/src/params.rs": {
+          "bytes": 5039,
+          "sha256": "799e4273e4bd2f68d45d2f2dd93fe573872485264241150cd3bb2b21b2c9c91f"
+        },
+        "undine/third_party/ypir/src/scheme.rs": {
+          "bytes": 27400,
+          "sha256": "9db56713e8a5a21ca608b3029fa70c7701bc4c6ec050bccc67d892ec998fb4c8"
+        },
+        "undine/third_party/ypir/src/server.rs": {
+          "bytes": 43438,
+          "sha256": "f22b5f6eda98f8ad353db7dd013591b22da52b5a45111e899e25225853a7a4ff"
+        },
+        "undine/third_party/ypir/src/transpose.rs": {
+          "bytes": 3106,
+          "sha256": "2a52b68b1d235c50543d813a087b6e86d55f7eb02a639d1ec49aac577e794a55"
+        },
+        "undine/third_party/ypir/src/util.rs": {
+          "bytes": 8634,
+          "sha256": "55d550fe75ce85356bda2a3688248d4033b1a2843d8a3b1de44ed6e62319019f"
         }
       },
       "origin": "implementation repository, branch undinelog"

@@ -17,6 +17,8 @@ pub mod coded_array;
 pub mod core;
 pub mod dev_tools;
 pub mod net;
+#[cfg(feature = "private")]
+pub mod private;
 pub mod unauth;
 
 // Export the base field type for callers/benchmarks.

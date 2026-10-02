@@ -24,6 +24,8 @@ struct Args {
     trusted_root: Option<[u8; 32]>,
     max_errors: Option<usize>,
     open_kappa: Option<usize>,
+    private: bool,
+    segments_per_record: Option<usize>,
     source_kind: Option<String>,
     network: Option<String>,
     start_height: Option<u64>,
@@ -73,6 +75,12 @@ fn parse_args() -> Result<Args, String> {
                 let value = it.next().ok_or("--open-kappa missing value")?;
                 args.open_kappa = Some(value.parse().map_err(|_| "invalid --open-kappa")?);
             }
+            "--private" => args.private = true,
+            "--segments-per-record" => {
+                let value = it.next().ok_or("--segments-per-record missing value")?;
+                args.segments_per_record =
+                    Some(value.parse().map_err(|_| "invalid --segments-per-record")?);
+            }
             "--source-kind" => args.source_kind = it.next(),
             "--network" => args.network = it.next(),
             "--start-height" => {
@@ -95,13 +103,18 @@ fn usage() -> &'static str {
   state --anchor <path>
   tip --anchor <path>
   read-leaf --anchor <path> --index <n> [--max-errors <n>] [--open-kappa <n>]
+            [--private [--segments-per-record <n>]]
   read-bulk-updates --anchor <path> --height <n> [--out <path>] [--open-kappa <n>]
   read-range --anchor <path> --height <n> --offset <n> --len <n> [--out <path>]
              [--open-kappa <n>]
   dump-mock [--out <path>]
 
 --open-kappa opens at a threshold 2^j times the registry's kappa, at most the
-number of claims; the maintainers stitch while they serve and keep their state."
+number of claims; the maintainers stitch while they serve and keep their state.
+
+--private opens the leaf without revealing its index: the client sends one PIR
+query, the same to every maintainer, and each maintainer answers from its
+primary columns. --segments-per-record sets the record size (default 1)."
 }
 
 fn main() {
@@ -122,6 +135,23 @@ fn main() {
         )
     {
         eprintln!("--open-kappa applies to read-leaf, read-bulk-updates, and read-range");
+        std::process::exit(1);
+    }
+
+    if args.private && op != "read-leaf" {
+        eprintln!("--private applies to read-leaf");
+        std::process::exit(1);
+    }
+    if args.private && args.open_kappa.is_some() {
+        eprintln!("--private opens at the stored threshold; it cannot be combined with --open-kappa");
+        std::process::exit(1);
+    }
+    if args.segments_per_record.is_some() && !args.private {
+        eprintln!("--segments-per-record applies to --private");
+        std::process::exit(1);
+    }
+    if !cfg!(feature = "private") && args.private {
+        eprintln!("this client is built without private openings");
         std::process::exit(1);
     }
 
@@ -269,10 +299,20 @@ fn read_leaf(args: &Args) {
         .map(format_hex_32);
     let max_errors = args.max_errors.unwrap_or(0);
     let correcting = max_errors > 0;
-    let read_result = if correcting {
-        client.read_leaf_with_path_correcting(index, max_errors)
-    } else {
-        client.read_leaf_with_path(index)
+    #[cfg(feature = "private")]
+    let private_result = args.private.then(|| {
+        client.read_leaf_private_with_path(
+            index,
+            args.segments_per_record.unwrap_or(1),
+            correcting.then_some(max_errors),
+        )
+    });
+    #[cfg(not(feature = "private"))]
+    let private_result = None;
+    let read_result = match private_result {
+        Some(result) => result,
+        None if correcting => client.read_leaf_with_path_correcting(index, max_errors),
+        None => client.read_leaf_with_path(index),
     };
     let (value, path) = read_result.unwrap_or_else(|err| {
         eprintln!("read-leaf failed: {err}");
@@ -294,6 +334,7 @@ fn read_leaf(args: &Args) {
             "max_errors": max_errors,
             "correcting": correcting,
             "open_kappa": client.opening_kappa(),
+            "private": args.private,
             "proof_root": proof_root,
             "trusted_root": trusted_root,
             "proof_root_matches_trusted": proof_root_matches_trusted,

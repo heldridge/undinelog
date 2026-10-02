@@ -239,6 +239,87 @@ fn client_binary_opens_at_a_higher_threshold_from_servers_at_the_registry_thresh
     );
 }
 
+#[cfg(feature = "private")]
+#[test]
+fn client_binary_opens_a_leaf_privately() {
+    let tmp = TempWorkspace::new();
+    let registry_path = tmp.join("registry.json");
+    let anchor_path = tmp.join("anchor.json");
+
+    let addrs = reserve_loopback_addrs(3 * KAPPA);
+    write_json(&registry_path, &build_registry(&addrs));
+    write_anchor(&anchor_path, &registry_path);
+
+    let server_bin = env!("CARGO_BIN_EXE_append_only_log_demo_server");
+    let client_bin = env!("CARGO_BIN_EXE_append_only_log_demo_client");
+    let _cluster = start_servers(server_bin, &registry_path, &addrs);
+
+    let emit = Command::new(server_bin)
+        .env("NET_RPC_TIMEOUT_MS", "60000")
+        .args([
+            "--op",
+            "emit-mock",
+            "--anchor",
+            path_str(&anchor_path),
+            "--height",
+            "0",
+        ])
+        .output()
+        .expect("run emit-mock");
+    assert_success("emit-mock", &emit);
+
+    let client = |args: &[&str]| {
+        Command::new(client_bin)
+            .env("NET_RPC_TIMEOUT_MS", "60000")
+            .args(["--anchor", path_str(&anchor_path)])
+            .args(args)
+            .output()
+            .expect("run client binary")
+    };
+    let read_leaf = |index: &str, extra: &[&str]| -> Value {
+        let mut args = vec!["--op", "read-leaf", "--index", index];
+        args.extend_from_slice(extra);
+        let stdout = assert_success("read-leaf", &client(&args));
+        serde_json::from_str(&stdout).expect("parse read-leaf json")
+    };
+
+    for index in ["0", "5", "17"] {
+        let public = read_leaf(index, &[]);
+        assert_eq!(public["private"].as_bool(), Some(false));
+        for extra in [
+            &["--private"][..],
+            &["--private", "--segments-per-record", "2"][..],
+            &["--private", "--max-errors", "1"][..],
+        ] {
+            let private = read_leaf(index, extra);
+            assert_eq!(private["private"].as_bool(), Some(true));
+            assert_eq!(private["value_hex"], public["value_hex"]);
+            assert_eq!(private["siblings_hex"], public["siblings_hex"]);
+            assert_eq!(private["proof_root"], public["proof_root"]);
+            assert_eq!(private["proof_root_matches_trusted"].as_bool(), Some(true));
+        }
+    }
+
+    let rejected = client(&["--op", "tip", "--private"]);
+    assert!(!rejected.status.success());
+    assert!(
+        String::from_utf8_lossy(&rejected.stderr).contains("--private applies to read-leaf")
+    );
+    let rejected = client(&[
+        "--op",
+        "read-leaf",
+        "--index",
+        "5",
+        "--private",
+        "--open-kappa",
+        "4",
+    ]);
+    assert!(!rejected.status.success());
+    assert!(
+        String::from_utf8_lossy(&rejected.stderr).contains("cannot be combined with --open-kappa")
+    );
+}
+
 fn build_registry(addrs: &[String]) -> MockRegistryFile {
     let shard_count = addrs.len();
     let shard_registry = build_shard_registry_deterministic(shard_count);

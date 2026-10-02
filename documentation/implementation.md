@@ -34,6 +34,14 @@ The two crates differ in the coded array's layout.
   Threshold doubling and halving keep the segment size and exchange data with
   helpers.
 
+**Private openings.** `undine/src/private/` serves a private opening of one
+position from a maintainer's primary columns. The columns are grouped into
+records; a pattern is a group of leaves whose openings read the same records,
+and the PIR database has one row per pattern. The answer and the
+preprocessing work on the stored records, and the preprocessing follows an
+append by patching the hint. The PIR backend is YPIR's SimplePIR variant,
+kept as source under [`undine/third_party/`](../undine/third_party/README.md).
+
 The networking implementation in `src/net/` uses length-prefixed binary RPC
 messages and registry-derived maintainer assignments. Benchmark paths include
 the construction and serialization work identified in the experiment
@@ -72,6 +80,8 @@ Paths are relative to `undine/` or `borg/`.
 - `src/auth/`: sparse-Merkle authentication and client/server orchestration.
 - `src/net/`: registry views, wire types, and binary RPC adapters.
 - `apps/appendOnlyLog/`: log layout, codec, frontier, client, and server.
+- `src/private/` (`undine/` only): private openings of one position.
+- `third_party/` (`undine/` only): the PIR backend and its patches.
 - `benches/`: the measured benchmark binaries.
 - `benches/support/`: shared benchmark kernels.
 
@@ -85,7 +95,8 @@ crate comes from and the size and SHA-256 of every measured source file.
 
 - `undine/` is the `undinelog` branch of the implementation repository at the
   recorded commit, with the crate manifest reduced to the append-only-log
-  application and the measured benchmark targets.
+  application and the measured benchmark targets. It includes the
+  `third_party/` sources of that commit.
 - `borg/` is the crate of the BorgLog evaluation artifact at the recorded
   commit, with one changed file,
   `benches/bench_append_only_log_range_open_local.rs`. The change makes the

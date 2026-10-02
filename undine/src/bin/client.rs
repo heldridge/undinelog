@@ -31,6 +31,8 @@ struct Args {
     delta_mode: Option<String>,
     kappa: Option<usize>,
     open_kappa: Option<usize>,
+    private: bool,
+    segments_per_record: Option<usize>,
     node_linearization: Option<String>,
     shard_count: Option<usize>,
     tree_height: Option<usize>,
@@ -110,6 +112,12 @@ fn parse_args() -> Result<Args, String> {
             "--open-kappa" => {
                 let v = it.next().ok_or("--open-kappa missing value")?;
                 args.open_kappa = Some(v.parse().map_err(|_| "invalid --open-kappa")?);
+            }
+            "--private" => args.private = true,
+            "--segments-per-record" => {
+                let v = it.next().ok_or("--segments-per-record missing value")?;
+                args.segments_per_record =
+                    Some(v.parse().map_err(|_| "invalid --segments-per-record")?);
             }
             "--max-errors" => {
                 let v = it.next().ok_or("--max-errors missing value")?;
@@ -507,6 +515,23 @@ fn main() {
         std::process::exit(1);
     }
 
+    if args.private && !(mode == "auth" && op == "read") {
+        eprintln!("--private applies to auth-mode read");
+        std::process::exit(1);
+    }
+    if args.private && args.open_kappa.is_some() {
+        eprintln!("--private opens at the stored threshold; it cannot be combined with --open-kappa");
+        std::process::exit(1);
+    }
+    if args.segments_per_record.is_some() && !args.private {
+        eprintln!("--segments-per-record applies to --private");
+        std::process::exit(1);
+    }
+    if !cfg!(feature = "private") && args.private {
+        eprintln!("this client is built without private openings");
+        std::process::exit(1);
+    }
+
     let mut file = MockRegistryFile::load(&registry_path).unwrap_or_else(|err| {
         eprintln!("failed to load registry: {:?}", err);
         std::process::exit(1);
@@ -720,6 +745,28 @@ fn main() {
                         eprintln!("--index is required for read");
                         std::process::exit(1);
                     });
+                    #[cfg(feature = "private")]
+                    if args.private {
+                        // One PIR query, the same to every server; the reply
+                        // is combined and verified like a public opening.
+                        let (value, path) = client
+                            .read_private_with_path(
+                                index,
+                                args.segments_per_record.unwrap_or(1),
+                                (args.max_errors > 0).then_some(args.max_errors),
+                            )
+                            .unwrap_or_else(|err| {
+                                eprintln!("private read failed: {:?}", err);
+                                std::process::exit(1);
+                            });
+                        if verbose {
+                            println!("value: {}", to_hex(value));
+                            print_auth_path(&path);
+                        } else {
+                            println!("{}", to_hex(value));
+                        }
+                        return;
+                    }
                     if verbose {
                         let (value, path) = if args.max_errors == 0 {
                             client.read_with_path(index)

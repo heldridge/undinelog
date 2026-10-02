@@ -285,3 +285,119 @@ fn client_cli_opens_at_a_higher_threshold_from_servers_at_the_registry_threshold
         "stderr did not explain the rejected threshold:\n{stderr}"
     );
 }
+
+#[test]
+fn client_cli_limits_private_to_auth_reads() {
+    for (args, message) in [
+        (
+            vec!["--mode", "unauth", "--op", "read", "--private"],
+            "--private applies to auth-mode read",
+        ),
+        (
+            vec!["--mode", "auth", "--op", "read-range", "--private"],
+            "--private applies to auth-mode read",
+        ),
+        (
+            vec!["--mode", "auth", "--op", "read", "--private", "--open-kappa", "4"],
+            "it cannot be combined with --open-kappa",
+        ),
+        (
+            vec!["--mode", "auth", "--op", "read", "--segments-per-record", "2"],
+            "--segments-per-record applies to --private",
+        ),
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_client"))
+            .args(&args)
+            .args(["--registry", "/definitely/missing/registry.json"])
+            .output()
+            .expect("run client binary");
+        assert!(!output.status.success());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains(message),
+            "stderr did not reject {args:?}:\n{stderr}"
+        );
+    }
+}
+
+#[cfg(feature = "private")]
+#[test]
+fn client_cli_opens_a_position_privately() {
+    let dir = std::env::temp_dir().join(format!("client_cli_private_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("create temp dir");
+    let registry_path = dir.join("registry.json");
+    let leaves = 9usize;
+    let addrs = (0..6)
+        .map(|_| {
+            let listener = TcpListener::bind("127.0.0.1:0").expect("reserve loopback port");
+            listener.local_addr().expect("reserved addr").to_string()
+        })
+        .collect::<Vec<_>>();
+    let registry = one_claim_registry(2, &addrs, leaves);
+    std::fs::write(
+        &registry_path,
+        serde_json::to_vec_pretty(&registry).expect("serialize registry"),
+    )
+    .expect("write registry");
+    let _cluster = start_auth_servers(&registry_path, &addrs, dir.clone());
+
+    let values = (0..leaves)
+        .map(|idx| format!("0x{:02x}{}", idx + 17, "00".repeat(31)))
+        .collect::<Vec<_>>();
+    for (idx, value) in values.iter().enumerate() {
+        auth_client(
+            &registry_path,
+            &["--op", "write", "--index", &idx.to_string(), "--value", value],
+        );
+    }
+
+    for idx in [0usize, 4, 8] {
+        let index = idx.to_string();
+        // A private read prints what the public read prints, with and
+        // without the path.
+        let public = auth_client(&registry_path, &["--op", "read", "--index", &index]);
+        let private = auth_client(
+            &registry_path,
+            &["--op", "read", "--index", &index, "--private"],
+        );
+        assert_eq!(private, [values[idx].clone()]);
+        assert_eq!(private, public);
+        let public_path = auth_client(
+            &registry_path,
+            &["--op", "read", "--index", &index, "--verbose"],
+        );
+        let private_path = auth_client(
+            &registry_path,
+            &["--op", "read", "--index", &index, "--private", "--verbose"],
+        );
+        assert_eq!(private_path, public_path);
+    }
+    // Larger records and error correction go through the same flag.
+    let private = auth_client(
+        &registry_path,
+        &[
+            "--op",
+            "read",
+            "--index",
+            "5",
+            "--private",
+            "--segments-per-record",
+            "2",
+            "--max-errors",
+            "1",
+        ],
+    );
+    assert_eq!(private, [values[5].clone()]);
+
+    // A position outside the log is rejected.
+    let output = Command::new(env!("CARGO_BIN_EXE_client"))
+        .env("NET_RPC_TIMEOUT_MS", "60000")
+        .args(["--mode", "auth", "--registry"])
+        .arg(&registry_path)
+        .args(["--op", "read", "--index", "9", "--private"])
+        .output()
+        .expect("run client binary");
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("private read failed"), "stderr:\n{stderr}");
+}

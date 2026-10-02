@@ -28,7 +28,11 @@ TABLE_BENCHMARKS = {
     "bench_append_only_log_repair_kernels_local.rs",
 }
 MEASURED_BENCHMARKS = {
-    "undine": TABLE_BENCHMARKS | {"bench_append_only_log_on_the_fly_open_local.rs"},
+    "undine": TABLE_BENCHMARKS
+    | {
+        "bench_append_only_log_on_the_fly_open_local.rs",
+        "bench_private_opening_local.rs",
+    },
     "borg": TABLE_BENCHMARKS,
 }
 ABSOLUTE_WORKSPACE = re.compile(

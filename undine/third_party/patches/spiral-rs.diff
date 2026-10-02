@@ -1,0 +1,39 @@
+diff -ruN -x Cargo.lock -x target a/spiral-rs/src/lib.rs b/spiral-rs/src/lib.rs
+--- a/spiral-rs/src/lib.rs	2024-02-08 15:37:18.000000000 -0500
++++ b/spiral-rs/src/lib.rs	2026-10-02 13:54:10.534637164 -0400
+@@ -1,4 +1,5 @@
+-#![feature(stdarch_x86_avx512)]
++#![allow(warnings)]
++
+ 
+ pub mod aligned_memory;
+ pub mod arith;
+diff -ruN -x Cargo.lock -x target a/spiral-rs/src/ntt.rs b/spiral-rs/src/ntt.rs
+--- a/spiral-rs/src/ntt.rs	2024-02-08 15:37:18.000000000 -0500
++++ b/spiral-rs/src/ntt.rs	2026-10-02 13:53:15.197920138 -0400
+@@ -208,6 +208,12 @@
+ 
+ #[cfg(target_feature = "avx2")]
+ pub fn ntt_forward(params: &Params, operand_overall: &mut [u64]) {
++    #[cfg(not(target_feature = "avx512f"))]
++    {
++        ntt_forward_alt(params, operand_overall);
++        return;
++    }
++
+     if params.crt_count == 1 {
+         ntt_forward_alt(params, operand_overall);
+         return;
+@@ -565,6 +571,12 @@
+ }
+ 
+ pub fn ntt_inverse(params: &Params, operand_overall: &mut [u64]) {
++    #[cfg(not(target_feature = "avx512f"))]
++    {
++        ntt_inverse_alt(params, operand_overall);
++        return;
++    }
++
+     if params.crt_count == 1 {
+         ntt_inverse_alt(params, operand_overall);
+         return;
