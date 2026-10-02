@@ -1,0 +1,66 @@
+[package]
+name = "paper-a-optimized"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+members = ["apps/appendOnlyLog"]
+resolver = "2"
+
+[dependencies]
+ark-ff = "0.4"
+ark-bls12-381 = "0.4"
+rand = "0.8"
+rand_chacha = "0.3"
+blake3 = "1.5"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bincode = { version = "2.0.1", features = ["serde"] }
+base64 = "0.22"
+
+[dev-dependencies]
+append-only-log-demo = { path = "apps/appendOnlyLog" }
+
+[features]
+bench = []
+dev-tools = []
+rs_bw = []
+evm = []
+log-bulk-updates-1mb = ["append-only-log-demo/bulk-updates-1mb"]
+log-bulk-updates-2mb = ["append-only-log-demo/bulk-updates-2mb"]
+log-bulk-updates-8mb = ["append-only-log-demo/bulk-updates-8mb"]
+
+[[bench]]
+name = "bench_append_only_log_bulk_updates_append_local"
+harness = false
+required-features = ["bench"]
+
+[[bench]]
+name = "bench_append_only_log_point_open_local"
+harness = false
+required-features = ["bench"]
+
+[[bench]]
+name = "bench_append_only_log_client_point_open_local"
+harness = false
+required-features = ["bench"]
+
+[[bench]]
+name = "bench_append_only_log_range_open_local"
+harness = false
+required-features = ["bench"]
+
+[[bench]]
+name = "bench_append_only_log_repair_kernels_local"
+harness = false
+required-features = ["bench"]
+
+[[bench]]
+name = "bench_append_only_log_one_server_kappa_rescale_local"
+harness = false
+required-features = ["bench"]
+
+[[bench]]
+name = "bench_append_only_log_on_the_fly_open_local"
+harness = false
+required-features = ["bench"]

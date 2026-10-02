@@ -1,0 +1,3993 @@
+#!/usr/bin/env python3
+"""Demand-driven reproduction of the artifact's eight evaluation result groups.
+
+The manifest is authoritative: every scheduled benchmark metric has one or
+more exact result-cell consumers, and every result cell has an explicit source.
+Runs are isolated under ``results/runs`` and do not depend on paper sources.
+"""
+
+from __future__ import annotations
+
+import argparse
+import contextlib
+import csv
+import dataclasses
+import datetime as dt
+import fcntl
+import hashlib
+import json
+import math
+import os
+import pathlib
+import platform
+import re
+import shutil
+import statistics
+import subprocess
+import sys
+import tempfile
+import time
+from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Any, Iterable, Iterator, Mapping, Sequence
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+RUNS_ROOT = ROOT / "results" / "runs"
+GATES_ROOT = ROOT / "results" / "gates"
+PIPELINE_VERSION = 1
+FIELD_BYTES = 32
+TREE_HEIGHT = 50
+APPEND_SEQUENCE_BLOCKS = 64
+APPEND_SEQUENCE_WARMUP_BLOCKS = 0
+DEFAULT_MIN_REPETITIONS = 10
+DEFAULT_MAX_REPETITIONS = 160
+DIRECT_WARMUP_REPETITIONS = 3
+APPEND_WARMUP_REPETITIONS = 1
+DEFAULT_RELATIVE_HALF_WIDTH = 0.05
+SEQUENTIAL_LOOKS = (10, 20, 40, 80, 160)
+SEQUENTIAL_FAMILY_ALPHA = 0.05
+MIB = 1024 * 1024
+KIB = 1024
+
+LAYOUTS = ("undine", "borg")
+CRATE_ROOTS = {layout: ROOT / layout for layout in LAYOUTS}
+KAPPAS = (8, 16, 32, 64)
+RANGE_KAPPA = 64
+RANGE_SIZES_MIB = (1, 4, 8, 32, 128)
+ON_THE_FLY_LEVELS = 3
+ON_THE_FLY_RANGES_MIB = (1, 4)
+PREFIX_BATCHES = 3
+BATCH_VALUES_4MIB = 4 * MIB // FIELD_BYTES
+
+TABLE_LABELS = (
+    "tab:append",
+    "tab:point-open",
+    "tab:range-open",
+    "tab:maintenance",
+    "tab:on-the-fly-open",
+)
+
+TABLE_METADATA: dict[str, dict[str, Any]] = {
+    "tab:append": {
+        "title": "Append processing and fragment size",
+        "notes": (
+            "One row per threshold, with Seg = kappa^2. Append cells are one "
+            "maintainer's mean processing time for a 4 MiB batch in "
+            "milliseconds. Fragment cells are the mean newly materialized "
+            "fragment size per batch in MiB."
+        ),
+    },
+    "tab:point-open": {
+        "title": "Point openings",
+        "notes": (
+            "Helper work is microseconds for one helper's response "
+            "construction and serialization; response cells are its serialized "
+            "bytes. Client cells are Combine+Verify in milliseconds from kappa "
+            "correct responses, and from 3*kappa responses of which kappa are "
+            "corrupted."
+        ),
+    },
+    "tab:range-open": {
+        "title": "Range openings at kappa = 64",
+        "notes": (
+            "Per-helper response size is KiB. Helper work is one helper's "
+            "answer to the range request and its serialization, in "
+            "milliseconds. Client work is seconds, from 192 responses; the "
+            "corrupt case has 64 corrupted responses among them."
+        ),
+    },
+    "tab:maintenance": {
+        "title": "Repair and reconfiguration",
+        "notes": (
+            "The panel is the layout. All quantities are normalized per 4 MiB "
+            "appended to the evaluated 12 MiB prefix. Times are milliseconds; "
+            "fragment, download, and state values are MiB. Double and halve "
+            "move the threshold between kappa and 2*kappa. The diagonal halve "
+            "columns are the UndineLog undo from source state at kappa; the "
+            "segment-double column is BorgLog's local segment-and-kappa "
+            "double."
+        ),
+    },
+    "tab:on-the-fly-open": {
+        "title": "UndineLog openings served above the stored threshold",
+        "notes": (
+            "One maintainer stores a 12 MiB log at the stored threshold and "
+            "answers at the opened threshold. On-the-fly cells are that "
+            "answer; stored cells are the answer of a maintainer that stores "
+            "the log at the opened threshold. Both include response "
+            "serialization and are microseconds; response sizes are KiB. "
+            "Stitch-state is the time to stitch the maintainer's whole state "
+            "to the opened threshold, in milliseconds."
+        ),
+    },
+}
+
+OMITTED_EXPERIMENTS = (
+    "append batches other than 4 MiB",
+    "append generic, codec, preparation-only, and prepared-without-slack paths",
+    "point-helper core-only timing",
+    "range sizes 2, 16, and 64 MiB",
+    "range helper core-only, threshold-only, and split-range timing variants",
+    "repair component, correction, replay, and rebuild timings",
+    "reconfiguration component and all-helper serial timing variants",
+    "segment sizes other than kappa^2",
+)
+
+RENDER_UNIT_CONTRACTS: dict[str, tuple[frozenset[str], ...]] = {
+    "bytes-integer": (frozenset({"bytes"}),),
+    "integer": (frozenset({"", "reads", "segments"}),),
+    "kib-1": (frozenset({"bytes"}),),
+    "mib-3": (frozenset({"bytes"}),),
+    "mib-3-div3": (frozenset({"bytes"}),),
+    "microseconds-1": (frozenset({"ns"}),),
+    "milliseconds-1": (frozenset({"ns"}),),
+    "milliseconds-3": (frozenset({"ns"}),),
+    "milliseconds-3-div3": (frozenset({"ns"}),),
+    "seconds-3": (frozenset({"ns"}),),
+    "text": (frozenset({""}),),
+}
+
+
+class PipelineError(RuntimeError):
+    """A reproducibility invariant failed."""
+
+
+def canonical_json(value: Any) -> bytes:
+    return json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+    ).encode("ascii")
+
+
+def sha256_bytes(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def sha256_file(path: pathlib.Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def atomic_write_bytes(path: pathlib.Path, payload: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    tmp = pathlib.Path(tmp_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+    finally:
+        with contextlib.suppress(FileNotFoundError):
+            tmp.unlink()
+
+
+def atomic_write_text(path: pathlib.Path, payload: str) -> None:
+    atomic_write_bytes(path, payload.encode("utf-8"))
+
+
+def atomic_write_json(path: pathlib.Path, payload: Any) -> None:
+    atomic_write_bytes(path, json.dumps(payload, indent=2, sort_keys=True).encode())
+
+
+def run_capture(
+    command: Sequence[str],
+    *,
+    cwd: pathlib.Path = ROOT,
+    env: Mapping[str, str] | None = None,
+    timeout: float | None = None,
+    check: bool = True,
+    stdin: bytes | None = None,
+) -> subprocess.CompletedProcess[bytes]:
+    completed = subprocess.run(
+        list(command),
+        cwd=cwd,
+        env=None if env is None else dict(env),
+        input=stdin,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=timeout,
+        check=False,
+    )
+    if check and completed.returncode != 0:
+        stdout = completed.stdout.decode(errors="replace")[-4000:]
+        stderr = completed.stderr.decode(errors="replace")[-4000:]
+        raise PipelineError(
+            f"command failed ({completed.returncode}): {' '.join(command)}\n"
+            f"stdout:\n{stdout}\nstderr:\n{stderr}"
+        )
+    return completed
+
+
+def ceil_div(numerator: int, denominator: int) -> int:
+    if denominator <= 0:
+        raise ValueError("denominator must be positive")
+    return (numerator + denominator - 1) // denominator
+
+
+def total_nodes_for_height(height: int) -> int:
+    return (1 << (height + 1)) - 1
+
+
+def cursor_preorder(height: int, prefix_leaves: int) -> int:
+    if height < 0 or prefix_leaves < 0 or prefix_leaves > (1 << height):
+        raise ValueError("invalid preorder cursor arguments")
+    if prefix_leaves == 0:
+        return 0
+    cursor = 0
+    remaining = prefix_leaves
+    current_height = height
+    while remaining:
+        cursor += 1
+        if current_height == 0:
+            break
+        left_leaves = 1 << (current_height - 1)
+        if remaining <= left_leaves:
+            current_height -= 1
+        else:
+            cursor += total_nodes_for_height(current_height - 1)
+            remaining -= left_leaves
+            current_height -= 1
+    return cursor
+
+
+def stored_elements_per_segment(layout: str, segment_len: int, kappa: int) -> int:
+    """Field elements one claim stores per segment."""
+    if layout == "undine":
+        if segment_len != kappa * kappa:
+            raise ValueError("the undine layout has Seg = kappa^2")
+        return 2 * kappa
+    if layout == "borg":
+        primary = segment_len // kappa
+        return primary + kappa * max(1, ceil_div(primary, kappa))
+    raise ValueError(f"unknown layout: {layout}")
+
+
+def sequence_state_growth_bytes(
+    *,
+    layout: str,
+    tree_height: int,
+    inserted_values_per_batch: int,
+    segment_len: int,
+    kappa: int,
+    sequence_blocks: int = APPEND_SEQUENCE_BLOCKS,
+    warmup_blocks: int = APPEND_SEQUENCE_WARMUP_BLOCKS,
+) -> float:
+    if sequence_blocks <= warmup_blocks:
+        raise ValueError("sequence must contain at least one measured block")
+    before = cursor_preorder(tree_height, warmup_blocks * inserted_values_per_batch)
+    after = cursor_preorder(tree_height, sequence_blocks * inserted_values_per_batch)
+    first_segment = ceil_div(before, segment_len)
+    last_segment = ceil_div(after, segment_len)
+    mean_new_segments = (last_segment - first_segment) / (
+        sequence_blocks - warmup_blocks
+    )
+    stored_elements = stored_elements_per_segment(layout, segment_len, kappa)
+    return mean_new_segments * stored_elements * FIELD_BYTES
+
+
+@dataclass(frozen=True)
+class JobSpec:
+    id: str
+    layout: str
+    family: str
+    benchmark: str
+    features: tuple[str, ...]
+    env: tuple[tuple[str, str], ...]
+    result_relpath: str
+    trial_env: str
+    setup: str
+    estimated_setup_seconds: float
+    estimated_seconds_per_repetition: float
+
+    def env_dict(self) -> dict[str, str]:
+        return dict(self.env)
+
+    def semantic_key(self) -> str:
+        value = {
+            "layout": self.layout,
+            "benchmark": self.benchmark,
+            "features": self.features,
+            "env": self.env,
+            "result_relpath": self.result_relpath,
+            "trial_env": self.trial_env,
+        }
+        return sha256_bytes(canonical_json(value))
+
+
+@dataclass(frozen=True)
+class MeasurementSpec:
+    id: str
+    job_id: str | None
+    selector: tuple[tuple[str, Any], ...] = ()
+    path: tuple[str, ...] = ()
+    kind: str = "timing"
+    sample_mode: str = "direct"
+    formula: str | None = None
+    formula_args: tuple[Any, ...] = ()
+    unit: str = ""
+    description: str = ""
+
+    def selector_dict(self) -> dict[str, Any]:
+        return dict(self.selector)
+
+
+@dataclass(frozen=True)
+class CellSpec:
+    table: str
+    row: str
+    column: str
+    sources: tuple[str, ...]
+    render: str
+    description: str
+
+    @property
+    def id(self) -> str:
+        return f"{self.table}|{self.row}|{self.column}"
+
+
+@dataclass
+class Manifest:
+    jobs: dict[str, JobSpec] = field(default_factory=dict)
+    measurements: dict[str, MeasurementSpec] = field(default_factory=dict)
+    cells: dict[str, CellSpec] = field(default_factory=dict)
+    table_rows: dict[str, list[str]] = field(default_factory=lambda: defaultdict(list))
+    table_columns: dict[str, list[str]] = field(default_factory=dict)
+
+    def add_job(self, job: JobSpec) -> JobSpec:
+        if job.id in self.jobs:
+            raise PipelineError(f"duplicate job id: {job.id}")
+        self.jobs[job.id] = job
+        return job
+
+    def add_measurement(self, measurement: MeasurementSpec) -> str:
+        previous = self.measurements.get(measurement.id)
+        if previous is not None and previous != measurement:
+            raise PipelineError(f"conflicting measurement id: {measurement.id}")
+        self.measurements[measurement.id] = measurement
+        return measurement.id
+
+    def add_cell(self, cell: CellSpec) -> None:
+        if cell.id in self.cells:
+            raise PipelineError(f"duplicate table cell: {cell.id}")
+        self.cells[cell.id] = cell
+
+    def add_row(self, table: str, row: str, cells: Iterable[CellSpec]) -> None:
+        if row in self.table_rows[table]:
+            raise PipelineError(f"duplicate row {table}|{row}")
+        self.table_rows[table].append(row)
+        for cell in cells:
+            if cell.table != table or cell.row != row:
+                raise PipelineError(f"cell placed in wrong row: {cell.id}")
+            self.add_cell(cell)
+
+    def consumers(self) -> dict[str, list[str]]:
+        result: dict[str, list[str]] = defaultdict(list)
+        for cell in self.cells.values():
+            for source in cell.sources:
+                result[source].append(cell.id)
+        return result
+
+    def measurements_for_job(self, job_id: str) -> list[MeasurementSpec]:
+        return [
+            measurement
+            for measurement in self.measurements.values()
+            if measurement.job_id == job_id
+        ]
+
+    def as_dict(self) -> dict[str, Any]:
+        consumers = self.consumers()
+        return {
+            "pipeline_version": PIPELINE_VERSION,
+            "artifact_schema_version": 1,
+            "result_groups": list(TABLE_LABELS),
+            "jobs": [dataclasses.asdict(self.jobs[key]) for key in sorted(self.jobs)],
+            "measurements": [
+                {
+                    **dataclasses.asdict(self.measurements[key]),
+                    "consumers": sorted(consumers.get(key, [])),
+                }
+                for key in sorted(self.measurements)
+            ],
+            "cells": [
+                dataclasses.asdict(self.cells[key]) | {"id": key}
+                for key in sorted(self.cells)
+            ],
+            "table_rows": dict(self.table_rows),
+            "table_columns": self.table_columns,
+            "omitted_experiments": list(OMITTED_EXPERIMENTS),
+        }
+
+
+def validate_cell_unit_contract(cell_spec: CellSpec, manifest: Manifest) -> None:
+    contract = RENDER_UNIT_CONTRACTS.get(cell_spec.render)
+    if contract is None:
+        raise PipelineError(
+            f"{cell_spec.id}: no unit contract for renderer {cell_spec.render}"
+        )
+    if len(contract) != len(cell_spec.sources):
+        raise PipelineError(
+            f"{cell_spec.id}: renderer {cell_spec.render} expects "
+            f"{len(contract)} sources, found {len(cell_spec.sources)}"
+        )
+    for index, (source, allowed) in enumerate(zip(cell_spec.sources, contract)):
+        measurement = manifest.measurements.get(source)
+        if measurement is None:
+            raise PipelineError(f"{cell_spec.id}: unknown source {source}")
+        if measurement.unit not in allowed:
+            raise PipelineError(
+                f"{cell_spec.id}: source {index + 1} has unit "
+                f"{measurement.unit!r}, expected one of {sorted(allowed)!r}"
+            )
+
+
+def validate_measurement_value(
+    measurement: MeasurementSpec,
+    value: Any,
+) -> None:
+    numeric_units = {"ns", "bytes", "reads", "segments"}
+    is_numeric = not isinstance(value, bool) and isinstance(value, (int, float))
+    if is_numeric:
+        numeric = float(value)
+        if not math.isfinite(numeric) or numeric < 0:
+            raise PipelineError(
+                f"{measurement.id}: invalid {measurement.unit or 'numeric'} "
+                f"value {value!r}"
+            )
+    elif measurement.unit in numeric_units or measurement.kind == "timing":
+        raise PipelineError(
+            f"{measurement.id}: expected numeric {measurement.unit} value"
+        )
+    if measurement.kind == "timing" and is_numeric and float(value) <= 0:
+        raise PipelineError(
+            f"{measurement.id}: timing sample must be strictly positive"
+        )
+
+
+def selector(**values: Any) -> tuple[tuple[str, Any], ...]:
+    return tuple(sorted(values.items()))
+
+
+def job_env(**values: Any) -> tuple[tuple[str, str], ...]:
+    return tuple(sorted((key, str(value)) for key, value in values.items()))
+
+
+def formula_id(formula: str, *args: Any) -> str:
+    suffix = sha256_bytes(canonical_json([formula, args]))[:12]
+    readable = "-".join(str(value).replace(" ", "_") for value in args[:3])
+    return f"formula:{formula}:{readable}:{suffix}"
+
+
+def ensure_formula(
+    manifest: Manifest,
+    formula: str,
+    *args: Any,
+    unit: str = "",
+    description: str = "",
+) -> str:
+    identifier = formula_id(formula, *args)
+    return manifest.add_measurement(
+        MeasurementSpec(
+            id=identifier,
+            job_id=None,
+            kind="formula",
+            formula=formula,
+            formula_args=tuple(args),
+            unit=unit,
+            description=description,
+        )
+    )
+
+
+def output_id(job_id: str, tag: str) -> str:
+    return f"output:{job_id}:{tag}"
+
+
+def ensure_output(
+    manifest: Manifest,
+    job: JobSpec,
+    tag: str,
+    *,
+    entry_selector: tuple[tuple[str, Any], ...],
+    path: str,
+    kind: str,
+    sample_mode: str = "direct",
+    unit: str = "",
+    description: str = "",
+) -> str:
+    identifier = output_id(job.id, tag)
+    return manifest.add_measurement(
+        MeasurementSpec(
+            id=identifier,
+            job_id=job.id,
+            selector=entry_selector,
+            path=tuple(path.split(".")),
+            kind=kind,
+            sample_mode=sample_mode,
+            unit=unit,
+            description=description,
+        )
+    )
+
+
+def cell(
+    table: str,
+    row: str,
+    column: str,
+    sources: str | Sequence[str],
+    render: str,
+    description: str,
+) -> CellSpec:
+    if isinstance(sources, str):
+        sources = (sources,)
+    return CellSpec(table, row, column, tuple(sources), render, description)
+
+
+def add_job(
+    manifest: Manifest,
+    *,
+    identifier: str,
+    layout: str,
+    family: str,
+    benchmark: str,
+    features: tuple[str, ...],
+    env: tuple[tuple[str, str], ...],
+    result_relpath: str,
+    trial_env: str,
+    setup: str,
+    setup_seconds: float,
+    repetition_seconds: float,
+) -> JobSpec:
+    return manifest.add_job(
+        JobSpec(
+            id=identifier,
+            layout=layout,
+            family=family,
+            benchmark=benchmark,
+            features=features,
+            env=env,
+            result_relpath=result_relpath,
+            trial_env=trial_env,
+            setup=setup,
+            estimated_setup_seconds=setup_seconds,
+            estimated_seconds_per_repetition=repetition_seconds,
+        )
+    )
+
+
+def build_manifest() -> Manifest:
+    manifest = Manifest()
+    _build_append_table(manifest)
+    _build_point_table(manifest)
+    _build_range_table(manifest)
+    _build_maintenance_table(manifest)
+    _build_on_the_fly_table(manifest)
+    validate_manifest(manifest)
+    return manifest
+
+
+def layout_env(layout: str, kappa: int, *, undine: str, borg: Mapping[str, Any]) -> dict[str, Any]:
+    """Operating-point variables of one benchmark for one layout.
+
+    The undine benchmarks take the threshold; the borg benchmarks take the
+    segment size and the threshold or `s = Seg / kappa`. `borg` maps each
+    variable to a function of `(segment_len, kappa)`.
+    """
+    segment_len = kappa * kappa
+    if layout == "undine":
+        return {undine: kappa}
+    if layout == "borg":
+        return {key: value(segment_len, kappa) for key, value in borg.items()}
+    raise ValueError(f"unknown layout: {layout}")
+
+
+def _dash(manifest: Manifest) -> str:
+    return ensure_formula(manifest, "text", "--")
+
+
+def _append_job(manifest: Manifest, layout: str, kappa: int) -> tuple[str, str]:
+    segment_len = kappa * kappa
+    prefix = "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND"
+    job = add_job(
+        manifest,
+        identifier=f"append-4mib-{layout}-k{kappa}",
+        layout=layout,
+        family=f"{layout}-append",
+        benchmark="bench_append_only_log_bulk_updates_append_local",
+        features=("bench",),
+        env=job_env(
+            **{
+                f"{prefix}_TREE_HEIGHT": TREE_HEIGHT,
+                f"{prefix}_LOCAL_CLAIMS": 1,
+                f"{prefix}_SEQUENCE_BLOCKS": APPEND_SEQUENCE_BLOCKS,
+                f"{prefix}_SEQUENCE_WARMUP_BLOCKS": APPEND_SEQUENCE_WARMUP_BLOCKS,
+                f"{prefix}_SKIP_GENERIC": "true",
+                f"{prefix}_METRICS": "prepared_with_slack",
+            },
+            **layout_env(
+                layout,
+                kappa,
+                undine=f"{prefix}_KAPPA",
+                borg={
+                    f"{prefix}_SEGMENT_LEN": lambda seg, k: seg,
+                    f"{prefix}_S": lambda seg, k: seg // k,
+                },
+            ),
+        ),
+        result_relpath="results/bench_append_only_log_bulk_updates_append_local.json",
+        trial_env=f"{prefix}_TRIALS",
+        setup="Each repetition starts a fresh maintainer and runs one complete 64-batch sequence.",
+        setup_seconds=1.0,
+        repetition_seconds=APPEND_SEQUENCE_BLOCKS * 0.3,
+    )
+    timing = ensure_output(
+        manifest,
+        job,
+        "prepared-with-slack-sequence",
+        entry_selector=selector(segment_len=segment_len, need=kappa),
+        path="prepared_with_slack_next_bulk_updates_append_ns",
+        kind="timing",
+        sample_mode="append-sequence",
+        unit="ns",
+        description="Mean append time from one complete 64-batch sequence.",
+    )
+    fragment = ensure_formula(
+        manifest,
+        "append-fragment-growth-bytes",
+        layout,
+        TREE_HEIGHT,
+        BATCH_VALUES_4MIB,
+        segment_len,
+        kappa,
+        APPEND_SEQUENCE_BLOCKS,
+        APPEND_SEQUENCE_WARMUP_BLOCKS,
+        unit="bytes",
+        description="Mean newly materialized fragment bytes per appended batch.",
+    )
+    return timing, fragment
+
+
+def _build_append_table(manifest: Manifest) -> None:
+    table = "tab:append"
+    columns = ["segment", "kappa"]
+    for layout in LAYOUTS:
+        columns += [f"{layout}-append", f"{layout}-fragment"]
+    manifest.table_columns[table] = columns
+    for kappa in KAPPAS:
+        row = f"k{kappa}"
+        cells = [
+            cell(table, row, "segment", ensure_formula(manifest, "integer", kappa * kappa),
+                 "integer", "Segment size."),
+            cell(table, row, "kappa", ensure_formula(manifest, "integer", kappa),
+                 "integer", "Threshold."),
+        ]
+        for layout in LAYOUTS:
+            timing, fragment = _append_job(manifest, layout, kappa)
+            cells += [
+                cell(table, row, f"{layout}-append", timing, "milliseconds-1",
+                     f"{layout}: maintainer processing time of one 4 MiB batch."),
+                cell(table, row, f"{layout}-fragment", fragment, "mib-3",
+                     f"{layout}: fragment growth per 4 MiB batch."),
+            ]
+        manifest.add_row(table, row, cells)
+
+
+def _point_helper_job(manifest: Manifest, layout: str, kappa: int) -> tuple[str, str]:
+    segment_len = kappa * kappa
+    prefix = "BENCH_APPEND_ONLY_LOG_POINT_OPEN"
+    job = add_job(
+        manifest,
+        identifier=f"point-helper-{layout}-k{kappa}",
+        layout=layout,
+        family=f"{layout}-point-helper",
+        benchmark="bench_append_only_log_point_open_local",
+        features=("bench",),
+        env=job_env(
+            **{
+                f"{prefix}_TREE_HEIGHT": TREE_HEIGHT,
+                f"{prefix}_LOCAL_CLAIMS": 1,
+                f"{prefix}_COMMITTED_BULK_UPDATE_BATCHES": PREFIX_BATCHES,
+                f"{prefix}_METRICS": "serialized",
+            },
+            **layout_env(
+                layout,
+                kappa,
+                undine=f"{prefix}_KAPPA",
+                borg={
+                    f"{prefix}_SEG": lambda seg, k: seg,
+                    f"{prefix}_KAPPA": lambda seg, k: k,
+                },
+            ),
+        ),
+        result_relpath="results/bench_append_only_log_point_open_local.json",
+        trial_env=f"{prefix}_TRIALS",
+        setup="Warm one claim-bound helper through three 4 MiB appends.",
+        setup_seconds=8.0,
+        repetition_seconds=0.01,
+    )
+    match = selector(Seg=segment_len, kappa=kappa)
+    helper = ensure_output(
+        manifest, job, "serialized-helper-response", entry_selector=match,
+        path="helper_open_share_serialized_ns", kind="timing", unit="ns",
+        description="Construction and serialization of one helper response.",
+    )
+    response_bytes = ensure_output(
+        manifest, job, "serialized-response-bytes", entry_selector=match,
+        path="serialized_response_bytes", kind="value", unit="bytes",
+        description="Serialized bytes in one helper response.",
+    )
+    return helper, response_bytes
+
+
+def _point_client_job(manifest: Manifest, layout: str, kappa: int) -> tuple[str, str]:
+    segment_len = kappa * kappa
+    prefix = "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN"
+    job = add_job(
+        manifest,
+        identifier=f"point-client-{layout}-k{kappa}",
+        layout=layout,
+        family=f"{layout}-point-client",
+        benchmark="bench_append_only_log_client_point_open_local",
+        features=("bench",),
+        env=job_env(
+            **{
+                f"{prefix}_TREE_HEIGHT": TREE_HEIGHT,
+                f"{prefix}_COMMITTED_BULK_UPDATE_BATCHES": PREFIX_BATCHES,
+            },
+            **layout_env(
+                layout,
+                kappa,
+                undine=f"{prefix}_KAPPA",
+                borg={
+                    f"{prefix}_SEG": lambda seg, k: seg,
+                    f"{prefix}_KAPPA": lambda seg, k: k,
+                },
+            ),
+        ),
+        result_relpath="results/bench_append_only_log_client_point_open_local.json",
+        trial_env=f"{prefix}_TRIALS",
+        setup="Warm and split a three-batch point-opening fixture.",
+        setup_seconds=12.0,
+        repetition_seconds=max(0.01, (kappa / 8) ** 3 * 0.002),
+    )
+    match = selector(Seg=segment_len, kappa=kappa)
+    clean = ensure_output(
+        manifest, job, "clean-combine-verify", entry_selector=match,
+        path="client_zero_bad_helpers_combine_verify_ns", kind="timing", unit="ns",
+        description="Combine+Verify from kappa correct responses.",
+    )
+    corrupt = ensure_output(
+        manifest, job, "corrupt-combine-verify", entry_selector=match,
+        path="client_kappa_bad_helpers_combine_verify_ns", kind="timing", unit="ns",
+        description="Combine+Verify from 3*kappa responses with kappa corrupted.",
+    )
+    return clean, corrupt
+
+
+def _build_point_table(manifest: Manifest) -> None:
+    table = "tab:point-open"
+    columns = ["segment", "kappa"]
+    for layout in LAYOUTS:
+        columns += [
+            f"{layout}-helper",
+            f"{layout}-response",
+            f"{layout}-client",
+            f"{layout}-client-correcting",
+        ]
+    manifest.table_columns[table] = columns
+    for kappa in KAPPAS:
+        row = f"k{kappa}"
+        cells = [
+            cell(table, row, "segment", ensure_formula(manifest, "integer", kappa * kappa),
+                 "integer", "Segment size."),
+            cell(table, row, "kappa", ensure_formula(manifest, "integer", kappa),
+                 "integer", "Threshold."),
+        ]
+        for layout in LAYOUTS:
+            helper, response_bytes = _point_helper_job(manifest, layout, kappa)
+            clean, corrupt = _point_client_job(manifest, layout, kappa)
+            cells += [
+                cell(table, row, f"{layout}-helper", helper, "microseconds-1",
+                     f"{layout}: one helper's response construction and serialization."),
+                cell(table, row, f"{layout}-response", response_bytes, "bytes-integer",
+                     f"{layout}: serialized bytes of one helper response."),
+                cell(table, row, f"{layout}-client", clean, "milliseconds-3",
+                     f"{layout}: fault-free client Combine+Verify."),
+                cell(table, row, f"{layout}-client-correcting", corrupt, "milliseconds-3",
+                     f"{layout}: error-correcting client Combine+Verify."),
+            ]
+        manifest.add_row(table, row, cells)
+
+
+def _range_job(manifest: Manifest, layout: str, role: str) -> JobSpec:
+    kappa = RANGE_KAPPA
+    prefix = "BENCH_APPEND_ONLY_LOG_RANGE_OPEN"
+    metrics = {
+        "helper": "serialized",
+        "client": "correcting_clean,correcting_corrupt",
+    }[role]
+    return add_job(
+        manifest,
+        identifier=f"range-{role}-{layout}-k{kappa}",
+        layout=layout,
+        family=f"{layout}-range-{role}",
+        benchmark="bench_append_only_log_range_open_local",
+        features=("bench", "log-bulk-updates-8mb"),
+        env=job_env(
+            **{
+                f"{prefix}_TREE_HEIGHT": TREE_HEIGHT,
+                f"{prefix}_COMMITTED_BULK_UPDATE_BATCHES": 16,
+                f"{prefix}_QUERY_BULK_UPDATES": 0,
+                f"{prefix}_BYTE_OFFSET": 0,
+                f"{prefix}_BYTE_LEN_LIST": ",".join(
+                    str(value * MIB) for value in RANGE_SIZES_MIB
+                ),
+                f"{prefix}_SPLIT_COUNT": 1,
+                f"{prefix}_METRICS": metrics,
+            },
+            **layout_env(
+                layout,
+                kappa,
+                undine=f"{prefix}_KAPPA",
+                borg={
+                    f"{prefix}_SEG": lambda seg, k: seg,
+                    f"{prefix}_KAPPA": lambda seg, k: k,
+                },
+            ),
+        ),
+        result_relpath="results/bench_append_only_log_range_open_local.json",
+        trial_env=f"{prefix}_TRIALS",
+        setup="Warm sixteen 8 MiB batches once and reuse the captured range state.",
+        setup_seconds=240.0,
+        repetition_seconds=0.02 if role == "helper" else 110.0,
+    )
+
+
+def _build_range_table(manifest: Manifest) -> None:
+    table = "tab:range-open"
+    kappa = RANGE_KAPPA
+    columns = ["range-mib", "full-segment-reads", "point-reads"]
+    for layout in LAYOUTS:
+        columns += [
+            f"{layout}-per-helper-kib",
+            f"{layout}-helper-work",
+            f"{layout}-clean-client",
+            f"{layout}-corrupt-client",
+        ]
+    manifest.table_columns[table] = columns
+    jobs = {
+        (layout, role): _range_job(manifest, layout, role)
+        for layout in LAYOUTS
+        for role in ("helper", "client")
+    }
+    for range_mib in RANGE_SIZES_MIB:
+        row = f"range-{range_mib}mib"
+        match = selector(Seg=kappa * kappa, kappa=kappa, range_bytes=range_mib * MIB)
+        counts_job = jobs[("undine", "helper")]
+        cells = [
+            cell(table, row, "range-mib", ensure_formula(manifest, "integer", range_mib),
+                 "integer", "Returned range size in MiB."),
+            cell(
+                table, row, "full-segment-reads",
+                ensure_output(
+                    manifest, counts_job, f"{range_mib}mib-full-segments",
+                    entry_selector=match, path="request_segments", kind="value",
+                    unit="reads", description="Full coded-segment reads in the range request.",
+                ),
+                "integer", "Full segments.",
+            ),
+            cell(
+                table, row, "point-reads",
+                ensure_output(
+                    manifest, counts_job, f"{range_mib}mib-point-reads",
+                    entry_selector=match, path="request_points", kind="value",
+                    unit="reads", description="Single-cell coded-array reads in the range request.",
+                ),
+                "integer", "Boundary/authentication points.",
+            ),
+        ]
+        for layout in LAYOUTS:
+            helper_job = jobs[(layout, "helper")]
+            client_job = jobs[(layout, "client")]
+            response_bytes = ensure_output(
+                manifest, helper_job, f"{range_mib}mib-helper-bytes", entry_selector=match,
+                path="helper_response_serialized_bytes", kind="value", unit="bytes",
+                description="Serialized response bytes from one helper.",
+            )
+            helper = ensure_output(
+                manifest, helper_job, f"{range_mib}mib-helper-time", entry_selector=match,
+                path="helper_range_share_serialized_ns", kind="timing", unit="ns",
+                description="One helper's answer to the range request and its serialization.",
+            )
+            clean = ensure_output(
+                manifest, client_job, f"{range_mib}mib-clean-client", entry_selector=match,
+                path="client_correction_budget_combine_verify_ns", kind="timing", unit="ns",
+                description="Client Combine+Verify from clean oversampled responses.",
+            )
+            corrupt = ensure_output(
+                manifest, client_job, f"{range_mib}mib-corrupt-client", entry_selector=match,
+                path="client_kappa_failures_filtered_combine_verify_ns", kind="timing",
+                unit="ns", description="Client Combine+Verify with 64 corrupted helpers.",
+            )
+            cells += [
+                cell(table, row, f"{layout}-per-helper-kib", response_bytes, "kib-1",
+                     f"{layout}: serialized bytes from one helper."),
+                cell(table, row, f"{layout}-helper-work", helper, "milliseconds-3",
+                     f"{layout}: one helper's work."),
+                cell(table, row, f"{layout}-clean-client", clean, "seconds-3",
+                     f"{layout}: client work with no corrupted helpers."),
+                cell(table, row, f"{layout}-corrupt-client", corrupt, "seconds-3",
+                     f"{layout}: client work with 64 corrupted helpers."),
+            ]
+        manifest.add_row(table, row, cells)
+
+
+def _repair_job(manifest: Manifest, layout: str, kappa: int) -> dict[str, str]:
+    segment_len = kappa * kappa
+    prefix = "BENCH_APPEND_ONLY_LOG_REPAIR"
+    job = add_job(
+        manifest,
+        identifier=f"repair-{layout}-k{kappa}",
+        layout=layout,
+        family=f"{layout}-repair",
+        benchmark="bench_append_only_log_repair_kernels_local",
+        features=("bench",),
+        env=job_env(
+            **{
+                f"{prefix}_TREE_HEIGHT": TREE_HEIGHT,
+                f"{prefix}_COMMITTED_BULK_UPDATE_BATCHES": PREFIX_BATCHES,
+                f"{prefix}_HELPER_SURPLUS": 1,
+                f"{prefix}_MAX_ERRORS": 0,
+                f"{prefix}_METRICS": "helper_rpc,recover_install",
+            },
+            **layout_env(
+                layout,
+                kappa,
+                undine=f"{prefix}_KAPPA",
+                borg={
+                    f"{prefix}_SEGMENT_LEN": lambda seg, k: seg,
+                    f"{prefix}_S": lambda seg, k: seg // k,
+                },
+            ),
+        ),
+        result_relpath="results/bench_append_only_log_repair_kernels_local.json",
+        trial_env=f"{prefix}_TRIALS",
+        setup="Warm a 12 MiB prefix and prepare exact repair replies.",
+        setup_seconds=20.0,
+        repetition_seconds=3.0,
+    )
+    match = selector(segment_len=segment_len, need=kappa)
+    return {
+        "receiver": ensure_output(
+            manifest, job, "receiver-recover-install", entry_selector=match,
+            path="recoverer_recover_install_kernel_ns", kind="timing", unit="ns",
+            description="Recovering maintainer reconstruction and installation.",
+        ),
+        "helper": ensure_output(
+            manifest, job, "helper-rpc", entry_selector=match,
+            path="helper_assist_net_adapter_ns", kind="timing", unit="ns",
+            description="One helper's endpoint work and response serialization.",
+        ),
+        "download": ensure_output(
+            manifest, job, "modeled-download", entry_selector=match,
+            path="recover_helper_reply_bytes_modeled", kind="value", unit="bytes",
+            description="Modeled raw helper data for repair.",
+        ),
+    }
+
+
+RECONFIG_FIELDS: dict[str, dict[str, tuple[str, str, str]]] = {
+    "undine": {
+        "up_receiver": ("local_kappa_double_total_ns", "timing", "ns"),
+        "up_download": ("kappa_double_helper_eval_raw_bytes_total", "value", "bytes"),
+        "state_after": ("receiver_target_state_bytes", "value", "bytes"),
+        "down_receiver": ("kappa_halve_prepared_total_ns", "timing", "ns"),
+        "down_helper": ("kappa_halve_helper_eval_one_helper_serialized_ns", "timing", "ns"),
+        "down_download": ("kappa_halve_helper_eval_raw_bytes_total", "value", "bytes"),
+        "diagonal_receiver": ("kappa_halve_diagonal_unstitch_install_ns", "timing", "ns"),
+        "diagonal_download": ("kappa_halve_diagonal_source_raw_bytes_total", "value", "bytes"),
+    },
+    "borg": {
+        "up_receiver": ("local_kappa_double_total_ns", "timing", "ns"),
+        "up_helper": ("helper_eval_one_helper_serialized_ns", "timing", "ns"),
+        "up_download": ("helper_eval_raw_bytes_total", "value", "bytes"),
+        "down_receiver": ("kappa_halve_prepared_total_ns", "timing", "ns"),
+        "down_helper": ("kappa_halve_helper_eval_one_helper_serialized_ns", "timing", "ns"),
+        "down_download": ("kappa_halve_helper_eval_raw_bytes_total", "value", "bytes"),
+        "segment_receiver": ("local_segment_double_total_ns", "timing", "ns"),
+    },
+}
+
+RECONFIG_METRICS = {
+    "undine": "receiver_double,helper_halve,receiver_halve,receiver_halve_diagonal",
+    "borg": "receiver_double,segment_double,receiver_halve,helper_double,helper_halve",
+}
+
+
+def _reconfig_job(manifest: Manifest, layout: str, kappa: int) -> dict[str, str]:
+    segment_len = kappa * kappa
+    prefix = "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE"
+    job = add_job(
+        manifest,
+        identifier=f"reconfig-{layout}-k{kappa}",
+        layout=layout,
+        family=f"{layout}-reconfiguration",
+        benchmark="bench_append_only_log_one_server_kappa_rescale_local",
+        features=("bench",),
+        env=job_env(
+            **{
+                "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": TREE_HEIGHT,
+                f"{prefix}_COMMITTED_BULK_UPDATE_BATCHES": PREFIX_BATCHES,
+                f"{prefix}_METRICS": RECONFIG_METRICS[layout],
+            },
+            **layout_env(
+                layout,
+                kappa,
+                undine=f"{prefix}_KAPPA",
+                borg={
+                    f"{prefix}_SEGMENT_LEN": lambda seg, k: seg,
+                    f"{prefix}_SOURCE_S": lambda seg, k: seg // k,
+                },
+            ),
+        ),
+        result_relpath="results/bench_append_only_log_one_server_kappa_rescale_local.json",
+        trial_env=f"{prefix}_TRIALS",
+        setup="Warm the 12 MiB source responsibility and prepare the reconfiguration inputs.",
+        setup_seconds=25.0,
+        repetition_seconds=5.0,
+    )
+    match = selector(segment_len=segment_len, source_need=kappa)
+    return {
+        name: ensure_output(
+            manifest, job, name, entry_selector=match, path=path, kind=kind, unit=unit,
+            description=f"Reconfiguration output {path}.",
+        )
+        for name, (path, kind, unit) in RECONFIG_FIELDS[layout].items()
+    }
+
+
+def _build_maintenance_table(manifest: Manifest) -> None:
+    table = "tab:maintenance"
+    columns = [
+        "segment",
+        "kappa",
+        "fragment",
+        "repair-receiver",
+        "repair-helper",
+        "repair-download",
+        "double-receiver",
+        "double-helper",
+        "double-download",
+        "state-after-double",
+        "halve-receiver",
+        "halve-helper",
+        "halve-download",
+        "halve-diagonal-receiver",
+        "halve-diagonal-download",
+        "segment-double-receiver",
+    ]
+    manifest.table_columns[table] = columns
+    prefix_cursor = cursor_preorder(TREE_HEIGHT, PREFIX_BATCHES * BATCH_VALUES_4MIB)
+    dash = _dash(manifest)
+    for layout in LAYOUTS:
+        for kappa in KAPPAS:
+            segment_len = kappa * kappa
+            row = f"{layout}:k{kappa}"
+            repair = _repair_job(manifest, layout, kappa)
+            reconfig = _reconfig_job(manifest, layout, kappa)
+
+            def timed(column: str, source: str | None, description: str) -> CellSpec:
+                if source is None:
+                    return cell(table, row, column, dash, "text", description)
+                return cell(table, row, column, source, "milliseconds-3-div3", description)
+
+            def sized(column: str, source: str | None, description: str) -> CellSpec:
+                if source is None:
+                    return cell(table, row, column, dash, "text", description)
+                return cell(table, row, column, source, "mib-3-div3", description)
+
+            if layout == "undine":
+                state_after = reconfig["state_after"]
+            else:
+                # BorgLog doubles kappa at a fixed segment size.
+                state_after = ensure_formula(
+                    manifest,
+                    "maintainer-state-bytes",
+                    "borg",
+                    prefix_cursor,
+                    segment_len,
+                    2 * kappa,
+                    unit="bytes",
+                    description="Modeled fragment bytes after doubling kappa.",
+                )
+            manifest.add_row(
+                table,
+                row,
+                [
+                    cell(table, row, "segment", ensure_formula(manifest, "integer", segment_len),
+                         "integer", "Segment size."),
+                    cell(table, row, "kappa", ensure_formula(manifest, "integer", kappa),
+                         "integer", "Threshold."),
+                    sized("fragment", repair["download"],
+                          "Maintainer fragment bytes per 4 MiB."),
+                    timed("repair-receiver", repair["receiver"],
+                          "Repair receiver work per 4 MiB."),
+                    timed("repair-helper", repair["helper"],
+                          "One repair helper's work per 4 MiB."),
+                    sized("repair-download", repair["download"],
+                          "Repair download per 4 MiB."),
+                    timed("double-receiver", reconfig["up_receiver"],
+                          "Kappa-double receiver work per 4 MiB."),
+                    timed("double-helper", reconfig.get("up_helper"),
+                          "Kappa-double helper work per 4 MiB."),
+                    sized("double-download", reconfig["up_download"],
+                          "Kappa-double download per 4 MiB."),
+                    sized("state-after-double", state_after,
+                          "Fragment bytes per 4 MiB after doubling kappa."),
+                    timed("halve-receiver", reconfig["down_receiver"],
+                          "Kappa-halve receiver work per 4 MiB, from helper replies."),
+                    timed("halve-helper", reconfig["down_helper"],
+                          "Kappa-halve helper work per 4 MiB."),
+                    sized("halve-download", reconfig["down_download"],
+                          "Kappa-halve download per 4 MiB."),
+                    timed("halve-diagonal-receiver", reconfig.get("diagonal_receiver"),
+                          "Kappa-halve receiver work per 4 MiB, from diagonal source state."),
+                    sized("halve-diagonal-download", reconfig.get("diagonal_download"),
+                          "Diagonal source state per 4 MiB."),
+                    timed("segment-double-receiver", reconfig.get("segment_receiver"),
+                          "Local segment-and-kappa double receiver work per 4 MiB."),
+                ],
+            )
+
+
+def _on_the_fly_job(manifest: Manifest, kappa: int) -> JobSpec:
+    prefix = "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN"
+    return add_job(
+        manifest,
+        identifier=f"on-the-fly-undine-k{kappa}",
+        layout="undine",
+        family="undine-on-the-fly-open",
+        benchmark="bench_append_only_log_on_the_fly_open_local",
+        features=("bench",),
+        env=job_env(
+            **{
+                f"{prefix}_KAPPA": kappa,
+                f"{prefix}_MAX_LEVELS": ON_THE_FLY_LEVELS,
+                f"{prefix}_TREE_HEIGHT": TREE_HEIGHT,
+                f"{prefix}_LOCAL_CLAIMS": 1,
+                f"{prefix}_COMMITTED_BULK_UPDATE_BATCHES": PREFIX_BATCHES,
+                f"{prefix}_RANGE_BYTE_LEN_LIST": ",".join(
+                    str(value * MIB) for value in ON_THE_FLY_RANGES_MIB
+                ),
+            }
+        ),
+        result_relpath="results/bench_append_only_log_on_the_fly_open_local.json",
+        trial_env=f"{prefix}_TRIALS",
+        setup="Warm one claim-bound maintainer through three 4 MiB appends and stitch copies of it.",
+        setup_seconds=10.0,
+        repetition_seconds=0.5,
+    )
+
+
+def _build_on_the_fly_table(manifest: Manifest) -> None:
+    table = "tab:on-the-fly-open"
+    columns = ["stored-kappa", "open-kappa", "point-on-the-fly", "point-stored", "point-bytes"]
+    for range_mib in ON_THE_FLY_RANGES_MIB:
+        columns += [
+            f"range-{range_mib}mib-on-the-fly",
+            f"range-{range_mib}mib-stored",
+            f"range-{range_mib}mib-kib",
+        ]
+    columns.append("stitch-state")
+    manifest.table_columns[table] = columns
+    dash = _dash(manifest)
+    for kappa in KAPPAS:
+        job = _on_the_fly_job(manifest, kappa)
+        for levels in range(ON_THE_FLY_LEVELS + 1):
+            open_kappa = kappa << levels
+            row = f"k{kappa}-open{open_kappa}"
+
+            def answer(query: str, byte_len: int, tag: str) -> tuple[str | None, str, str]:
+                match = selector(query=query, open_kappa=open_kappa, query_byte_len=byte_len)
+                on_the_fly = None
+                if levels > 0:
+                    on_the_fly = ensure_output(
+                        manifest, job, f"open{open_kappa}-{tag}-on-the-fly",
+                        entry_selector=match, path="helper_on_the_fly_serialized_ns",
+                        kind="timing", unit="ns",
+                        description="Answer of the maintainer stored at the stored threshold.",
+                    )
+                stored = ensure_output(
+                    manifest, job, f"open{open_kappa}-{tag}-stored", entry_selector=match,
+                    path="helper_stored_at_open_kappa_serialized_ns", kind="timing", unit="ns",
+                    description="Answer of a maintainer stored at the opened threshold.",
+                )
+                size = ensure_output(
+                    manifest, job, f"open{open_kappa}-{tag}-bytes", entry_selector=match,
+                    path="serialized_response_bytes", kind="value", unit="bytes",
+                    description="Serialized bytes of the answer.",
+                )
+                return on_the_fly, stored, size
+
+            def timed(column: str, source: str | None, description: str) -> CellSpec:
+                if source is None:
+                    return cell(table, row, column, dash, "text", description)
+                return cell(table, row, column, source, "microseconds-1", description)
+
+            point_fly, point_stored, point_bytes = answer("point", 0, "point")
+            cells = [
+                cell(table, row, "stored-kappa", ensure_formula(manifest, "integer", kappa),
+                     "integer", "Stored threshold."),
+                cell(table, row, "open-kappa", ensure_formula(manifest, "integer", open_kappa),
+                     "integer", "Opened threshold."),
+                timed("point-on-the-fly", point_fly, "Point opening answered on the fly."),
+                timed("point-stored", point_stored,
+                      "Point opening answered from state stored at the opened threshold."),
+                cell(table, row, "point-bytes", point_bytes, "bytes-integer",
+                     "Serialized bytes of the point answer."),
+            ]
+            for range_mib in ON_THE_FLY_RANGES_MIB:
+                fly, stored, size = answer("range", range_mib * MIB, f"range-{range_mib}mib")
+                cells += [
+                    timed(f"range-{range_mib}mib-on-the-fly", fly,
+                          f"{range_mib} MiB range opening answered on the fly."),
+                    timed(f"range-{range_mib}mib-stored", stored,
+                          f"{range_mib} MiB range opening answered from state stored at "
+                          "the opened threshold."),
+                    cell(table, row, f"range-{range_mib}mib-kib", size, "kib-1",
+                         f"Serialized KiB of the {range_mib} MiB range answer."),
+                ]
+            if levels > 0:
+                stitch = ensure_output(
+                    manifest, job, f"open{open_kappa}-stitch-state",
+                    entry_selector=selector(query="stitch", open_kappa=open_kappa),
+                    path="stitch_whole_state_ns", kind="timing", unit="ns",
+                    description="Kappa-doubles of the maintainer's whole state.",
+                )
+                cells.append(cell(table, row, "stitch-state", stitch, "milliseconds-3",
+                                  "Stitching the whole state to the opened threshold."))
+            else:
+                cells.append(cell(table, row, "stitch-state", dash, "text",
+                                  "The maintainer already stores this threshold."))
+            manifest.add_row(table, row, cells)
+
+
+def evaluate_formula(spec: MeasurementSpec) -> Any:
+    name = spec.formula
+    args = spec.formula_args
+    if name in {"integer", "text"}:
+        return args[0]
+    if name == "maintainer-state-bytes":
+        layout = str(args[0])
+        cursor, segment_len, kappa = map(int, args[1:])
+        return (
+            ceil_div(cursor, segment_len)
+            * stored_elements_per_segment(layout, segment_len, kappa)
+            * FIELD_BYTES
+        )
+    if name == "append-fragment-growth-bytes":
+        layout = str(args[0])
+        (
+            tree_height,
+            values,
+            segment_len,
+            kappa,
+            blocks,
+            warmup,
+        ) = map(int, args[1:])
+        return sequence_state_growth_bytes(
+            layout=layout,
+            tree_height=tree_height,
+            inserted_values_per_batch=values,
+            segment_len=segment_len,
+            kappa=kappa,
+            sequence_blocks=blocks,
+            warmup_blocks=warmup,
+        )
+    raise PipelineError(f"unknown formula {name!r} for {spec.id}")
+
+
+def validate_manifest(manifest: Manifest) -> None:
+    errors: list[str] = []
+    if set(manifest.table_rows) != set(TABLE_LABELS):
+        errors.append(
+            "manifest table set differs from expected labels: "
+            f"{sorted(set(TABLE_LABELS) ^ set(manifest.table_rows))}"
+        )
+    consumers = manifest.consumers()
+    for cell_spec in manifest.cells.values():
+        for source in cell_spec.sources:
+            if source not in manifest.measurements:
+                errors.append(f"{cell_spec.id}: unknown source {source}")
+        try:
+            validate_cell_unit_contract(cell_spec, manifest)
+        except PipelineError as exc:
+            errors.append(str(exc))
+    for measurement in manifest.measurements.values():
+        if not consumers.get(measurement.id):
+            errors.append(f"measurement has no table consumer: {measurement.id}")
+        if measurement.job_id is not None and measurement.job_id not in manifest.jobs:
+            errors.append(
+                f"{measurement.id}: unknown producing job {measurement.job_id}"
+            )
+        if measurement.kind == "formula":
+            try:
+                value = evaluate_formula(measurement)
+                validate_measurement_value(measurement, value)
+            except Exception as exc:  # noqa: BLE001 - aggregate validation failures
+                errors.append(f"{measurement.id}: invalid formula: {exc}")
+    semantic_jobs: dict[str, str] = {}
+    for job in manifest.jobs.values():
+        key = job.semantic_key()
+        if key in semantic_jobs:
+            errors.append(
+                f"duplicate scheduled job semantics: {semantic_jobs[key]} and {job.id}"
+            )
+        semantic_jobs[key] = job.id
+        timing = [
+            item
+            for item in manifest.measurements_for_job(job.id)
+            if item.kind == "timing"
+        ]
+        if not timing:
+            errors.append(f"job has no consumed timing metric: {job.id}")
+    for table, rows in manifest.table_rows.items():
+        columns = manifest.table_columns.get(table)
+        if not columns:
+            errors.append(f"{table}: missing column declaration")
+            continue
+        for row in rows:
+            actual = {
+                item.column
+                for item in manifest.cells.values()
+                if item.table == table and item.row == row
+            }
+            if actual != set(columns):
+                errors.append(
+                    f"{table}|{row}: columns differ: "
+                    f"missing={sorted(set(columns)-actual)}, extra={sorted(actual-set(columns))}"
+                )
+    if errors:
+        raise PipelineError("manifest validation failed:\n- " + "\n- ".join(errors))
+
+
+def _beta_continued_fraction(a: float, b: float, x: float) -> float:
+    maximum_iterations = 300
+    epsilon = 3.0e-14
+    floor = 1.0e-300
+    qab = a + b
+    qap = a + 1.0
+    qam = a - 1.0
+    c = 1.0
+    d = 1.0 - qab * x / qap
+    if abs(d) < floor:
+        d = floor
+    d = 1.0 / d
+    result = d
+    for iteration in range(1, maximum_iterations + 1):
+        m2 = 2 * iteration
+        numerator = iteration * (b - iteration) * x / (
+            (qam + m2) * (a + m2)
+        )
+        d = 1.0 + numerator * d
+        if abs(d) < floor:
+            d = floor
+        c = 1.0 + numerator / c
+        if abs(c) < floor:
+            c = floor
+        d = 1.0 / d
+        result *= d * c
+        numerator = -(a + iteration) * (qab + iteration) * x / (
+            (a + m2) * (qap + m2)
+        )
+        d = 1.0 + numerator * d
+        if abs(d) < floor:
+            d = floor
+        c = 1.0 + numerator / c
+        if abs(c) < floor:
+            c = floor
+        d = 1.0 / d
+        delta = d * c
+        result *= delta
+        if abs(delta - 1.0) <= epsilon:
+            return result
+    raise PipelineError("incomplete-beta continued fraction did not converge")
+
+
+def regularized_incomplete_beta(a: float, b: float, x: float) -> float:
+    if a <= 0 or b <= 0 or not 0.0 <= x <= 1.0:
+        raise ValueError("invalid incomplete-beta arguments")
+    if x == 0.0:
+        return 0.0
+    if x == 1.0:
+        return 1.0
+    front = math.exp(
+        math.lgamma(a + b)
+        - math.lgamma(a)
+        - math.lgamma(b)
+        + a * math.log(x)
+        + b * math.log1p(-x)
+    )
+    if x < (a + 1.0) / (a + b + 2.0):
+        return front * _beta_continued_fraction(a, b, x) / a
+    return 1.0 - front * _beta_continued_fraction(b, a, 1.0 - x) / b
+
+
+def student_t_cdf(value: float, degrees_of_freedom: int) -> float:
+    if degrees_of_freedom <= 0:
+        raise ValueError("degrees_of_freedom must be positive")
+    if value == 0.0:
+        return 0.5
+    x = degrees_of_freedom / (degrees_of_freedom + value * value)
+    tail = 0.5 * regularized_incomplete_beta(
+        degrees_of_freedom / 2.0, 0.5, x
+    )
+    return 1.0 - tail if value > 0 else tail
+
+
+def student_t_ppf(probability: float, degrees_of_freedom: int) -> float:
+    if not 0.5 < probability < 1.0:
+        raise ValueError("only upper-half Student-t quantiles are supported")
+    low = 0.0
+    high = 1.0
+    while student_t_cdf(high, degrees_of_freedom) < probability:
+        high *= 2.0
+        if high > 1.0e6:
+            raise PipelineError("failed to bracket Student-t quantile")
+    for _ in range(100):
+        middle = (low + high) / 2.0
+        if student_t_cdf(middle, degrees_of_freedom) < probability:
+            low = middle
+        else:
+            high = middle
+    return (low + high) / 2.0
+
+
+def summarize_samples(
+    samples: Sequence[float],
+    *,
+    relative_target: float = DEFAULT_RELATIVE_HALF_WIDTH,
+    looks: Sequence[int] = SEQUENTIAL_LOOKS,
+) -> dict[str, Any]:
+    numeric = [float(value) for value in samples]
+    count = len(numeric)
+    if count == 0:
+        return {
+            "n": 0,
+            "mean": None,
+            "standard_deviation": None,
+            "ci95": None,
+            "sequential_ci": None,
+            "stable": False,
+            "reason": "no samples",
+        }
+    mean = statistics.fmean(numeric)
+    if count == 1:
+        return {
+            "n": 1,
+            "mean": mean,
+            "standard_deviation": None,
+            "ci95": None,
+            "sequential_ci": None,
+            "stable": False,
+            "reason": "fewer than two independent repetitions",
+        }
+    standard_deviation = statistics.stdev(numeric)
+    standard_error = standard_deviation / math.sqrt(count)
+    critical_95 = student_t_ppf(0.975, count - 1)
+    half_width_95 = critical_95 * standard_error
+    look_count = len(tuple(looks))
+    per_look_alpha = SEQUENTIAL_FAMILY_ALPHA / look_count
+    sequential_probability = 1.0 - per_look_alpha / 2.0
+    critical_sequential = student_t_ppf(sequential_probability, count - 1)
+    half_width_sequential = critical_sequential * standard_error
+    relative_95 = math.inf if mean == 0 else abs(half_width_95 / mean)
+    relative_sequential = (
+        math.inf if mean == 0 else abs(half_width_sequential / mean)
+    )
+    at_declared_look = count in set(looks)
+    stable = (
+        count >= DEFAULT_MIN_REPETITIONS
+        and at_declared_look
+        and relative_sequential <= relative_target
+    )
+    return {
+        "n": count,
+        "mean": mean,
+        "standard_deviation": standard_deviation,
+        "standard_error": standard_error,
+        "ci95": {
+            "confidence": 0.95,
+            "low": mean - half_width_95,
+            "high": mean + half_width_95,
+            "half_width": half_width_95,
+            "relative_half_width": relative_95,
+            "critical_value": critical_95,
+        },
+        "sequential_ci": {
+            "familywise_confidence": 1.0 - SEQUENTIAL_FAMILY_ALPHA,
+            "pointwise_confidence": 1.0 - per_look_alpha,
+            "looks": list(looks),
+            "low": mean - half_width_sequential,
+            "high": mean + half_width_sequential,
+            "half_width": half_width_sequential,
+            "relative_half_width": relative_sequential,
+            "critical_value": critical_sequential,
+        },
+        "stable": stable,
+        "reason": (
+            "sequential confidence target met"
+            if stable
+            else "sequential relative half-width exceeds target"
+        ),
+    }
+
+
+def benchmark_warmup_repetitions(run_job: RunJob, mode: str) -> int:
+    if mode != "full":
+        return 0
+    modes = {
+        measurement.sample_mode
+        for measurement in run_job.measurements
+        if measurement.kind == "timing"
+    }
+    if not modes:
+        return 0
+    if modes == {"append-sequence"}:
+        return APPEND_WARMUP_REPETITIONS
+    if modes == {"direct"}:
+        return DIRECT_WARMUP_REPETITIONS
+    raise PipelineError(
+        f"{run_job.spec.id}: cannot select one warmup policy for sample modes "
+        f"{sorted(modes)}"
+    )
+
+
+def source_files() -> list[pathlib.Path]:
+    direct = [
+        ROOT / "artifact",
+        pathlib.Path(__file__).resolve(),
+        ROOT / "scripts" / "check_artifact.py",
+        ROOT / "scripts" / "check_docs.py",
+        ROOT / "scripts" / "export_results.py",
+        ROOT / "scripts" / "package_reference.py",
+        ROOT / "scripts" / "source_provenance.py",
+        ROOT / "scripts" / "test_reproduce.py",
+        ROOT / "scripts" / "verify_results.py",
+    ]
+    for candidate in ROOT.glob("rust-toolchain*"):
+        direct.append(candidate)
+    for crate in CRATE_ROOTS.values():
+        direct.extend([crate / "Cargo.toml", crate / "Cargo.lock"])
+        direct.extend(crate.glob("rust-toolchain*"))
+        for base in (crate / "src", crate / "benches", crate / "apps" / "appendOnlyLog"):
+            if not base.exists():
+                continue
+            direct.extend(path for path in base.rglob("*") if path.is_file())
+    return sorted(set(path.resolve() for path in direct if path.exists()))
+
+
+def collect_source_snapshot() -> dict[str, Any]:
+    files = {
+        str(path.relative_to(ROOT)): {
+            "sha256": sha256_file(path),
+            "bytes": path.stat().st_size,
+        }
+        for path in source_files()
+    }
+    git_head = run_capture(["git", "rev-parse", "HEAD"]).stdout.decode().strip()
+    git_status = run_capture(
+        ["git", "status", "--short", "--untracked-files=all"]
+    ).stdout.decode()
+    git_diff = run_capture(["git", "diff", "--binary", "HEAD"]).stdout
+    payload = {
+        "pipeline_version": PIPELINE_VERSION,
+        "git_head": git_head,
+        "git_status_sha256": sha256_bytes(git_status.encode()),
+        "git_diff_sha256": sha256_bytes(git_diff),
+        "files": files,
+    }
+    payload["snapshot_id"] = sha256_bytes(canonical_json(payload))
+    return payload
+
+
+def validate_current_source_snapshot(
+    expected_snapshot_id: str,
+    *,
+    phase: str,
+) -> None:
+    actual_snapshot_id = str(collect_source_snapshot()["snapshot_id"])
+    if actual_snapshot_id != expected_snapshot_id:
+        raise PipelineError(
+            f"source snapshot changed during {phase}: expected "
+            f"{expected_snapshot_id}, found {actual_snapshot_id}; restore the "
+            "recorded source state before resuming"
+        )
+
+
+def collect_environment() -> dict[str, Any]:
+    commands: dict[str, dict[str, Any]] = {}
+    for name, command in (
+        ("python", [sys.executable, "--version"]),
+        ("rustc", ["rustc", "--version", "--verbose"]),
+        ("cargo", ["cargo", "--version", "--verbose"]),
+        ("git", ["git", "--version"]),
+    ):
+        try:
+            completed = run_capture(command, check=False)
+            commands[name] = {
+                "command": command,
+                "returncode": completed.returncode,
+                "stdout": completed.stdout.decode(errors="replace").strip(),
+                "stderr": completed.stderr.decode(errors="replace").strip(),
+            }
+        except OSError as exc:
+            commands[name] = {"command": command, "error": str(exc)}
+    proc_files: dict[str, str] = {}
+    for name in ("cpuinfo", "meminfo"):
+        path = pathlib.Path("/proc") / name
+        if path.exists():
+            proc_files[name] = path.read_text(errors="replace")
+    return {
+        "captured_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "platform": platform.platform(),
+        "uname": list(platform.uname()),
+        "python_executable": sys.executable,
+        "cpu_count": os.cpu_count(),
+        "process_cpu_affinity": (
+            sorted(os.sched_getaffinity(0))
+            if hasattr(os, "sched_getaffinity")
+            else None
+        ),
+        "commands": commands,
+        "proc": proc_files,
+    }
+
+
+def _read_cpu_integer(cpu: int, relative: str) -> int | None:
+    path = pathlib.Path(f"/sys/devices/system/cpu/cpu{cpu}") / relative
+    try:
+        return int(path.read_text().strip())
+    except (FileNotFoundError, PermissionError, ValueError):
+        return None
+
+
+def choose_benchmark_cpu(requested: int | None) -> int | None:
+    if not hasattr(os, "sched_getaffinity"):
+        if requested is not None:
+            raise PipelineError("--cpu requires operating-system affinity support")
+        return None
+    allowed = sorted(os.sched_getaffinity(0))
+    if not allowed:
+        raise PipelineError("the process has an empty CPU affinity set")
+    if requested is not None:
+        if requested not in allowed:
+            raise PipelineError(
+                f"--cpu {requested} is outside the allowed CPU set {allowed}"
+            )
+        return requested
+
+    frequencies = {
+        cpu: _read_cpu_integer(cpu, "cpufreq/cpuinfo_max_freq") or 0
+        for cpu in allowed
+    }
+    maximum = max(frequencies.values())
+    candidates = [
+        cpu for cpu in allowed if maximum == 0 or frequencies[cpu] == maximum
+    ]
+    first_core = _read_cpu_integer(allowed[0], "topology/core_id")
+    separate_core = [
+        cpu
+        for cpu in candidates
+        if cpu != 0
+        and (
+            first_core is None
+            or _read_cpu_integer(cpu, "topology/core_id") != first_core
+        )
+    ]
+    if separate_core:
+        return min(separate_core)
+    nonzero = [cpu for cpu in candidates if cpu != 0]
+    return min(nonzero or candidates)
+
+
+@dataclass(frozen=True)
+class RunJob:
+    spec: JobSpec
+    measurements: tuple[MeasurementSpec, ...]
+    env_overrides: tuple[tuple[str, str], ...] = ()
+    features_override: tuple[str, ...] | None = None
+
+    def effective_env(self) -> dict[str, str]:
+        result = self.spec.env_dict()
+        result.update(dict(self.env_overrides))
+        return result
+
+    def effective_features(self) -> tuple[str, ...]:
+        return self.spec.features if self.features_override is None else self.features_override
+
+
+def _measurements_with_tag(
+    manifest: Manifest, job_id: str, fragments: Sequence[str]
+) -> tuple[MeasurementSpec, ...]:
+    selected = []
+    for measurement in manifest.measurements_for_job(job_id):
+        if any(fragment in measurement.id for fragment in fragments):
+            selected.append(measurement)
+    if not selected:
+        raise PipelineError(f"no measurements selected for {job_id}: {fragments}")
+    return tuple(selected)
+
+
+def select_run_jobs(manifest: Manifest, mode: str) -> list[RunJob]:
+    if mode == "full":
+        return [
+            RunJob(job, tuple(manifest.measurements_for_job(job.id)))
+            for job in manifest.jobs.values()
+        ]
+    if mode not in {"smoke", "canary"}:
+        raise ValueError(f"unsupported execution mode: {mode}")
+
+    selected: list[RunJob] = []
+
+    def add(
+        job_id: str,
+        *,
+        tags: Sequence[str] | None = None,
+        overrides: Mapping[str, str | int] | None = None,
+        features: tuple[str, ...] | None = None,
+        measurements: Sequence[MeasurementSpec] | None = None,
+    ) -> None:
+        job = manifest.jobs[job_id]
+        if measurements is None:
+            picked = (
+                tuple(manifest.measurements_for_job(job_id))
+                if tags is None
+                else _measurements_with_tag(manifest, job_id, tags)
+            )
+        else:
+            picked = tuple(measurements)
+        selected.append(
+            RunJob(
+                job,
+                picked,
+                tuple(sorted((key, str(value)) for key, value in (overrides or {}).items())),
+                features,
+            )
+        )
+
+    def without_fragment(job_id: str, fragment: str) -> tuple[MeasurementSpec, ...]:
+        return tuple(
+            measurement
+            for measurement in manifest.measurements_for_job(job_id)
+            if fragment not in measurement.id
+        )
+
+    one_mib = ("bench", "log-bulk-updates-1mb")
+    for layout in LAYOUTS:
+        if mode == "smoke":
+            add(
+                f"append-4mib-{layout}-k8",
+                overrides={
+                    "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_SEQUENCE_BLOCKS": 2,
+                    "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_SEQUENCE_WARMUP_BLOCKS": 0,
+                },
+                features=one_mib,
+            )
+            add(
+                f"point-helper-{layout}-k8",
+                overrides={"BENCH_APPEND_ONLY_LOG_POINT_OPEN_COMMITTED_BULK_UPDATE_BATCHES": 1},
+                features=one_mib,
+            )
+            add(
+                f"point-client-{layout}-k8",
+                overrides={
+                    "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_COMMITTED_BULK_UPDATE_BATCHES": 1
+                },
+                features=one_mib,
+            )
+            for role in ("helper", "client"):
+                job_id = f"range-{role}-{layout}-k{RANGE_KAPPA}"
+                add(
+                    job_id,
+                    overrides={
+                        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_COMMITTED_BULK_UPDATE_BATCHES": 1,
+                        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_BYTE_LEN_LIST": MIB,
+                    },
+                    measurements=_measurements_with_tag(manifest, job_id, (":1mib-",)),
+                )
+            add(
+                f"repair-{layout}-k8",
+                overrides={"BENCH_APPEND_ONLY_LOG_REPAIR_COMMITTED_BULK_UPDATE_BATCHES": 1},
+                features=one_mib,
+            )
+            add(
+                f"reconfig-{layout}-k8",
+                overrides={
+                    "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_COMMITTED_BULK_UPDATE_BATCHES": 1
+                },
+                features=one_mib,
+            )
+        else:
+            kappa = RANGE_KAPPA
+            add(f"append-4mib-{layout}-k{kappa}")
+            add(f"point-helper-{layout}-k{kappa}")
+            add(f"point-client-{layout}-k{kappa}")
+            for role in ("helper", "client"):
+                job_id = f"range-{role}-{layout}-k{kappa}"
+                add(
+                    job_id,
+                    overrides={"BENCH_APPEND_ONLY_LOG_RANGE_OPEN_BYTE_LEN_LIST": MIB},
+                    measurements=_measurements_with_tag(manifest, job_id, (":1mib-",)),
+                )
+            add(f"repair-{layout}-k{kappa}")
+            add(f"reconfig-{layout}-k{kappa}")
+    if mode == "smoke":
+        # One 1 MiB batch is committed, so only the 1 MiB range fits.
+        add(
+            "on-the-fly-undine-k8",
+            overrides={
+                "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_COMMITTED_BULK_UPDATE_BATCHES": 1,
+                "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_RANGE_BYTE_LEN_LIST": MIB,
+            },
+            features=one_mib,
+            measurements=without_fragment("on-the-fly-undine-k8", "-range-4mib-"),
+        )
+    else:
+        add(f"on-the-fly-undine-k{RANGE_KAPPA}")
+    return selected
+
+
+def run_id_for(mode: str, snapshot_id: str) -> str:
+    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return f"{stamp}-{mode}-{snapshot_id[:10]}"
+
+
+def checkpoint_path(run_dir: pathlib.Path) -> pathlib.Path:
+    return run_dir / "checkpoint.json"
+
+
+def write_checkpoint(run_dir: pathlib.Path, state: dict[str, Any]) -> None:
+    state["updated_utc"] = dt.datetime.now(dt.timezone.utc).isoformat()
+    atomic_write_json(checkpoint_path(run_dir), state)
+
+
+def mark_run_completed(run_dir: pathlib.Path, state: dict[str, Any]) -> None:
+    state["status"] = "completed"
+    state["finished_utc"] = dt.datetime.now(dt.timezone.utc).isoformat()
+    write_checkpoint(run_dir, state)
+
+
+def load_checkpoint(run_dir: pathlib.Path) -> dict[str, Any]:
+    path = checkpoint_path(run_dir)
+    if not path.exists():
+        raise PipelineError(f"missing checkpoint: {path}")
+    return json.loads(path.read_text())
+
+
+def validate_resume_snapshot(
+    state: Mapping[str, Any], snapshot: Mapping[str, Any]
+) -> None:
+    if state.get("snapshot_id") != snapshot.get("snapshot_id"):
+        raise PipelineError(
+            "resume rejected: source/configuration snapshot changed "
+            f"({state.get('snapshot_id')} != {snapshot.get('snapshot_id')})"
+        )
+    if state.get("pipeline_version") != PIPELINE_VERSION:
+        raise PipelineError("resume rejected: pipeline version changed")
+
+
+def initialize_run(
+    manifest: Manifest,
+    mode: str,
+    selected_jobs: Sequence[RunJob],
+    snapshot: Mapping[str, Any],
+    benchmark_cpu: int | None,
+) -> tuple[pathlib.Path, dict[str, Any]]:
+    run_id = run_id_for(mode, str(snapshot["snapshot_id"]))
+    run_dir = RUNS_ROOT / run_id
+    suffix = 0
+    while run_dir.exists():
+        suffix += 1
+        run_dir = RUNS_ROOT / f"{run_id}-{suffix}"
+    run_dir.mkdir(parents=True)
+    (run_dir / "provenance").mkdir()
+    atomic_write_json(run_dir / "manifest.json", manifest.as_dict())
+    atomic_write_json(run_dir / "provenance" / "source-snapshot.json", snapshot)
+    atomic_write_json(run_dir / "provenance" / "environment.json", collect_environment())
+    git_status = run_capture(
+        ["git", "status", "--short", "--untracked-files=all"]
+    ).stdout.decode()
+    git_diff = run_capture(["git", "diff", "--binary", "HEAD"]).stdout
+    atomic_write_text(run_dir / "provenance" / "git-status.txt", git_status)
+    atomic_write_bytes(run_dir / "provenance" / "git-diff.patch", git_diff)
+    state: dict[str, Any] = {
+        "pipeline_version": PIPELINE_VERSION,
+        "run_id": run_dir.name,
+        "mode": mode,
+        "status": "running",
+        "snapshot_id": snapshot["snapshot_id"],
+        "benchmark_cpu": benchmark_cpu,
+        "created_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "updated_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "selected_jobs": [run_job.spec.id for run_job in selected_jobs],
+        "run_jobs": {
+            run_job.spec.id: {
+                "measurements": [item.id for item in run_job.measurements],
+                "selectors": {
+                    item.id: {
+                        "selector": list(item.selector),
+                        "path": list(item.path),
+                        "kind": item.kind,
+                        "unit": item.unit,
+                        "sample_mode": item.sample_mode,
+                    }
+                    for item in run_job.measurements
+                },
+                "env_overrides": list(run_job.env_overrides),
+                "features": list(run_job.effective_features()),
+            }
+            for run_job in selected_jobs
+        },
+        "binaries": {},
+        "jobs": {
+            run_job.spec.id: {
+                "status": "pending",
+                "batches": [],
+                "samples": {
+                    item.id: [] for item in run_job.measurements if item.kind == "timing"
+                },
+                "values": {
+                    item.id: [] for item in run_job.measurements if item.kind == "value"
+                },
+                "seeds": [],
+            }
+            for run_job in selected_jobs
+        },
+        "interruption_requested": False,
+        "resumed": False,
+    }
+    write_checkpoint(run_dir, state)
+    return run_dir, state
+
+
+def build_key(run_job: RunJob) -> str:
+    return sha256_bytes(
+        canonical_json(
+            {
+                "layout": run_job.spec.layout,
+                "benchmark": run_job.spec.benchmark,
+                "features": run_job.effective_features(),
+            }
+        )
+    )[:16]
+
+
+def build_benchmark_binary(
+    run_dir: pathlib.Path,
+    state: dict[str, Any],
+    run_job: RunJob,
+    *,
+    timeout_seconds: float,
+) -> pathlib.Path:
+    key = build_key(run_job)
+    existing = state["binaries"].get(key)
+    if existing is not None:
+        binary = run_dir / existing["path"]
+        if not binary.exists():
+            raise PipelineError(f"checkpointed binary is missing: {binary}")
+        actual = sha256_file(binary)
+        if actual != existing["sha256"]:
+            raise PipelineError(f"checkpointed binary hash changed: {binary}")
+        return binary
+    features = ",".join(run_job.effective_features())
+    command = [
+        "cargo",
+        "bench",
+        "--locked",
+        "--no-run",
+        "--message-format=json-render-diagnostics",
+        "--features",
+        features,
+        "--bench",
+        run_job.spec.benchmark,
+    ]
+    build_dir = run_dir / "builds" / key
+    build_dir.mkdir(parents=True, exist_ok=True)
+    started = time.time()
+    completed = run_capture(
+        command,
+        cwd=CRATE_ROOTS[run_job.spec.layout],
+        timeout=timeout_seconds,
+        check=False,
+    )
+    atomic_write_bytes(build_dir / "stdout.jsonl", completed.stdout)
+    atomic_write_bytes(build_dir / "stderr.log", completed.stderr)
+    if completed.returncode != 0:
+        raise PipelineError(
+            f"failed to build {run_job.spec.benchmark}; see {build_dir}"
+        )
+    executables: list[pathlib.Path] = []
+    for line in completed.stdout.splitlines():
+        try:
+            message = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if message.get("reason") != "compiler-artifact":
+            continue
+        target = message.get("target", {})
+        if target.get("name") != run_job.spec.benchmark:
+            continue
+        if "bench" not in target.get("kind", []):
+            continue
+        executable = message.get("executable")
+        if executable:
+            executables.append(pathlib.Path(executable))
+    unique = sorted(set(executables))
+    if len(unique) != 1 or not unique[0].exists():
+        raise PipelineError(
+            f"expected one executable for {run_job.spec.benchmark}, found {unique}"
+        )
+    destination = run_dir / "binaries" / key / run_job.spec.benchmark
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(unique[0], destination)
+    destination.chmod(destination.stat().st_mode | 0o100)
+    record = {
+        "layout": run_job.spec.layout,
+        "benchmark": run_job.spec.benchmark,
+        "features": list(run_job.effective_features()),
+        "path": str(destination.relative_to(run_dir)),
+        "sha256": sha256_file(destination),
+        "source_path": str(unique[0]),
+        "command": command,
+        "build_seconds": time.time() - started,
+    }
+    validate_current_source_snapshot(
+        str(state["snapshot_id"]),
+        phase=f"building benchmark {run_job.spec.benchmark}",
+    )
+    state["binaries"][key] = record
+    write_checkpoint(run_dir, state)
+    return destination
+
+
+def find_entry(document: Mapping[str, Any], measurement: MeasurementSpec) -> tuple[int, Mapping[str, Any]]:
+    entries = document.get("entries")
+    if not isinstance(entries, list):
+        raise PipelineError("benchmark output has no entries list")
+    expected = measurement.selector_dict()
+    matches = []
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            continue
+        if all(entry.get(key) == value for key, value in expected.items()):
+            matches.append((index, entry))
+    if len(matches) != 1:
+        raise PipelineError(
+            f"{measurement.id}: expected one entry for {expected}, found {len(matches)}"
+        )
+    return matches[0]
+
+
+def deep_get(value: Mapping[str, Any], path: Sequence[str]) -> Any:
+    current: Any = value
+    for component in path:
+        if not isinstance(current, dict) or component not in current:
+            raise PipelineError(f"missing JSON path {'.'.join(path)}")
+        current = current[component]
+    return current
+
+
+def metric_stats_paths(value: Any, path: tuple[str, ...] = ()) -> Iterator[tuple[tuple[str, ...], Mapping[str, Any]]]:
+    if isinstance(value, dict):
+        required = {"mean", "p50", "p95", "trials", "samples"}
+        if required.issubset(value):
+            yield path, value
+            return
+        for key, child in value.items():
+            yield from metric_stats_paths(child, path + (str(key),))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            yield from metric_stats_paths(child, path + (str(index),))
+
+
+def validate_no_unconsumed_timings(
+    document: Mapping[str, Any], measurements: Sequence[MeasurementSpec]
+) -> None:
+    expected: set[tuple[int, tuple[str, ...]]] = set()
+    for measurement in measurements:
+        if measurement.kind != "timing":
+            continue
+        index, _ = find_entry(document, measurement)
+        expected.add((index, measurement.path))
+    entries = document.get("entries", [])
+    actual: set[tuple[int, tuple[str, ...]]] = set()
+    for index, entry in enumerate(entries):
+        for path, stats in metric_stats_paths(entry):
+            trials = int(stats.get("trials", 0))
+            samples = stats.get("samples", [])
+            if trials > 0 or samples:
+                actual.add((index, path))
+    extra = actual - expected
+    missing = expected - actual
+    if extra or missing:
+        raise PipelineError(
+            "timing-consumer validation failed: "
+            f"unconsumed={sorted(extra)}, missing={sorted(missing)}"
+        )
+
+
+def extract_measurements(
+    document: Mapping[str, Any],
+    measurements: Sequence[MeasurementSpec],
+    *,
+    warmup_repetitions: int = 0,
+) -> tuple[
+    dict[str, list[float]],
+    dict[str, Any],
+    int | None,
+    dict[str, list[float]],
+]:
+    validate_no_unconsumed_timings(document, measurements)
+    timing: dict[str, list[float]] = {}
+    raw_timing: dict[str, list[float]] = {}
+    values: dict[str, Any] = {}
+    meta = document.get("meta")
+    if not isinstance(meta, dict):
+        raise PipelineError("benchmark output has no meta object")
+    declared_run_repetitions = int(meta.get("trials", -1))
+    if warmup_repetitions < 0 or warmup_repetitions >= declared_run_repetitions:
+        raise PipelineError(
+            f"invalid warmup count {warmup_repetitions} for "
+            f"{declared_run_repetitions} benchmark repetitions"
+        )
+    seed = meta.get("seed")
+    for measurement in measurements:
+        _, entry = find_entry(document, measurement)
+        raw = deep_get(entry, measurement.path)
+        if measurement.kind == "value":
+            if isinstance(raw, (dict, list)):
+                raise PipelineError(f"{measurement.id}: expected scalar value")
+            validate_measurement_value(measurement, raw)
+            values[measurement.id] = raw
+            continue
+        if measurement.kind != "timing":
+            raise PipelineError(f"unexpected run measurement kind: {measurement.kind}")
+        if not isinstance(raw, dict):
+            raise PipelineError(f"{measurement.id}: expected MetricStats object")
+        samples = raw.get("samples")
+        if not isinstance(samples, list) or not samples:
+            raise PipelineError(f"{measurement.id}: missing raw timing samples")
+        numeric = [float(value) for value in samples]
+        for value in numeric:
+            validate_measurement_value(measurement, value)
+        raw_timing[measurement.id] = numeric
+        declared_trials = int(raw.get("trials", -1))
+        if declared_trials != len(numeric):
+            raise PipelineError(
+                f"{measurement.id}: trials={declared_trials}, samples={len(numeric)}"
+            )
+        if measurement.sample_mode == "direct":
+            expected_trials = declared_run_repetitions
+            if len(numeric) != expected_trials:
+                raise PipelineError(
+                    f"{measurement.id}: expected {expected_trials} direct samples, "
+                    f"found {len(numeric)}"
+                )
+            timing[measurement.id] = numeric[warmup_repetitions:]
+        elif measurement.sample_mode == "append-sequence":
+            repetitions = declared_run_repetitions
+            blocks = int(meta.get("sequence_blocks", -1))
+            warmup = int(meta.get("sequence_warmup_blocks", -1))
+            sampled_blocks = blocks - warmup
+            if repetitions <= 0 or sampled_blocks <= 0:
+                raise PipelineError(f"{measurement.id}: invalid append sequence meta")
+            if len(numeric) != repetitions * sampled_blocks:
+                raise PipelineError(
+                    f"{measurement.id}: expected {repetitions * sampled_blocks} block "
+                    f"samples, found {len(numeric)}"
+                )
+            sequence_means = [
+                statistics.fmean(
+                    numeric[offset : offset + sampled_blocks]
+                )
+                for offset in range(0, len(numeric), sampled_blocks)
+            ]
+            timing[measurement.id] = sequence_means[warmup_repetitions:]
+        else:
+            raise PipelineError(
+                f"{measurement.id}: unknown sample mode {measurement.sample_mode}"
+            )
+    return timing, values, None if seed is None else int(seed), raw_timing
+
+
+def validate_output_contract(
+    run_job: RunJob, document: Mapping[str, Any], repetitions: int
+) -> None:
+    meta = document.get("meta")
+    entries = document.get("entries")
+    if not isinstance(meta, dict) or not isinstance(entries, list):
+        raise PipelineError(f"{run_job.spec.id}: malformed benchmark result")
+    if int(meta.get("trials", -1)) != repetitions:
+        raise PipelineError(
+            f"{run_job.spec.id}: output trials do not match invocation"
+        )
+    if "seed" not in meta:
+        raise PipelineError(f"{run_job.spec.id}: benchmark output omits its seed")
+    env = run_job.effective_env()
+    benchmark = run_job.spec.benchmark
+    layout = run_job.spec.layout
+    if benchmark == "bench_append_only_log_bulk_updates_append_local":
+        expected_blocks = int(
+            env["BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_SEQUENCE_BLOCKS"]
+        )
+        expected_warmup = int(
+            env[
+                "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_SEQUENCE_WARMUP_BLOCKS"
+            ]
+        )
+        if (
+            meta.get("sequence_blocks") != expected_blocks
+            or meta.get("sequence_warmup_blocks") != expected_warmup
+        ):
+            raise PipelineError(f"{run_job.spec.id}: append sequence meta mismatch")
+        if not bool(meta.get("skip_generic")):
+            raise PipelineError(f"{run_job.spec.id}: generic append path was enabled")
+        if set(meta.get("metrics", [])) != {"prepared_with_slack"}:
+            raise PipelineError(f"{run_job.spec.id}: append metric filter mismatch")
+    elif benchmark == "bench_append_only_log_point_open_local":
+        if set(meta.get("metrics", [])) != {"serialized"}:
+            raise PipelineError(f"{run_job.spec.id}: point-helper metric filter mismatch")
+    elif benchmark == "bench_append_only_log_range_open_local":
+        expected = set(env["BENCH_APPEND_ONLY_LOG_RANGE_OPEN_METRICS"].split(","))
+        if set(meta.get("metrics", [])) != expected:
+            raise PipelineError(f"{run_job.spec.id}: range metric filter mismatch")
+    elif benchmark == "bench_append_only_log_repair_kernels_local":
+        expected = set(env["BENCH_APPEND_ONLY_LOG_REPAIR_METRICS"].split(","))
+        if set(meta.get("metrics", [])) != expected:
+            raise PipelineError(f"{run_job.spec.id}: repair metric filter mismatch")
+    elif benchmark == "bench_append_only_log_one_server_kappa_rescale_local":
+        expected = set(
+            env["BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_METRICS"].split(",")
+        )
+        if set(meta.get("metrics", [])) != expected:
+            raise PipelineError(
+                f"{run_job.spec.id}: reconfiguration metric filter mismatch"
+            )
+    elif benchmark == "bench_append_only_log_on_the_fly_open_local":
+        prefix = "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN"
+        if meta.get("stored_kappa") != int(env[f"{prefix}_KAPPA"]) or meta.get(
+            "max_levels"
+        ) != int(env[f"{prefix}_MAX_LEVELS"]):
+            raise PipelineError(f"{run_job.spec.id}: on-the-fly parameter echo mismatch")
+
+    for measurement in run_job.measurements:
+        find_entry(document, measurement)
+
+    # Independently verify deterministic values emitted by the benchmark.
+    if benchmark == "bench_append_only_log_repair_kernels_local":
+        entry = entries[0]
+        segment_len = int(entry["segment_len"])
+        kappa = int(entry["need"])
+        expected_segments = ceil_div(
+            cursor_preorder(
+                TREE_HEIGHT,
+                int(entry["committed_bulk_update_batches"])
+                * int(entry["bulk_updates_size"]),
+            ),
+            segment_len,
+        )
+        if int(entry["segment_count"]) != expected_segments:
+            raise PipelineError(
+                f"{run_job.spec.id}: active segment count fails preorder formula"
+            )
+        expected_download = (
+            expected_segments
+            * stored_elements_per_segment(layout, segment_len, kappa)
+            * FIELD_BYTES
+        )
+        if int(entry["recover_helper_reply_bytes_modeled"]) != expected_download:
+            raise PipelineError(
+                f"{run_job.spec.id}: repair download fails storage formula"
+            )
+    elif benchmark == "bench_append_only_log_one_server_kappa_rescale_local":
+        entry = entries[0]
+        segments = int(entry["segment_count"])
+        if layout == "borg":
+            up_expected = (
+                segments
+                * int(entry["helper_target_count"])
+                * int(entry["target_row_count"])
+                * FIELD_BYTES
+            )
+            if int(entry["helper_eval_raw_bytes_total"]) != up_expected:
+                raise PipelineError(
+                    f"{run_job.spec.id}: kappa-double download fails formula"
+                )
+            down_expected = (
+                segments
+                * (
+                    int(entry["kappa_halve_source_s"])
+                    + (int(entry["kappa_halve_helper_count"]) - 1)
+                    * int(entry["kappa_halve_target_row_count"])
+                )
+                * FIELD_BYTES
+            )
+            if int(entry["kappa_halve_helper_eval_raw_bytes_total"]) != down_expected:
+                raise PipelineError(
+                    f"{run_job.spec.id}: kappa-halve download fails formula"
+                )
+            if int(entry["segment_double_helper_eval_raw_bytes_total"]) != 0:
+                raise PipelineError(
+                    f"{run_job.spec.id}: local segment-double emitted helper payload"
+                )
+        else:
+            kappa = int(entry["source_need"])
+            stitched = ceil_div(segments, 4)
+            if int(entry["target_segment_count"]) != stitched:
+                raise PipelineError(
+                    f"{run_job.spec.id}: stitched segment count is not ceil(segments / 4)"
+                )
+            if int(entry["kappa_double_helper_eval_raw_bytes_total"]) != 0:
+                raise PipelineError(
+                    f"{run_job.spec.id}: the local stitch emitted helper payload"
+                )
+            # Two field elements per helper claim and stitched segment.
+            down_expected = (
+                stitched * int(entry["kappa_halve_helper_count"]) * 2 * FIELD_BYTES
+            )
+            if int(entry["kappa_halve_helper_eval_raw_bytes_total"]) != down_expected:
+                raise PipelineError(
+                    f"{run_job.spec.id}: kappa-halve download fails formula"
+                )
+            # Source state of two diagonal segments: 4 kappa field elements.
+            diagonal_expected = stitched * 4 * kappa * FIELD_BYTES
+            if int(entry["kappa_halve_diagonal_source_raw_bytes_total"]) != diagonal_expected:
+                raise PipelineError(
+                    f"{run_job.spec.id}: diagonal source state fails formula"
+                )
+            if int(entry["receiver_source_state_bytes"]) != segments * 2 * kappa * FIELD_BYTES:
+                raise PipelineError(
+                    f"{run_job.spec.id}: source state fails storage formula"
+                )
+            if int(entry["receiver_target_state_bytes"]) != stitched * 4 * kappa * FIELD_BYTES:
+                raise PipelineError(
+                    f"{run_job.spec.id}: stitched state fails storage formula"
+                )
+    elif benchmark == "bench_append_only_log_range_open_local":
+        for entry in entries:
+            raw_bytes = int(entry["helper_response_field_elements"]) * FIELD_BYTES
+            if int(entry["helper_response_serialized_bytes"]) < raw_bytes:
+                raise PipelineError(
+                    f"{run_job.spec.id}: serialized range response is smaller "
+                    "than its field-element payload"
+                )
+    elif benchmark == "bench_append_only_log_on_the_fly_open_local":
+        for entry in entries:
+            if entry.get("query") == "stitch":
+                continue
+            raw_bytes = int(entry["response_field_elements"]) * FIELD_BYTES
+            if int(entry["serialized_response_bytes"]) < raw_bytes:
+                raise PipelineError(
+                    f"{run_job.spec.id}: serialized answer is smaller than its "
+                    "field-element payload"
+                )
+
+
+def expected_repetitions_for_mode(mode: str) -> int:
+    return DEFAULT_MIN_REPETITIONS if mode == "full" else 1
+
+
+def job_complete(job_state: Mapping[str, Any], mode: str) -> bool:
+    timing = job_state.get("samples", {})
+    if not timing:
+        return False
+    if mode != "full":
+        return all(len(values) >= 1 for values in timing.values())
+    if not all(len(values) >= DEFAULT_MIN_REPETITIONS for values in timing.values()):
+        return False
+    summaries = [summarize_samples(values) for values in timing.values()]
+    if all(summary["stable"] for summary in summaries):
+        return True
+    return all(len(values) >= DEFAULT_MAX_REPETITIONS for values in timing.values())
+
+
+def batch_repetitions(job_state: Mapping[str, Any], mode: str) -> int:
+    if mode != "full":
+        return 1
+    lengths = [len(values) for values in job_state["samples"].values()]
+    current = min(lengths, default=0)
+    if current >= DEFAULT_MAX_REPETITIONS:
+        return 0
+    next_look = next((look for look in SEQUENTIAL_LOOKS if look > current), None)
+    if next_look is None:
+        return 0
+    return next_look - current
+
+
+def execute_batch(
+    run_dir: pathlib.Path,
+    state: dict[str, Any],
+    run_job: RunJob,
+    binary: pathlib.Path,
+    *,
+    repetitions: int,
+    timeout_seconds: float,
+) -> None:
+    job_state = state["jobs"][run_job.spec.id]
+    warmup_repetitions = benchmark_warmup_repetitions(run_job, state["mode"])
+    invocation_repetitions = repetitions + warmup_repetitions
+    batch_index = len(job_state["batches"])
+    batch_dir = run_dir / "jobs" / run_job.spec.id / f"batch-{batch_index:03d}"
+    work_dir = batch_dir / "work"
+    work_dir.mkdir(parents=True, exist_ok=True)
+    result_path = work_dir / run_job.spec.result_relpath
+    environment = os.environ.copy()
+    environment["GIT_DIR"] = str(ROOT / ".git")
+    environment["GIT_WORK_TREE"] = str(ROOT)
+    effective_env = run_job.effective_env()
+    for key, value in list(effective_env.items()):
+        effective_env[key] = value.replace("{RESULT_PATH}", str(result_path))
+    effective_env[run_job.spec.trial_env] = str(invocation_repetitions)
+    environment.update(effective_env)
+    command = [str(binary), "--bench"]
+    benchmark_cpu = state.get("benchmark_cpu")
+    if benchmark_cpu is not None:
+        taskset = shutil.which("taskset")
+        if taskset is None:
+            raise PipelineError("CPU pinning requested but taskset is unavailable")
+        command = [taskset, "--cpu-list", str(benchmark_cpu), *command]
+    attempt = {
+        "index": batch_index,
+        "status": "running",
+        "started_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "command": command,
+        "env": dict(sorted(effective_env.items())),
+        "binary_sha256": sha256_file(binary),
+        "repetitions": repetitions,
+        "warmup_repetitions": warmup_repetitions,
+        "invocation_repetitions": invocation_repetitions,
+    }
+    job_state["status"] = "running"
+    job_state["batches"].append(attempt)
+    write_checkpoint(run_dir, state)
+    started = time.time()
+    try:
+        completed = run_capture(
+            command,
+            cwd=work_dir,
+            env=environment,
+            timeout=timeout_seconds,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        attempt.update(
+            {
+                "status": "failed",
+                "failure": f"timeout after {timeout_seconds} seconds",
+                "elapsed_seconds": time.time() - started,
+            }
+        )
+        job_state["status"] = "failed"
+        write_checkpoint(run_dir, state)
+        raise PipelineError(f"{run_job.spec.id}: benchmark timed out") from exc
+    atomic_write_bytes(batch_dir / "stdout.log", completed.stdout)
+    atomic_write_bytes(batch_dir / "stderr.log", completed.stderr)
+    attempt["elapsed_seconds"] = time.time() - started
+    attempt["returncode"] = completed.returncode
+    if completed.returncode != 0:
+        attempt["status"] = "failed"
+        attempt["failure"] = "benchmark process returned nonzero"
+        job_state["status"] = "failed"
+        write_checkpoint(run_dir, state)
+        raise PipelineError(
+            f"{run_job.spec.id}: benchmark failed; see {batch_dir / 'stderr.log'}"
+        )
+    if not result_path.exists():
+        attempt["status"] = "failed"
+        attempt["failure"] = f"missing result {run_job.spec.result_relpath}"
+        job_state["status"] = "failed"
+        write_checkpoint(run_dir, state)
+        raise PipelineError(f"{run_job.spec.id}: result file was not produced")
+    result_bytes = result_path.read_bytes()
+    try:
+        document = json.loads(result_bytes)
+        validate_output_contract(run_job, document, invocation_repetitions)
+        timing, values, seed, raw_timing = extract_measurements(
+            document,
+            run_job.measurements,
+            warmup_repetitions=warmup_repetitions,
+        )
+        for measurement_id, value in values.items():
+            previous = job_state["values"][measurement_id]
+            if previous and any(item != value for item in previous):
+                raise PipelineError(
+                    f"{measurement_id}: deterministic value changed across batches"
+                )
+    except (json.JSONDecodeError, PipelineError, TypeError, ValueError) as exc:
+        failed_result = batch_dir / "unvalidated-result.json"
+        atomic_write_bytes(failed_result, result_bytes)
+        attempt.update(
+            {
+                "status": "failed",
+                "failure": f"result validation failed: {exc}",
+                "unvalidated_result": str(failed_result.relative_to(run_dir)),
+                "unvalidated_result_sha256": sha256_file(failed_result),
+            }
+        )
+        job_state["status"] = "failed"
+        write_checkpoint(run_dir, state)
+        raise PipelineError(
+            f"{run_job.spec.id}: benchmark result failed validation; "
+            f"see {failed_result}"
+        ) from exc
+    for measurement_id, samples in timing.items():
+        job_state["samples"][measurement_id].extend(samples)
+    for measurement_id, value in values.items():
+        job_state["values"][measurement_id].append(value)
+    if seed is not None:
+        job_state["seeds"].append(seed)
+    saved_result = batch_dir / "result.json"
+    atomic_write_bytes(saved_result, result_path.read_bytes())
+    saved_raw = batch_dir / "raw-samples.json"
+    atomic_write_json(
+        saved_raw,
+        {
+            "raw_benchmark_samples": raw_timing,
+            "independent_samples": timing,
+            "seed": seed,
+        },
+    )
+    attempt.update(
+        {
+            "status": "completed",
+            "finished_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "result": str(saved_result.relative_to(run_dir)),
+            "result_sha256": sha256_file(saved_result),
+            "raw_samples": str(saved_raw.relative_to(run_dir)),
+            "raw_samples_sha256": sha256_file(saved_raw),
+            "seed": seed,
+            "sample_counts": {
+                key: len(value) for key, value in timing.items()
+            },
+        }
+    )
+    job_state["status"] = "completed" if job_complete(job_state, state["mode"]) else "pending"
+    write_checkpoint(run_dir, state)
+
+
+def reconstruct_run_jobs(
+    manifest: Manifest, state: Mapping[str, Any]
+) -> list[RunJob]:
+    result: list[RunJob] = []
+    for job_id in state["selected_jobs"]:
+        saved = state["run_jobs"][job_id]
+        specs: list[MeasurementSpec] = []
+        for identifier in saved["measurements"]:
+            if identifier in manifest.measurements:
+                specs.append(manifest.measurements[identifier])
+                continue
+            metadata = saved["selectors"][identifier]
+            specs.append(
+                MeasurementSpec(
+                    id=identifier,
+                    job_id=job_id,
+                    selector=tuple(
+                        (key, value) for key, value in metadata["selector"]
+                    ),
+                    path=tuple(metadata["path"]),
+                    kind=metadata["kind"],
+                    sample_mode=metadata["sample_mode"],
+                )
+            )
+        result.append(
+            RunJob(
+                manifest.jobs[job_id],
+                tuple(specs),
+                tuple((key, value) for key, value in saved["env_overrides"]),
+                tuple(saved["features"]),
+            )
+        )
+    return result
+
+
+def _checked_run_artifact(run_dir: pathlib.Path, relative: str) -> pathlib.Path:
+    path = (run_dir / relative).resolve()
+    try:
+        path.relative_to(run_dir.resolve())
+    except ValueError as exc:
+        raise PipelineError(
+            f"resume rejected: artifact escapes run directory: {relative}"
+        ) from exc
+    return path
+
+
+def validate_resume_artifacts(
+    run_dir: pathlib.Path,
+    state: Mapping[str, Any],
+    run_jobs: Sequence[RunJob],
+) -> None:
+    binaries = state.get("binaries")
+    jobs = state.get("jobs")
+    if not isinstance(binaries, dict) or not isinstance(jobs, dict):
+        raise PipelineError("resume rejected: malformed checkpoint state")
+
+    for key, record in binaries.items():
+        if not isinstance(record, dict):
+            raise PipelineError(f"resume rejected: malformed binary record {key}")
+        path = _checked_run_artifact(run_dir, str(record.get("path", "")))
+        if not path.is_file():
+            raise PipelineError(f"resume rejected: saved binary is missing: {path}")
+        if sha256_file(path) != record.get("sha256"):
+            raise PipelineError(f"resume rejected: saved binary hash changed: {path}")
+
+    for run_job in run_jobs:
+        job_state = jobs.get(run_job.spec.id)
+        if not isinstance(job_state, dict):
+            raise PipelineError(
+                f"resume rejected: missing job state for {run_job.spec.id}"
+            )
+        expected_samples = {
+            measurement.id: []
+            for measurement in run_job.measurements
+            if measurement.kind == "timing"
+        }
+        expected_values = {
+            measurement.id: []
+            for measurement in run_job.measurements
+            if measurement.kind == "value"
+        }
+        expected_seeds: list[int] = []
+        for attempt in job_state.get("batches", []):
+            if attempt.get("status") != "completed":
+                continue
+            binary_record = binaries.get(build_key(run_job))
+            if not isinstance(binary_record, dict):
+                raise PipelineError(
+                    f"resume rejected: missing binary for completed job "
+                    f"{run_job.spec.id}"
+                )
+            if attempt.get("binary_sha256") != binary_record.get("sha256"):
+                raise PipelineError(
+                    f"resume rejected: batch binary does not match saved binary "
+                    f"for {run_job.spec.id}"
+                )
+            result_path = _checked_run_artifact(
+                run_dir, str(attempt.get("result", ""))
+            )
+            raw_path = _checked_run_artifact(
+                run_dir, str(attempt.get("raw_samples", ""))
+            )
+            for path, hash_key in (
+                (result_path, "result_sha256"),
+                (raw_path, "raw_samples_sha256"),
+            ):
+                if not path.is_file():
+                    raise PipelineError(
+                        f"resume rejected: completed artifact is missing: {path}"
+                    )
+                if sha256_file(path) != attempt.get(hash_key):
+                    raise PipelineError(
+                        f"resume rejected: completed artifact hash changed: {path}"
+                    )
+
+            try:
+                document = json.loads(result_path.read_bytes())
+                repetitions = int(attempt["repetitions"])
+                warmup_repetitions = int(attempt.get("warmup_repetitions", 0))
+                invocation_repetitions = int(
+                    attempt.get(
+                        "invocation_repetitions",
+                        repetitions + warmup_repetitions,
+                    )
+                )
+                validate_output_contract(
+                    run_job, document, invocation_repetitions
+                )
+                timing, values, seed, raw_timing = extract_measurements(
+                    document,
+                    run_job.measurements,
+                    warmup_repetitions=warmup_repetitions,
+                )
+                saved_raw = json.loads(raw_path.read_bytes())
+            except (json.JSONDecodeError, KeyError, PipelineError, TypeError, ValueError) as exc:
+                raise PipelineError(
+                    f"resume rejected: saved output no longer validates for "
+                    f"{run_job.spec.id}: {exc}"
+                ) from exc
+            expected_raw = {
+                "raw_benchmark_samples": raw_timing,
+                "independent_samples": timing,
+                "seed": seed,
+            }
+            if saved_raw != expected_raw:
+                raise PipelineError(
+                    f"resume rejected: raw samples disagree with result for "
+                    f"{run_job.spec.id}"
+                )
+            for measurement_id, samples in timing.items():
+                expected_samples[measurement_id].extend(samples)
+            for measurement_id, value in values.items():
+                expected_values[measurement_id].append(value)
+            if seed is not None:
+                expected_seeds.append(seed)
+
+        if job_state.get("samples") != expected_samples:
+            raise PipelineError(
+                f"resume rejected: checkpoint samples disagree with saved "
+                f"artifacts for {run_job.spec.id}"
+            )
+        if job_state.get("values") != expected_values:
+            raise PipelineError(
+                f"resume rejected: checkpoint values disagree with saved "
+                f"artifacts for {run_job.spec.id}"
+            )
+        if job_state.get("seeds") != expected_seeds:
+            raise PipelineError(
+                f"resume rejected: checkpoint seeds disagree with saved "
+                f"artifacts for {run_job.spec.id}"
+            )
+
+
+def execute_run(
+    manifest: Manifest,
+    run_dir: pathlib.Path,
+    state: dict[str, Any],
+    run_jobs: Sequence[RunJob],
+    *,
+    timeout_seconds: float,
+    stop_after_batches: int | None,
+) -> bool:
+    completed_batches_this_process = 0
+    for run_job in run_jobs:
+        job_state = state["jobs"][run_job.spec.id]
+        if job_complete(job_state, state["mode"]):
+            job_state["status"] = "completed"
+            continue
+        validate_current_source_snapshot(
+            str(state["snapshot_id"]),
+            phase=f"starting job {run_job.spec.id}",
+        )
+        binary = build_benchmark_binary(
+            run_dir, state, run_job, timeout_seconds=timeout_seconds
+        )
+        while not job_complete(job_state, state["mode"]):
+            validate_current_source_snapshot(
+                str(state["snapshot_id"]),
+                phase=f"starting a batch for {run_job.spec.id}",
+            )
+            repetitions = batch_repetitions(job_state, state["mode"])
+            if repetitions <= 0:
+                break
+            execute_batch(
+                run_dir,
+                state,
+                run_job,
+                binary,
+                repetitions=repetitions,
+                timeout_seconds=timeout_seconds,
+            )
+            completed_batches_this_process += 1
+            if (
+                stop_after_batches is not None
+                and completed_batches_this_process >= stop_after_batches
+            ):
+                state["status"] = "interrupted"
+                state["interruption_requested"] = True
+                write_checkpoint(run_dir, state)
+                return False
+        validate_current_source_snapshot(
+            str(state["snapshot_id"]),
+            phase=f"finishing job {run_job.spec.id}",
+        )
+        job_state["status"] = "completed"
+        write_checkpoint(run_dir, state)
+    state["status"] = "benchmarks-complete"
+    write_checkpoint(run_dir, state)
+    return True
+
+
+def resolve_measurements(
+    manifest: Manifest, state: Mapping[str, Any]
+) -> dict[str, dict[str, Any]]:
+    resolved: dict[str, dict[str, Any]] = {}
+    for measurement in manifest.measurements.values():
+        if measurement.kind == "formula":
+            resolved[measurement.id] = {
+                "kind": "formula",
+                "unit": measurement.unit,
+                "value": evaluate_formula(measurement),
+                "formula": measurement.formula,
+                "formula_args": list(measurement.formula_args),
+            }
+            continue
+        if measurement.job_id not in state.get("jobs", {}):
+            continue
+        job_state = state["jobs"][measurement.job_id]
+        if measurement.kind == "timing":
+            samples = job_state.get("samples", {}).get(measurement.id)
+            if samples:
+                resolved[measurement.id] = {
+                    "kind": "timing",
+                    "unit": measurement.unit,
+                    "samples": samples,
+                    "summary": summarize_samples(samples),
+                }
+        elif measurement.kind == "value":
+            values = job_state.get("values", {}).get(measurement.id)
+            if values:
+                if any(value != values[0] for value in values[1:]):
+                    raise PipelineError(
+                        f"{measurement.id}: deterministic output was not stable"
+                    )
+                resolved[measurement.id] = {
+                    "kind": "value",
+                    "unit": measurement.unit,
+                    "value": values[0],
+                    "observations": len(values),
+                }
+    for job_id in state.get("selected_jobs", []):
+        job_state = state["jobs"][job_id]
+        selectors = state["run_jobs"][job_id]["selectors"]
+        for identifier, samples in job_state.get("samples", {}).items():
+            if identifier in resolved or not samples:
+                continue
+            metadata = selectors[identifier]
+            resolved[identifier] = {
+                "kind": "timing",
+                "unit": metadata.get("unit", "ns"),
+                "samples": samples,
+                "summary": summarize_samples(samples),
+            }
+        for identifier, values in job_state.get("values", {}).items():
+            if identifier in resolved or not values:
+                continue
+            if any(value != values[0] for value in values[1:]):
+                raise PipelineError(
+                    f"{identifier}: deterministic output was not stable"
+                )
+            metadata = selectors[identifier]
+            resolved[identifier] = {
+                "kind": "value",
+                "unit": metadata.get("unit", ""),
+                "value": values[0],
+                "observations": len(values),
+            }
+    return resolved
+
+
+def measurement_value(record: Mapping[str, Any]) -> Any:
+    if record["kind"] == "timing":
+        return record["summary"]["mean"]
+    return record["value"]
+
+
+def render_cell_value(cell_spec: CellSpec, values: Sequence[Any]) -> str:
+    render = cell_spec.render
+    if render == "text":
+        return str(values[0])
+    if render == "integer":
+        return str(int(round(values[0])))
+    if render == "bytes-integer":
+        return str(int(round(values[0])))
+    if render == "kib-1":
+        return f"{float(values[0]) / KIB:.1f}"
+    if render == "mib-3":
+        return f"{float(values[0]) / MIB:.3f}"
+    if render == "mib-3-div3":
+        return f"{float(values[0]) / 3.0 / MIB:.3f}"
+    if render == "microseconds-1":
+        return f"{float(values[0]) / 1.0e3:.1f}"
+    if render == "milliseconds-1":
+        return f"{float(values[0]) / 1.0e6:.1f}"
+    if render == "milliseconds-3":
+        return f"{float(values[0]) / 1.0e6:.3f}"
+    if render == "milliseconds-3-div3":
+        return f"{float(values[0]) / 3.0 / 1.0e6:.3f}"
+    if render == "seconds-3":
+        return f"{float(values[0]) / 1.0e9:.3f}"
+    raise PipelineError(f"{cell_spec.id}: unknown renderer {render}")
+
+
+def render_cell(
+    cell_spec: CellSpec,
+    resolved: Mapping[str, Mapping[str, Any]],
+    *,
+    allow_pending: bool,
+) -> str:
+    missing = [source for source in cell_spec.sources if source not in resolved]
+    if missing:
+        if allow_pending:
+            return "pending"
+        raise PipelineError(f"{cell_spec.id}: unresolved sources {missing}")
+    values = [measurement_value(resolved[source]) for source in cell_spec.sources]
+    return render_cell_value(cell_spec, values)
+
+
+def render_result_tables(
+    manifest: Manifest,
+    resolved: Mapping[str, Mapping[str, Any]],
+    *,
+    allow_pending: bool,
+) -> dict[str, list[dict[str, str]]]:
+    tables: dict[str, list[dict[str, str]]] = {}
+    for table in TABLE_LABELS:
+        records: list[dict[str, str]] = []
+        for row in manifest.table_rows[table]:
+            panel = row.split(":", 1)[0] if ":" in row else ""
+            record = {"panel": panel, "row": row}
+            for column in manifest.table_columns[table]:
+                record[column] = render_cell(
+                    manifest.cells[f"{table}|{row}|{column}"],
+                    resolved,
+                    allow_pending=allow_pending,
+                )
+            records.append(record)
+        tables[table] = records
+    return tables
+
+
+def markdown_cell(value: str) -> str:
+    return value.replace("|", "\\|").replace("\n", " ")
+
+
+def write_result_tables(
+    run_dir: pathlib.Path,
+    manifest: Manifest,
+    tables: Mapping[str, Sequence[Mapping[str, str]]],
+) -> None:
+    table_dir = run_dir / "tables"
+    table_dir.mkdir(parents=True, exist_ok=True)
+    atomic_write_json(table_dir / "tables.json", tables)
+    index = [
+        "# Evaluation result groups",
+        "",
+        "Values are reviewer-facing renderings. Machine-readable source values, "
+        "units, samples, and confidence intervals are in `../summary.json` and "
+        "`../summary.tsv`.",
+        "",
+    ]
+    for table in TABLE_LABELS:
+        safe_name = table.replace(":", "-")
+        columns = ["panel", "row", *manifest.table_columns[table]]
+        csv_path = table_dir / f"{safe_name}.csv"
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+        with csv_path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=columns, lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(tables[table])
+        metadata = TABLE_METADATA[table]
+        index.extend(
+            [
+                f"## {metadata['title']}",
+                "",
+                f"Result-group ID: `{table}`. CSV: `{csv_path.name}`.",
+                "",
+                str(metadata["notes"]),
+                "",
+            ]
+        )
+        index.append("| " + " | ".join(columns) + " |")
+        index.append("| " + " | ".join("---" for _ in columns) + " |")
+        for record in tables[table]:
+            index.append(
+                "| "
+                + " | ".join(markdown_cell(str(record[column])) for column in columns)
+                + " |"
+            )
+        index.append("")
+    atomic_write_text(table_dir / "README.md", "\n".join(index))
+
+
+def write_raw_samples(run_dir: pathlib.Path, state: Mapping[str, Any]) -> None:
+    lines: list[str] = []
+    for job_id in state["selected_jobs"]:
+        job_state = state["jobs"][job_id]
+        for measurement_id, samples in sorted(job_state["samples"].items()):
+            for index, value in enumerate(samples):
+                lines.append(
+                    json.dumps(
+                        {
+                            "job": job_id,
+                            "measurement": measurement_id,
+                            "independent_repetition": index,
+                            "value": value,
+                            "unit": "ns",
+                        },
+                        sort_keys=True,
+                    )
+                )
+        for batch in job_state["batches"]:
+            if batch.get("status") != "completed":
+                continue
+            lines.append(
+                json.dumps(
+                    {
+                        "job": job_id,
+                        "batch": batch["index"],
+                        "seed": batch.get("seed"),
+                        "raw_benchmark_samples": batch.get("raw_samples"),
+                        "raw_benchmark_samples_sha256": batch.get(
+                            "raw_samples_sha256"
+                        ),
+                        "result": batch.get("result"),
+                        "result_sha256": batch.get("result_sha256"),
+                    },
+                    sort_keys=True,
+                )
+            )
+    atomic_write_text(
+        run_dir / "raw-samples.jsonl", "\n".join(lines) + ("\n" if lines else "")
+    )
+
+
+def write_summary_outputs(
+    manifest: Manifest,
+    run_dir: pathlib.Path,
+    state: Mapping[str, Any],
+    resolved: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    consumers = manifest.consumers()
+    selected_jobs_by_measurement = {
+        identifier: job_id
+        for job_id, run_job in state.get("run_jobs", {}).items()
+        for identifier in run_job.get("measurements", [])
+    }
+    records = []
+    for identifier in sorted(resolved):
+        spec = manifest.measurements.get(identifier)
+        record = {
+            "id": identifier,
+            "job": (
+                selected_jobs_by_measurement.get(identifier)
+                if spec is None
+                else spec.job_id
+            ),
+            "description": "" if spec is None else spec.description,
+            "consumers": consumers.get(identifier, []),
+            **resolved[identifier],
+        }
+        records.append(record)
+    unstable = [
+        record["id"]
+        for record in records
+        if record["kind"] == "timing"
+        and not record["summary"]["stable"]
+        and state["mode"] == "full"
+    ]
+    missing = [
+        identifier
+        for identifier, spec in manifest.measurements.items()
+        if spec.kind != "formula" and identifier not in resolved
+    ]
+    summary = {
+        "run_id": state["run_id"],
+        "mode": state["mode"],
+        "snapshot_id": state["snapshot_id"],
+        "benchmark_cpu": state.get("benchmark_cpu"),
+        "statistical_rule": {
+            "independent_minimum": DEFAULT_MIN_REPETITIONS,
+            "independent_maximum": DEFAULT_MAX_REPETITIONS,
+            "looks": list(SEQUENTIAL_LOOKS),
+            "target_relative_half_width": DEFAULT_RELATIVE_HALF_WIDTH,
+            "familywise_confidence": 1.0 - SEQUENTIAL_FAMILY_ALPHA,
+            "method": (
+                "Student-t intervals with Bonferroni alpha allocation across "
+                f"the {len(SEQUENTIAL_LOOKS)} declared sequential looks"
+            ),
+            "append_independent_unit": "one complete 64-batch sequence",
+            "direct_warmup_repetitions_per_process": DIRECT_WARMUP_REPETITIONS,
+            "append_warmup_sequences_per_process": APPEND_WARMUP_REPETITIONS,
+        },
+        "records": records,
+        "missing_full_manifest_measurements": missing,
+        "unstable_measurements": unstable,
+        "publishable": state["mode"] == "full" and not missing and not unstable,
+    }
+    atomic_write_json(run_dir / "summary.json", summary)
+    with (run_dir / "summary.tsv").open("w", newline="") as handle:
+        writer = csv.writer(handle, delimiter="\t", lineterminator="\n")
+        writer.writerow(
+            [
+                "measurement",
+                "job",
+                "kind",
+                "unit",
+                "n",
+                "mean_or_value",
+                "ci95_low",
+                "ci95_high",
+                "relative_half_width",
+                "stable",
+                "consumers",
+            ]
+        )
+        for record in records:
+            if record["kind"] == "timing":
+                stats = record["summary"]
+                ci = stats["ci95"]
+                row = [
+                    record["id"],
+                    record["job"],
+                    record["kind"],
+                    record["unit"],
+                    stats["n"],
+                    stats["mean"],
+                    "" if ci is None else ci["low"],
+                    "" if ci is None else ci["high"],
+                    "" if ci is None else ci["relative_half_width"],
+                    stats["stable"],
+                    ",".join(record["consumers"]),
+                ]
+            else:
+                row = [
+                    record["id"],
+                    record["job"],
+                    record["kind"],
+                    record["unit"],
+                    "",
+                    record["value"],
+                    "",
+                    "",
+                    "",
+                    "",
+                    ",".join(record["consumers"]),
+                ]
+            writer.writerow(row)
+    return summary
+
+
+def validate_result_dimensions(
+    manifest: Manifest,
+    tables: Mapping[str, Sequence[Mapping[str, str]]],
+    resolved: Mapping[str, Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    resolved = {} if resolved is None else resolved
+    evidence: dict[str, Any] = {}
+    for label in TABLE_LABELS:
+        expected_rows = len(manifest.table_rows[label])
+        actual_rows = len(tables[label])
+        expected_columns = len(manifest.table_columns[label])
+        expected_keys = {"panel", "row", *manifest.table_columns[label]}
+        for record in tables[label]:
+            if set(record) != expected_keys:
+                raise PipelineError(
+                    f"{label}|{record.get('row', '?')}: result columns differ: "
+                    f"missing={sorted(expected_keys - set(record))}, "
+                    f"extra={sorted(set(record) - expected_keys)}"
+                )
+        if actual_rows != expected_rows:
+            raise PipelineError(
+                f"{label}: generated {actual_rows} rows, expected {expected_rows}"
+            )
+        table_cells = [
+            cell_spec
+            for cell_spec in manifest.cells.values()
+            if cell_spec.table == label
+        ]
+        for cell_spec in table_cells:
+            validate_cell_unit_contract(cell_spec, manifest)
+        source_references = [
+            source for cell_spec in table_cells for source in cell_spec.sources
+        ]
+        panel_counts: dict[str, int] = defaultdict(int)
+        for record in tables[label]:
+            panel_counts[record["panel"]] += 1
+        evidence[label] = {
+            "rows": actual_rows,
+            "columns": expected_columns,
+            "panel_rows": list(panel_counts.values()),
+            "unit_checked_cells": len(table_cells),
+            "resolved_value_source_references": sum(
+                source in resolved for source in source_references
+            ),
+            "pending_value_source_references": sum(
+                source not in resolved for source in source_references
+            ),
+        }
+    return evidence
+
+
+def write_audit_report(
+    manifest: Manifest,
+    run_dir: pathlib.Path,
+    state: Mapping[str, Any],
+    summary: Mapping[str, Any],
+    result_validation: Mapping[str, Any],
+) -> None:
+    consumers = manifest.consumers()
+    shared_outputs = [
+        (identifier, cells)
+        for identifier, cells in consumers.items()
+        if len(cells) > 1
+        and manifest.measurements[identifier].job_id is not None
+    ]
+    lines = [
+        "# Reproduction audit report",
+        "",
+        f"- Run: `{state['run_id']}`",
+        f"- Mode: `{state['mode']}`",
+        f"- Source snapshot: `{state['snapshot_id']}`",
+        f"- Benchmark CPU: {state.get('benchmark_cpu')}",
+        f"- Jobs selected: {len(state['selected_jobs'])}",
+        f"- Manifest result cells: {len(manifest.cells)}",
+        f"- Manifest timing series: {sum(m.kind == 'timing' for m in manifest.measurements.values())}",
+        f"- Uncovered cells: 0",
+        f"- Measurements without consumers: 0",
+        f"- Duplicate jobs: 0",
+        "",
+        "## Statistical status",
+        "",
+        (
+            f"Publication-ready: **{summary['publishable']}**. "
+            f"Unstable timing series: {len(summary['unstable_measurements'])}. "
+            f"Missing full-manifest measurements: "
+            f"{len(summary['missing_full_manifest_measurements'])}."
+        ),
+        "",
+        "The stopping rule uses Student-t intervals and allocates the 5% error "
+        f"budget across looks at {', '.join(map(str, SEQUENTIAL_LOOKS))} "
+        "independent repetitions. Each benchmark process discards explicit "
+        "warmup work before collecting samples. A complete 64-batch append "
+        "sequence is one independent repetition.",
+        "",
+        "## Shared work",
+        "",
+    ]
+    for identifier, cells in sorted(shared_outputs):
+        lines.append(f"- `{identifier}` -> {', '.join(f'`{item}`' for item in cells)}")
+    lines.extend(["", "## Deliberately omitted work", ""])
+    lines.extend(f"- {item}" for item in OMITTED_EXPERIMENTS)
+    lines.extend(
+        [
+            "",
+            "## Result validation",
+            "",
+            "All generated result groups have the declared dimensions:",
+            "",
+        ]
+    )
+    for label, record in result_validation.items():
+        lines.append(
+            f"- `{label}`: {record['rows']} rows, {record['columns']} columns"
+        )
+    lines.extend(
+        [
+            "",
+            "Machine-readable measurements and confidence intervals are in "
+            "`summary.json` and `summary.tsv`. Reviewer-facing CSV, JSON, and "
+            "Markdown result groups are under `tables/`.",
+        ]
+    )
+    atomic_write_text(run_dir / "audit-report.md", "\n".join(lines) + "\n")
+
+
+def finalize_run_outputs(
+    manifest: Manifest,
+    run_dir: pathlib.Path,
+    state: Mapping[str, Any],
+) -> dict[str, Any]:
+    expected_snapshot_id = str(state["snapshot_id"])
+    validate_current_source_snapshot(
+        expected_snapshot_id,
+        phase="starting final output generation",
+    )
+    resolved = resolve_measurements(manifest, state)
+    allow_pending = state["mode"] != "full"
+    tables = render_result_tables(
+        manifest, resolved, allow_pending=allow_pending
+    )
+    write_result_tables(run_dir, manifest, tables)
+    validation = validate_result_dimensions(manifest, tables, resolved)
+    atomic_write_json(run_dir / "result-validation.json", validation)
+    write_raw_samples(run_dir, state)
+    summary = write_summary_outputs(manifest, run_dir, state, resolved)
+    write_audit_report(
+        manifest,
+        run_dir,
+        state,
+        summary,
+        validation,
+    )
+    validate_current_source_snapshot(
+        expected_snapshot_id,
+        phase="finishing final output generation",
+    )
+    return {
+        "summary": summary,
+        "result_validation": validation,
+    }
+
+
+def runtime_estimate(manifest: Manifest) -> dict[str, Any]:
+    setup = sum(job.estimated_setup_seconds for job in manifest.jobs.values())
+    per_repetition = sum(
+        job.estimated_seconds_per_repetition for job in manifest.jobs.values()
+    )
+    warmup_work = sum(
+        benchmark_warmup_repetitions(
+            RunJob(job, tuple(manifest.measurements_for_job(job.id))),
+            "full",
+        )
+        * job.estimated_seconds_per_repetition
+        for job in manifest.jobs.values()
+    )
+    minimum = (
+        setup
+        + DEFAULT_MIN_REPETITIONS * per_repetition
+        + warmup_work
+    )
+    maximum = (
+        len(SEQUENTIAL_LOOKS) * setup
+        + DEFAULT_MAX_REPETITIONS * per_repetition
+        + len(SEQUENTIAL_LOOKS) * warmup_work
+    )
+    unique_builds = {
+        (job.benchmark, job.features) for job in manifest.jobs.values()
+    }
+    disk_bytes = len(unique_builds) * 35 * MIB + len(manifest.jobs) * 4 * MIB
+    return {
+        "setup_seconds": setup,
+        "per_repetition_seconds": per_repetition,
+        "warmup_seconds_per_process": warmup_work,
+        "maximum_processes_per_job": len(SEQUENTIAL_LOOKS),
+        "minimum_seconds": minimum,
+        "maximum_seconds": maximum,
+        "minimum_hours": minimum / 3600.0,
+        "maximum_hours": maximum / 3600.0,
+        "estimated_disk_bytes": disk_bytes,
+        "estimated_disk_gib": disk_bytes / (1024**3),
+        "unique_builds": len(unique_builds),
+        "basis": (
+            "Conservative static family estimates; the canary supplies measured "
+            "preflight evidence before --full."
+        ),
+    }
+
+
+def write_plan(
+    manifest: Manifest,
+    run_dir: pathlib.Path,
+    snapshot: Mapping[str, Any],
+) -> dict[str, Any]:
+    consumers = manifest.consumers()
+    estimate = runtime_estimate(manifest)
+    lines = [
+        "# Evaluation reproduction plan",
+        "",
+        f"- Source snapshot: `{snapshot['snapshot_id']}`",
+        f"- Evaluation result groups: {len(TABLE_LABELS)}",
+        f"- Exact result cells: {len(manifest.cells)}",
+        f"- Deduplicated benchmark jobs: {len(manifest.jobs)}",
+        f"- Consumed timing series: {sum(m.kind == 'timing' for m in manifest.measurements.values())}",
+        f"- Uncovered cells: 0",
+        f"- Duplicate jobs: 0",
+        f"- Measurements without consumers: 0",
+        f"- Estimated minimum full duration: {estimate['minimum_hours']:.1f} hours",
+        f"- Estimated worst-case full duration: {estimate['maximum_hours']:.1f} hours",
+        f"- Estimated run storage: {estimate['estimated_disk_gib']:.2f} GiB",
+        "",
+        "## Exact cell manifest",
+        "",
+    ]
+    for table in TABLE_LABELS:
+        lines.extend([f"### `{table}`", ""])
+        for row in manifest.table_rows[table]:
+            for column in manifest.table_columns[table]:
+                item = manifest.cells[f"{table}|{row}|{column}"]
+                source_text = []
+                for source in item.sources:
+                    measurement = manifest.measurements[source]
+                    if measurement.job_id is None:
+                        producer = f"formula `{measurement.formula}`"
+                    else:
+                        selector_text = json.dumps(
+                            measurement.selector_dict(), sort_keys=True
+                        )
+                        producer = (
+                            f"job `{measurement.job_id}`, entry `{selector_text}`, "
+                            f"path `{'.'.join(measurement.path)}`"
+                        )
+                    source_text.append(f"`{source}` ({producer})")
+                lines.append(
+                    f"- `{row}` / `{column}` <- " + "; ".join(source_text)
+                )
+        lines.append("")
+    lines.extend(["## Scheduled jobs", ""])
+    for job_id in sorted(manifest.jobs):
+        job = manifest.jobs[job_id]
+        measurements = manifest.measurements_for_job(job_id)
+        cell_consumers = sorted(
+            {
+                cell_id
+                for measurement in measurements
+                for cell_id in consumers[measurement.id]
+            }
+        )
+        lines.extend(
+            [
+                f"### `{job_id}`",
+                "",
+                f"- Benchmark: `{job.benchmark}`",
+                f"- Features: `{','.join(job.features)}`",
+                f"- Result: `{job.result_relpath}`",
+                f"- Setup: {job.setup}",
+                f"- Environment: `{json.dumps(job.env_dict(), sort_keys=True)}`",
+                f"- Consumed measurements: {len(measurements)}",
+                f"- Exact consuming cells: {len(cell_consumers)}",
+                "",
+            ]
+        )
+        for measurement in sorted(measurements, key=lambda item: item.id):
+            lines.append(
+                f"- `{measurement.id}` -> "
+                + ", ".join(f"`{item}`" for item in consumers[measurement.id])
+            )
+        lines.append("")
+    lines.extend(["## Shared benchmark outputs", ""])
+    shared = [
+        (identifier, cells)
+        for identifier, cells in consumers.items()
+        if len(cells) > 1
+        and manifest.measurements[identifier].job_id is not None
+    ]
+    for identifier, cells in sorted(shared):
+        lines.append(f"- `{identifier}` -> " + ", ".join(f"`{item}`" for item in cells))
+    lines.extend(["", "## Deliberately omitted work", ""])
+    lines.extend(f"- {item}" for item in OMITTED_EXPERIMENTS)
+    lines.extend(
+        [
+            "",
+            "## Repetition rule",
+            "",
+            f"Full jobs begin with {DEFAULT_MIN_REPETITIONS} independent "
+            "repetitions. At the declared looks of "
+            f"{', '.join(map(str, SEQUENTIAL_LOOKS))} repetitions, the pipeline computes "
+            "Student-t intervals with Bonferroni allocation of the overall 5% "
+            "error probability. It stops a job only when every consumed timing "
+            "series has a simultaneous relative half-width at most 5%, or after "
+            f"{DEFAULT_MAX_REPETITIONS} repetitions. Results still outside the "
+            f"target at {DEFAULT_MAX_REPETITIONS} are marked unstable and "
+            "non-publishable.",
+            "",
+            f"Each direct-timing process executes and discards "
+            f"{DIRECT_WARMUP_REPETITIONS} warmup repetitions. Each append "
+            f"process discards {APPEND_WARMUP_REPETITIONS} complete warmup "
+            "sequence before recording independent sequences. Benchmark "
+            "processes are pinned to the CPU recorded in the run provenance.",
+            "",
+            "For append processing, one fresh 64-batch sequence is one independent "
+            "repetition. The 64 within-sequence batch timings are retained but are "
+            "not treated as independent samples.",
+        ]
+    )
+    atomic_write_text(run_dir / "plan.md", "\n".join(lines) + "\n")
+    atomic_write_json(run_dir / "runtime-estimate.json", estimate)
+    return estimate
+
+
+def gate_dir(snapshot_id: str) -> pathlib.Path:
+    return GATES_ROOT / snapshot_id
+
+
+def record_gate(
+    snapshot_id: str,
+    name: str,
+    *,
+    run_id: str,
+    evidence: Mapping[str, Any] | None = None,
+) -> None:
+    payload = {
+        "pipeline_version": PIPELINE_VERSION,
+        "snapshot_id": snapshot_id,
+        "gate": name,
+        "run_id": run_id,
+        "recorded_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "evidence": dict(evidence or {}),
+    }
+    atomic_write_json(gate_dir(snapshot_id) / f"{name}.json", payload)
+
+
+def require_gates(snapshot_id: str, names: Sequence[str]) -> None:
+    missing = []
+    invalid = []
+    for name in names:
+        path = gate_dir(snapshot_id) / f"{name}.json"
+        if not path.exists():
+            missing.append(name)
+            continue
+        try:
+            record = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            invalid.append(name)
+            continue
+        if (
+            record.get("snapshot_id") != snapshot_id
+            or record.get("pipeline_version") != PIPELINE_VERSION
+            or record.get("gate") != name
+        ):
+            invalid.append(name)
+    if missing or invalid:
+        raise PipelineError(
+            "precondition gates are not satisfied for this source snapshot: "
+            f"missing={missing}, invalid={invalid}"
+        )
+
+
+def run_unit_tests(run_dir: pathlib.Path) -> None:
+    test_file = ROOT / "scripts" / "test_reproduce.py"
+    if not test_file.exists():
+        raise PipelineError(f"missing pipeline unit tests: {test_file}")
+    command = [sys.executable, str(test_file)]
+    completed = run_capture(command, check=False, timeout=300)
+    atomic_write_bytes(run_dir / "unit-tests.stdout.log", completed.stdout)
+    atomic_write_bytes(run_dir / "unit-tests.stderr.log", completed.stderr)
+    if completed.returncode != 0:
+        raise PipelineError(
+            f"pipeline unit tests failed; see {run_dir / 'unit-tests.stderr.log'}"
+        )
+
+
+def full_preflight_risks() -> list[str]:
+    return [
+        "Every deduplicated job needs at least "
+        f"{DEFAULT_MIN_REPETITIONS} independent repetitions.",
+        "The 64-batch append sequences and the large corrupted range openings "
+        "are the dominant CPU costs.",
+        "Thermal throttling or competing host load can widen confidence intervals "
+        f"and push individual jobs toward {DEFAULT_MAX_REPETITIONS} repetitions.",
+        f"A timing series that misses the precision target at "
+        f"{DEFAULT_MAX_REPETITIONS} repetitions "
+        "will be retained and flagged; it will not be silently accepted.",
+        "Machine load, thermal state, and CPU-frequency policy can make a new "
+        "host's timings differ from the included reference run even when the "
+        "implementation and workloads are identical.",
+    ]
+
+
+def calibrated_runtime_estimate(
+    manifest: Manifest, state: Mapping[str, Any]
+) -> dict[str, Any]:
+    observed_by_family: dict[str, float] = defaultdict(float)
+    canary_static_by_family: dict[str, float] = defaultdict(float)
+    for job_id in state["selected_jobs"]:
+        job = manifest.jobs[job_id]
+        observed_by_family[job.family] += sum(
+            float(batch.get("elapsed_seconds", 0))
+            for batch in state["jobs"][job_id]["batches"]
+            if batch.get("status") == "completed"
+        )
+        canary_static_by_family[job.family] += (
+            job.estimated_setup_seconds + job.estimated_seconds_per_repetition
+        )
+    full_minimum_by_family: dict[str, float] = defaultdict(float)
+    full_maximum_by_family: dict[str, float] = defaultdict(float)
+    full_jobs_by_family: dict[str, int] = defaultdict(int)
+    for job in manifest.jobs.values():
+        warmup = benchmark_warmup_repetitions(
+            RunJob(job, tuple(manifest.measurements_for_job(job.id))),
+            "full",
+        )
+        full_minimum_by_family[job.family] += (
+            job.estimated_setup_seconds
+            + (DEFAULT_MIN_REPETITIONS + warmup)
+            * job.estimated_seconds_per_repetition
+        )
+        full_maximum_by_family[job.family] += (
+            len(SEQUENTIAL_LOOKS) * job.estimated_setup_seconds
+            + (
+                DEFAULT_MAX_REPETITIONS
+                + len(SEQUENTIAL_LOOKS) * warmup
+            )
+            * job.estimated_seconds_per_repetition
+        )
+        full_jobs_by_family[job.family] += 1
+    families: dict[str, Any] = {}
+    minimum = 0.0
+    maximum = 0.0
+    for family in sorted(full_jobs_by_family):
+        observed = observed_by_family.get(family, 0.0)
+        canary_static = canary_static_by_family.get(family, 0.0)
+        if observed <= 0 or canary_static <= 0:
+            factor = 1.0
+            basis = "static fallback; no canary observation"
+        else:
+            factor = observed / canary_static
+            basis = "scaled from publication-sized canary elapsed time"
+        family_minimum = factor * full_minimum_by_family[family]
+        family_maximum = factor * full_maximum_by_family[family]
+        minimum += family_minimum
+        maximum += family_maximum
+        families[family] = {
+            "jobs": full_jobs_by_family[family],
+            "canary_observed_seconds": observed,
+            "canary_static_seconds": canary_static,
+            "calibration_factor": factor,
+            "minimum_seconds": family_minimum,
+            "maximum_seconds": family_maximum,
+            "basis": basis,
+        }
+    return {
+        "method": (
+            "Scale each benchmark family's static setup/work model by the "
+            "publication-sized canary's observed-to-modeled elapsed-time ratio."
+        ),
+        "minimum_seconds": minimum,
+        "maximum_seconds": maximum,
+        "minimum_hours": minimum / 3600.0,
+        "maximum_hours": maximum / 3600.0,
+        "families": families,
+    }
+
+
+def write_preflight(
+    manifest: Manifest,
+    run_dir: pathlib.Path,
+    state: Mapping[str, Any],
+) -> dict[str, Any]:
+    static_estimate = runtime_estimate(manifest)
+    calibrated_estimate = calibrated_runtime_estimate(manifest, state)
+    benchmark_seconds = sum(
+        float(batch.get("elapsed_seconds", 0))
+        for job in state["jobs"].values()
+        for batch in job["batches"]
+        if batch.get("status") == "completed"
+    )
+    build_seconds = sum(
+        float(record.get("build_seconds", 0))
+        for record in state["binaries"].values()
+    )
+    report = {
+        "snapshot_id": state["snapshot_id"],
+        "canary_run": state["run_id"],
+        "canary_benchmark_seconds": benchmark_seconds,
+        "canary_build_seconds": build_seconds,
+        "static_estimate": static_estimate,
+        "canary_calibrated_estimate": calibrated_estimate,
+        "risks": full_preflight_risks(),
+        "full_command": "./artifact full",
+        "full_starts_automatically": False,
+    }
+    lines = [
+        "# Full-run preflight",
+        "",
+        f"- Source snapshot: `{state['snapshot_id']}`",
+        f"- Canary run: `{state['run_id']}`",
+        f"- Canary benchmark time: {benchmark_seconds / 60.0:.1f} minutes",
+        f"- Canary build time: {build_seconds / 60.0:.1f} minutes",
+        (
+            "- Canary-calibrated full estimate: "
+            f"{calibrated_estimate['minimum_hours']:.1f}--"
+            f"{calibrated_estimate['maximum_hours']:.1f} hours"
+        ),
+        (
+            "- Earlier static plan estimate: "
+            f"{static_estimate['minimum_hours']:.1f}--"
+            f"{static_estimate['maximum_hours']:.1f} hours"
+        ),
+        f"- Estimated isolated-run storage: {static_estimate['estimated_disk_gib']:.2f} GiB",
+        "",
+        "## Remaining risks",
+        "",
+        *[f"- {risk}" for risk in report["risks"]],
+        "",
+        "The full run is not started by canary or preflight. Its explicit command is:",
+        "",
+        "```bash",
+        report["full_command"],
+        "```",
+    ]
+    atomic_write_text(run_dir / "preflight.md", "\n".join(lines) + "\n")
+    atomic_write_json(run_dir / "preflight.json", report)
+    return report
+
+
+def selected_run_elapsed(state: Mapping[str, Any]) -> float:
+    return sum(
+        float(batch.get("elapsed_seconds", 0))
+        for job in state["jobs"].values()
+        for batch in job["batches"]
+        if batch.get("status") == "completed"
+    )
+
+
+def process_completed_run(
+    manifest: Manifest,
+    run_dir: pathlib.Path,
+    state: dict[str, Any],
+    *,
+    was_resume: bool,
+    was_interrupted: bool,
+) -> dict[str, Any]:
+    outputs = finalize_run_outputs(manifest, run_dir, state)
+    snapshot_id = state["snapshot_id"]
+    mode = state["mode"]
+    common_evidence = {
+        "result_validation": str(
+            (run_dir / "result-validation.json").relative_to(ROOT)
+        ),
+    }
+    if mode == "smoke":
+        record_gate(
+            snapshot_id,
+            "smoke",
+            run_id=state["run_id"],
+            evidence=common_evidence
+            | {"families": sorted({manifest.jobs[job].family for job in state["selected_jobs"]})},
+        )
+        record_gate(
+            snapshot_id,
+            "result-validation",
+            run_id=state["run_id"],
+            evidence=common_evidence,
+        )
+    if was_resume and was_interrupted:
+        record_gate(
+            snapshot_id,
+            "resume",
+            run_id=state["run_id"],
+            evidence={"checkpoint": str(checkpoint_path(run_dir).relative_to(ROOT))},
+        )
+    if mode == "canary":
+        preflight = write_preflight(manifest, run_dir, state)
+        record_gate(
+            snapshot_id,
+            "canary",
+            run_id=state["run_id"],
+            evidence=common_evidence
+            | {
+                "families": sorted(
+                    {manifest.jobs[job].family for job in state["selected_jobs"]}
+                ),
+                "benchmark_seconds": selected_run_elapsed(state),
+            },
+        )
+        record_gate(
+            snapshot_id,
+            "preflight",
+            run_id=state["run_id"],
+            evidence={"preflight": str((run_dir / "preflight.json").relative_to(ROOT))},
+        )
+        outputs["preflight"] = preflight
+    return outputs
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Regenerate the artifact's empirical result groups"
+    )
+    modes = parser.add_mutually_exclusive_group(required=True)
+    modes.add_argument("--plan", action="store_true", help="validate and print the exact plan")
+    modes.add_argument("--smoke", action="store_true", help="run reduced path-coverage workloads")
+    modes.add_argument(
+        "--canary",
+        action="store_true",
+        help="run one publication-sized point per benchmark family",
+    )
+    modes.add_argument("--full", action="store_true", help="run the complete adaptive manifest")
+    modes.add_argument("--resume", metavar="RUN_ID", help="resume an interrupted run")
+    parser.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=24 * 60 * 60,
+        help="per-build and per-benchmark timeout (default: 24 hours)",
+    )
+    parser.add_argument(
+        "--cpu",
+        type=int,
+        help=(
+            "logical CPU for benchmark processes; by default, select an "
+            "available maximum-frequency CPU on a non-system core"
+        ),
+    )
+    parser.add_argument(
+        "--stop-after-batches",
+        type=int,
+        help=argparse.SUPPRESS,
+    )
+    return parser.parse_args(argv)
+
+
+@contextlib.contextmanager
+def global_run_lock() -> Iterator[None]:
+    RUNS_ROOT.mkdir(parents=True, exist_ok=True)
+    lock_path = RUNS_ROOT / ".pipeline.lock"
+    with lock_path.open("a+") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parse_args(argv)
+    if args.timeout_seconds <= 0:
+        raise PipelineError("--timeout-seconds must be positive")
+    if args.stop_after_batches is not None and args.stop_after_batches <= 0:
+        raise PipelineError("--stop-after-batches must be positive")
+    benchmark_cpu = choose_benchmark_cpu(args.cpu)
+    manifest = build_manifest()
+    snapshot = collect_source_snapshot()
+    with global_run_lock():
+        if args.plan:
+            selected = [
+                RunJob(job, tuple(manifest.measurements_for_job(job.id)))
+                for job in manifest.jobs.values()
+            ]
+            run_dir, state = initialize_run(
+                manifest, "plan", selected, snapshot, benchmark_cpu
+            )
+            estimate = write_plan(manifest, run_dir, snapshot)
+            state["status"] = "completed"
+            write_checkpoint(run_dir, state)
+            record_gate(
+                snapshot["snapshot_id"],
+                "plan",
+                run_id=state["run_id"],
+                evidence={
+                    "plan": str((run_dir / "plan.md").relative_to(ROOT)),
+                    "jobs": len(manifest.jobs),
+                    "cells": len(manifest.cells),
+                    "uncovered_cells": 0,
+                    "duplicate_jobs": 0,
+                    "unconsumed_measurements": 0,
+                    "runtime_estimate": estimate,
+                },
+            )
+            print(f"Plan validated: {run_dir / 'plan.md'}")
+            print(
+                f"{len(manifest.jobs)} jobs, {len(manifest.cells)} cells, "
+                "0 uncovered, 0 duplicate, 0 unconsumed"
+            )
+            return 0
+
+        if args.resume:
+            run_dir = RUNS_ROOT / args.resume
+            state = load_checkpoint(run_dir)
+            if state.get("status") == "completed":
+                raise PipelineError(f"run is already complete: {args.resume}")
+            validate_resume_snapshot(state, snapshot)
+            saved_cpu = state.get("benchmark_cpu")
+            if args.cpu is not None and benchmark_cpu != saved_cpu:
+                raise PipelineError(
+                    f"resume CPU mismatch: checkpoint uses {saved_cpu}, "
+                    f"requested {benchmark_cpu}"
+                )
+            run_jobs = reconstruct_run_jobs(manifest, state)
+            validate_resume_artifacts(run_dir, state, run_jobs)
+            was_interrupted = bool(
+                state.get("interruption_requested")
+                or state.get("status") == "interrupted"
+            )
+            state["resumed"] = True
+            state["status"] = "running"
+            write_checkpoint(run_dir, state)
+            completed = execute_run(
+                manifest,
+                run_dir,
+                state,
+                run_jobs,
+                timeout_seconds=args.timeout_seconds,
+                stop_after_batches=args.stop_after_batches,
+            )
+            if not completed:
+                print(f"Run checkpointed for resume: {run_dir.name}")
+                return 75
+            process_completed_run(
+                manifest,
+                run_dir,
+                state,
+                was_resume=True,
+                was_interrupted=was_interrupted,
+            )
+            mark_run_completed(run_dir, state)
+            print(f"Resumed run completed: {run_dir}")
+            return 0
+
+        if args.smoke:
+            mode = "smoke"
+            require_gates(snapshot["snapshot_id"], ("plan",))
+        elif args.canary:
+            mode = "canary"
+            require_gates(
+                snapshot["snapshot_id"],
+                (
+                    "plan",
+                    "unit-tests",
+                    "smoke",
+                    "resume",
+                    "result-validation",
+                ),
+            )
+        else:
+            mode = "full"
+            require_gates(
+                snapshot["snapshot_id"],
+                (
+                    "plan",
+                    "unit-tests",
+                    "smoke",
+                    "resume",
+                    "result-validation",
+                    "canary",
+                    "preflight",
+                ),
+            )
+        run_jobs = select_run_jobs(manifest, mode)
+        run_dir, state = initialize_run(
+            manifest, mode, run_jobs, snapshot, benchmark_cpu
+        )
+        if mode == "smoke":
+            run_unit_tests(run_dir)
+            record_gate(
+                snapshot["snapshot_id"],
+                "unit-tests",
+                run_id=state["run_id"],
+                evidence={
+                    "stdout": str(
+                        (run_dir / "unit-tests.stdout.log").relative_to(ROOT)
+                    )
+                },
+            )
+        completed = execute_run(
+            manifest,
+            run_dir,
+            state,
+            run_jobs,
+            timeout_seconds=args.timeout_seconds,
+            stop_after_batches=args.stop_after_batches,
+        )
+        if not completed:
+            print(f"Run checkpointed for resume: {run_dir.name}")
+            return 75
+        outputs = process_completed_run(
+            manifest,
+            run_dir,
+            state,
+            was_resume=False,
+            was_interrupted=False,
+        )
+        mark_run_completed(run_dir, state)
+        if mode == "full" and not outputs["summary"]["publishable"]:
+            print(f"Full run completed with flagged results: {run_dir}")
+            return 2
+        print(f"{mode.capitalize()} run completed: {run_dir}")
+        if mode == "canary":
+            print(
+                "Preflight complete. The full run was not started; use "
+                "`./artifact full` explicitly."
+            )
+        return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except PipelineError as error:
+        print(f"error: {error}", file=sys.stderr)
+        raise SystemExit(1)

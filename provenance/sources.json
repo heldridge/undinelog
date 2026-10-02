@@ -1,0 +1,646 @@
+{
+  "crates": {
+    "borg": {
+      "adaptations": [
+        "benches/bench_append_only_log_range_open_local.rs times a one-claim helper's handler for the range request and checks its answer against the full server's answer."
+      ],
+      "changed_files": {
+        "benches/bench_append_only_log_range_open_local.rs": {
+          "original_sha256": "deb35c47739d3d64b74867bc43191e15b53751c4a611feaace23ff22af5585f2"
+        }
+      },
+      "commit": "10b1b86aa3b287772469b741d3f200c222f125de",
+      "files": {
+        "borg/Cargo.lock": {
+          "bytes": 15261,
+          "sha256": "d48d241fe20a7d9bb7255119db8c7071c1d15ea9381065bce0e43495ea082c5e"
+        },
+        "borg/Cargo.toml": {
+          "bytes": 1756,
+          "sha256": "cb8ef399645ca6857ff3302640c46cf5796046885cf061a32ef518fc30cae022"
+        },
+        "borg/apps/appendOnlyLog/Cargo.toml": {
+          "bytes": 316,
+          "sha256": "50fc48de5f1021554bf747d0647d6c786c3612c7f6a540718a1d13a926136fb2"
+        },
+        "borg/apps/appendOnlyLog/fixtures/mock-append-only-log-batch.txt": {
+          "bytes": 556,
+          "sha256": "13bbd424b836050a69719564945b9e8c08a88f8453dde1a2e4efe8625b6b69be"
+        },
+        "borg/apps/appendOnlyLog/src/archive.rs": {
+          "bytes": 3842,
+          "sha256": "a3d0e12c23d30306db4e90e818ebdba827efadf6e3eb735a787a2d0d444b02ae"
+        },
+        "borg/apps/appendOnlyLog/src/bin/append_only_log_demo_client.rs": {
+          "bytes": 14784,
+          "sha256": "caff6a556cde4a558ea1c9f82f06ca788a96bdb0407d74d41e679786c0cc737c"
+        },
+        "borg/apps/appendOnlyLog/src/bin/append_only_log_demo_server.rs": {
+          "bytes": 6181,
+          "sha256": "c0640b88fc5e00364f570afe818c2ea5e4307bcb0740c39c4e32c344762ae532"
+        },
+        "borg/apps/appendOnlyLog/src/client.rs": {
+          "bytes": 12457,
+          "sha256": "cb5e14383b2111847b4f12cca7406e5114dcce6275e5eb38d9bd8ffa327abbab"
+        },
+        "borg/apps/appendOnlyLog/src/codec.rs": {
+          "bytes": 9811,
+          "sha256": "eca98befb4ebd46f715bebd933d27163338c857ad2e640e9174ec6cd5e2b8edc"
+        },
+        "borg/apps/appendOnlyLog/src/emitter.rs": {
+          "bytes": 5902,
+          "sha256": "75577fd6a2d7cf38335dba1dd3d239f50c716c6902c0f8ae7d99e4745f5236c1"
+        },
+        "borg/apps/appendOnlyLog/src/frontier.rs": {
+          "bytes": 19006,
+          "sha256": "27b4bc1f125ff88cfc3fbb14e1b7adede1c8531fba40e4bda06bf02540beb0d3"
+        },
+        "borg/apps/appendOnlyLog/src/layout.rs": {
+          "bytes": 4962,
+          "sha256": "47e4104799464b83bdc16344fe994a9e1ed8d68a949522b51adc4565b93e8105"
+        },
+        "borg/apps/appendOnlyLog/src/lib.rs": {
+          "bytes": 143,
+          "sha256": "b751f5a800d96db79de2b3a1bc91fa64fe295c5de0506a1d31980b6aa6b09b3f"
+        },
+        "borg/apps/appendOnlyLog/src/mock.rs": {
+          "bytes": 9416,
+          "sha256": "68b90411ce9fb4a76c39279d68645ba938f85cc0a1c865dc2c0baa8159513a2f"
+        },
+        "borg/apps/appendOnlyLog/src/registry.rs": {
+          "bytes": 9883,
+          "sha256": "ed53b45d82c2d306dde529817264c1a6b1b66bbc04c90d4826e18882375865cd"
+        },
+        "borg/apps/appendOnlyLog/src/server.rs": {
+          "bytes": 9798,
+          "sha256": "5b575921f94a0ada0a52cd77782e6abe36565542587f90a152575871208310ca"
+        },
+        "borg/benches/bench_append_only_log_bulk_updates_append_local.rs": {
+          "bytes": 27052,
+          "sha256": "e0cf1f906e5cf2087040d21af1a6cae136c7b1aff3c39d7be4ab417384cfc9e5"
+        },
+        "borg/benches/bench_append_only_log_client_point_open_local.rs": {
+          "bytes": 28714,
+          "sha256": "a9af36f2e46bcec7a213f3ff2dec58da35119d76c31786b28cf183129425bec5"
+        },
+        "borg/benches/bench_append_only_log_one_server_kappa_rescale_local.rs": {
+          "bytes": 34235,
+          "sha256": "e7cb19dae3dd5298067d00562653145e22eee7cd0e44aa0314d5e04a4805faf9"
+        },
+        "borg/benches/bench_append_only_log_point_open_local.rs": {
+          "bytes": 24490,
+          "sha256": "cae2ec9d7dd0829a4ea8f8998407c88702242431bcd63263201adf56ea746903"
+        },
+        "borg/benches/bench_append_only_log_range_open_local.rs": {
+          "bytes": 54725,
+          "sha256": "3aecde14052ae8c882584a4981e21082303a167eaf35879cfb0666771a678c03"
+        },
+        "borg/benches/bench_append_only_log_repair_kernels_local.rs": {
+          "bytes": 12978,
+          "sha256": "e9f80548ecfefa3214e462bb1c09cf346384ee72954172a397e0a23b30ca73fb"
+        },
+        "borg/benches/bench_auth_active_rewrite_local.rs": {
+          "bytes": 23159,
+          "sha256": "f4bdcbebf81f03eb03c856f266935c8f8832d49a300f587799ba832d409a5eaa"
+        },
+        "borg/benches/bench_auth_point_open_local.rs": {
+          "bytes": 13303,
+          "sha256": "03d3339a058e06c44404d600facfbb0ab755e78f3c0e43dd45694740a5312543"
+        },
+        "borg/benches/bench_central_sparse_merkle_local.rs": {
+          "bytes": 17779,
+          "sha256": "ab413c6790936917b8bfb3ff7b8fbf652009a895766e5f622288d2a9792066bf"
+        },
+        "borg/benches/bench_unauth_encoding_baselines.rs": {
+          "bytes": 72245,
+          "sha256": "a20081feddac7e7f0ace4bbb2ba33ab7525307f5542915e7fd4388ae69223ac6"
+        },
+        "borg/benches/support/append_only_log_repair.rs": {
+          "bytes": 45607,
+          "sha256": "473c2a40429d17a63f5d52403a76096a428cff4c1e4e7d7873753fe277bb80fc"
+        },
+        "borg/benches/support/generic_bivariate_baseline.rs": {
+          "bytes": 21309,
+          "sha256": "6fac3b06302b115180cab4ecadd0c2ac8fe8ea414ee9ed7eabf958a4ab227308"
+        },
+        "borg/benches/support/mod.rs": {
+          "bytes": 12029,
+          "sha256": "c219d3b7c538727d32101397df6fab6c8c10b23fdeb960627634ce6e4f02d38d"
+        },
+        "borg/benches/support/plain_bivariate_baseline.rs": {
+          "bytes": 2036,
+          "sha256": "43699e2e5d038ff931e525d79ff801d12e81e3d10479234c12478061bbdf3404"
+        },
+        "borg/benches/support/rs_striped_baseline.rs": {
+          "bytes": 11063,
+          "sha256": "64c343f206dca4d2da135dace12411dfbd1663be9b9686580264a69842c4465b"
+        },
+        "borg/benches/support/state_metrics.rs": {
+          "bytes": 3143,
+          "sha256": "5f31ae5bcf7ef3d46c34c38b4ac8ac9820f8ee025cdc052da99674a8aec4ee16"
+        },
+        "borg/benches/support/unauth_update_common.rs": {
+          "bytes": 46985,
+          "sha256": "dde1a82ceb2a18406d29245235cb479a4c6f56a6f21c9528f57def61f03f3a89"
+        },
+        "borg/benches/support/univariate_segment_baseline.rs": {
+          "bytes": 9985,
+          "sha256": "dadd13606b5ec88e8389061b690871472a72df21f6e187848a1acdd6d1a4cc41"
+        },
+        "borg/src/auth/allocation.rs": {
+          "bytes": 3706,
+          "sha256": "681d569ef9dba16b2a1ede8f1fe61b4b471d644531dffccb06fa66540b77edc8"
+        },
+        "borg/src/auth/client.rs": {
+          "bytes": 97852,
+          "sha256": "14a52e792faaeabf2bc10d515ff2d4829ede695597ae8663f193048b994867bb"
+        },
+        "borg/src/auth/core.rs": {
+          "bytes": 5485,
+          "sha256": "978dcc17af8e0f625743d615e351f34ea5b198363495c11672806565df7ffd9c"
+        },
+        "borg/src/auth/deltas.rs": {
+          "bytes": 14183,
+          "sha256": "6236928f0ec612d28c2676c4670f6e1dda5a983a9852335af507c6ad5df25b5a"
+        },
+        "borg/src/auth/mapping.rs": {
+          "bytes": 7983,
+          "sha256": "bd023cf6207c39d24aa1a7be8c2491635002dfc93f5b20e0363d9bd7e5e60c8d"
+        },
+        "borg/src/auth/merkle.rs": {
+          "bytes": 8094,
+          "sha256": "79bd421122989466a7df0b577b48683602d2bda6050f40f5fa57f87da0697460"
+        },
+        "borg/src/auth/mod.rs": {
+          "bytes": 1016,
+          "sha256": "9046023c499a5841834602e0eb16905b5e1a369c47c8cf3fe4f124ad155294a5"
+        },
+        "borg/src/auth/read_path.rs": {
+          "bytes": 42255,
+          "sha256": "4319a86b0ce57e33f2f30f1d53817cdd1251f0691efee3361b9e20cf49250b1d"
+        },
+        "borg/src/auth/service.rs": {
+          "bytes": 31345,
+          "sha256": "907e1c99b1107337418371f6cd58c6ea6d28fa504058bc83e63dc304cbe57b8d"
+        },
+        "borg/src/auth/write.rs": {
+          "bytes": 17950,
+          "sha256": "6996a9f4b6d36f8f9a144787417a9a9e4d229f10d3a74765af4506ff4f59292d"
+        },
+        "borg/src/bin/bad_server.rs": {
+          "bytes": 114,
+          "sha256": "4ae62388abb8f32fc72693bb9205c7a60b3ac7c62e4a8a05478cdf88c6c53bef"
+        },
+        "borg/src/bin/client.rs": {
+          "bytes": 45139,
+          "sha256": "e0e4f248e59967f5082ca7ee6d1e1f52688bbfb7596cd88adacdc62db1412bda"
+        },
+        "borg/src/bin/server.rs": {
+          "bytes": 96,
+          "sha256": "cf1b8b06310a0ee0ae30f96eb672353db4e31ecdefcea2bafd7ccbb6fb207ebe"
+        },
+        "borg/src/bin/server_common/mod.rs": {
+          "bytes": 17305,
+          "sha256": "9edbc8f8508ebd26d1653a933e14525ab710c3cc7404643357ee3cf65c6696b3"
+        },
+        "borg/src/coded_array/mod.rs": {
+          "bytes": 1220,
+          "sha256": "c2d3b94e73b8146484e9a50a0aa21c6662db5b7338af63fca04614849338d2df"
+        },
+        "borg/src/coded_array/params.rs": {
+          "bytes": 68669,
+          "sha256": "01d9ff534aab02eff91323f4e42f71e44a8723c1cadcd4baf193b126581b26e9"
+        },
+        "borg/src/coded_array/reconstruct.rs": {
+          "bytes": 3901,
+          "sha256": "69e5910e7efebf4960d47addefea32c85fc077f3b6869a4af8a075dce39301f4"
+        },
+        "borg/src/coded_array/rs.rs": {
+          "bytes": 16045,
+          "sha256": "ad644412530e1a8226c6433fce907963b0cf66b532230fd7b4f2864602502124"
+        },
+        "borg/src/coded_array/shard_maths.rs": {
+          "bytes": 32968,
+          "sha256": "e64a044a4a3fe4fcf0b95fc9f51091566f297d05b71de9261bfa8dc62a42fde5"
+        },
+        "borg/src/coded_array/store.rs": {
+          "bytes": 16383,
+          "sha256": "fe58313fe29f0e656ef3dcc48e3c6d6e79d6686ebdb9c9831585ac55261d1fec"
+        },
+        "borg/src/core.rs": {
+          "bytes": 1029,
+          "sha256": "f091d963eea0382b478acae6e0c86f8f50c1a831daf9f417b9c71a671a90f5a3"
+        },
+        "borg/src/dev_tools/auth_system.rs": {
+          "bytes": 14589,
+          "sha256": "796e922e35c6475be4b0dfaf2f373c72372f291b614f1212614294150cb5b435"
+        },
+        "borg/src/dev_tools/mod.rs": {
+          "bytes": 135,
+          "sha256": "2f5991d422b22effb2b031d44f0bdd34580e1b42a607fbc225226192b9358d85"
+        },
+        "borg/src/fanout.rs": {
+          "bytes": 17028,
+          "sha256": "e57136dba4510bf4129710697e56d33b0fdadb796f5a9917bdaa33e3df53b27a"
+        },
+        "borg/src/field.rs": {
+          "bytes": 2976,
+          "sha256": "4e2794a98cf81a7008a998cf25f5b9375564b773cd14e968f3f0ce1cbd721a55"
+        },
+        "borg/src/lib.rs": {
+          "bytes": 2477,
+          "sha256": "ae7b81453aebccf458d5b323ef63cd361830858e466cfc4da8d13b8d87c7bf58"
+        },
+        "borg/src/net/auth.rs": {
+          "bytes": 32414,
+          "sha256": "848d7119d46e1955107623eac43bd5f083c9cb4dbc02714f5d7fd4f5e97818ff"
+        },
+        "borg/src/net/client.rs": {
+          "bytes": 14172,
+          "sha256": "4d8ffbd73f3ecd91c532c344f8ec098b088ed333ec4c59b33d74237e2b80d3d5"
+        },
+        "borg/src/net/convert.rs": {
+          "bytes": 3046,
+          "sha256": "d25f3dc090ea25c4b3cd48d61724189b68b42a034d69dfb3707a92fb78ffa620"
+        },
+        "borg/src/net/mod.rs": {
+          "bytes": 16304,
+          "sha256": "2ea72d9b4b2edc9084a996976690a926c5e91e32a4f8ce481649af851eb539fe"
+        },
+        "borg/src/net/registry.rs": {
+          "bytes": 64480,
+          "sha256": "6b125034832ec4ae43e2dc865f34c75ba7899662df95200b38bc59d216fc5fa4"
+        },
+        "borg/src/net/server.rs": {
+          "bytes": 20427,
+          "sha256": "09d271584dc976c01e35b264e52279cd286936bbf52ae1f5ab72264cc9b5ef23"
+        },
+        "borg/src/net/system.rs": {
+          "bytes": 7156,
+          "sha256": "3c1585a5cd50e6171d69f1c0bee0600fccb8994c23fa54562588f6b6d63c15c8"
+        },
+        "borg/src/net/unauth.rs": {
+          "bytes": 60263,
+          "sha256": "4e285b2982aadd228b8456c4d7dbf3bed3b6bc9762b7fadd2508ff718e543b6d"
+        },
+        "borg/src/net/wire.rs": {
+          "bytes": 25853,
+          "sha256": "c6718d8cbfce37895b79d0a6e784084965ab7fa03e4f8e876e1f67eb80eef2bf"
+        },
+        "borg/src/shares.rs": {
+          "bytes": 1176,
+          "sha256": "88453dc1a61c996e6fc207c3770c98968e52190976d8140ca05f69e5f628e897"
+        },
+        "borg/src/unauth/api.rs": {
+          "bytes": 11768,
+          "sha256": "29546031bf3bf1919880019dd171d3267cbc998ed334b64fd5d70ae90c8f5057"
+        },
+        "borg/src/unauth/client.rs": {
+          "bytes": 160580,
+          "sha256": "be36ddbb4749d878d82d535f5681130363d5abd719783af7ccdc39efee92b503"
+        },
+        "borg/src/unauth/kappa_rescale.rs": {
+          "bytes": 40312,
+          "sha256": "c73673dd2824f0183be2f45dce1a9059a653563077fd0b35294c4ea1f3b58e8f"
+        },
+        "borg/src/unauth/layout.rs": {
+          "bytes": 13278,
+          "sha256": "61feaa234266bb5a173ea8786ab5d220ab6266f172c350c300103e630820d239"
+        },
+        "borg/src/unauth/mod.rs": {
+          "bytes": 303413,
+          "sha256": "ae811ab295ff15005adc54d64a8c9feadd30999b5e2ebd166c363c2e7e19bc3a"
+        },
+        "borg/src/unauth/service.rs": {
+          "bytes": 11240,
+          "sha256": "09c777b4fe934f50651a16ce8414089901d60905311e9546ba5f8359fa22c60e"
+        },
+        "borg/src/value.rs": {
+          "bytes": 2296,
+          "sha256": "d4e6ccf295959593baee3927af7c72fef0df7bc63ef66fe3a9ff96691889f66b"
+        }
+      },
+      "origin": "BorgLog evaluation artifact"
+    },
+    "undine": {
+      "adaptations": [
+        "Cargo.toml retains only the append-only-log application and the measured benchmark targets.",
+        "Cargo.lock prunes only packages made unreachable by the excluded targets.",
+        "tests/bench_compile.rs references only retained benchmark sources."
+      ],
+      "commit": "f3ae5dc341eef9274dad680b875693993010d85b",
+      "files": {
+        "undine/Cargo.lock": {
+          "bytes": 15261,
+          "sha256": "d48d241fe20a7d9bb7255119db8c7071c1d15ea9381065bce0e43495ea082c5e"
+        },
+        "undine/Cargo.toml": {
+          "bytes": 1476,
+          "sha256": "cb1c68c79b99e13e6d1f276a67a631b82479fa160c8bdd8e7bd81f364c69e265"
+        },
+        "undine/apps/appendOnlyLog/Cargo.toml": {
+          "bytes": 316,
+          "sha256": "50fc48de5f1021554bf747d0647d6c786c3612c7f6a540718a1d13a926136fb2"
+        },
+        "undine/apps/appendOnlyLog/fixtures/mock-append-only-log-batch.txt": {
+          "bytes": 556,
+          "sha256": "13bbd424b836050a69719564945b9e8c08a88f8453dde1a2e4efe8625b6b69be"
+        },
+        "undine/apps/appendOnlyLog/src/archive.rs": {
+          "bytes": 5370,
+          "sha256": "2a291e7a759b930f0c5639e21b0a18d9c85c95acc32d20cfbde4646936f1e829"
+        },
+        "undine/apps/appendOnlyLog/src/bin/append_only_log_demo_client.rs": {
+          "bytes": 15855,
+          "sha256": "4648a655d6bf42c9d2f49f6c9910d7bab96b3269b9f65b86e6c893b92a8f653e"
+        },
+        "undine/apps/appendOnlyLog/src/bin/append_only_log_demo_server.rs": {
+          "bytes": 6181,
+          "sha256": "c0640b88fc5e00364f570afe818c2ea5e4307bcb0740c39c4e32c344762ae532"
+        },
+        "undine/apps/appendOnlyLog/src/client.rs": {
+          "bytes": 13305,
+          "sha256": "d353cb9bd16b714523bdfbf5a070ae22484206e5efbb678fd75f8a9bf468c238"
+        },
+        "undine/apps/appendOnlyLog/src/codec.rs": {
+          "bytes": 9811,
+          "sha256": "eca98befb4ebd46f715bebd933d27163338c857ad2e640e9174ec6cd5e2b8edc"
+        },
+        "undine/apps/appendOnlyLog/src/emitter.rs": {
+          "bytes": 5902,
+          "sha256": "75577fd6a2d7cf38335dba1dd3d239f50c716c6902c0f8ae7d99e4745f5236c1"
+        },
+        "undine/apps/appendOnlyLog/src/frontier.rs": {
+          "bytes": 19006,
+          "sha256": "27b4bc1f125ff88cfc3fbb14e1b7adede1c8531fba40e4bda06bf02540beb0d3"
+        },
+        "undine/apps/appendOnlyLog/src/layout.rs": {
+          "bytes": 4962,
+          "sha256": "47e4104799464b83bdc16344fe994a9e1ed8d68a949522b51adc4565b93e8105"
+        },
+        "undine/apps/appendOnlyLog/src/lib.rs": {
+          "bytes": 143,
+          "sha256": "b751f5a800d96db79de2b3a1bc91fa64fe295c5de0506a1d31980b6aa6b09b3f"
+        },
+        "undine/apps/appendOnlyLog/src/mock.rs": {
+          "bytes": 9416,
+          "sha256": "68b90411ce9fb4a76c39279d68645ba938f85cc0a1c865dc2c0baa8159513a2f"
+        },
+        "undine/apps/appendOnlyLog/src/registry.rs": {
+          "bytes": 9883,
+          "sha256": "ed53b45d82c2d306dde529817264c1a6b1b66bbc04c90d4826e18882375865cd"
+        },
+        "undine/apps/appendOnlyLog/src/server.rs": {
+          "bytes": 9659,
+          "sha256": "9090a5f4c6aed51a91698213f447bfffbd594da0129e110800f9c079578f5e40"
+        },
+        "undine/apps/appendOnlyLog/tests/cli_correcting_read.rs": {
+          "bytes": 13696,
+          "sha256": "a71574ac41a77dfec2d4df253b85668a54931186ed1dfc08394cd8393f24dc94"
+        },
+        "undine/benches/bench_append_only_log_bulk_updates_append_local.rs": {
+          "bytes": 26521,
+          "sha256": "2f177ec0ab7ea729c88b37cd8e0f6d4598e53460023e7292b3066d2c9c1a1145"
+        },
+        "undine/benches/bench_append_only_log_client_point_open_local.rs": {
+          "bytes": 27922,
+          "sha256": "1ba6cb473762ae964cd9960af85e6c7fe2ae12b4765adef582e38ea6646d70e0"
+        },
+        "undine/benches/bench_append_only_log_on_the_fly_open_local.rs": {
+          "bytes": 33305,
+          "sha256": "b9d289d6872df9bf950b4c61311624aca33f16903ff3a12cfefc5259b77b1655"
+        },
+        "undine/benches/bench_append_only_log_one_server_kappa_rescale_local.rs": {
+          "bytes": 22921,
+          "sha256": "6b5c0b9e36e56bf96153368ffcb5ef22cf7dc02ce76e6c91e75cab9aa6e01e7e"
+        },
+        "undine/benches/bench_append_only_log_point_open_local.rs": {
+          "bytes": 23879,
+          "sha256": "a823053425ae278b45bd437c3f4faec78facd00ea1533599f77be1043c6e5660"
+        },
+        "undine/benches/bench_append_only_log_range_open_local.rs": {
+          "bytes": 54099,
+          "sha256": "687074b3ffaf033e7d815760bbd15ab52fc9c85b3d61fa1657370c7e7c585103"
+        },
+        "undine/benches/bench_append_only_log_repair_kernels_local.rs": {
+          "bytes": 12849,
+          "sha256": "faec1c3860c521a7d882621313b935af000fde11d279076b220bbf843c0faf30"
+        },
+        "undine/benches/support/append_only_log_repair.rs": {
+          "bytes": 45006,
+          "sha256": "82fd31999e4af6ce6ee1899c2b57bc51dce038e6ed79b1d577ff053aeed07587"
+        },
+        "undine/benches/support/generic_bivariate_baseline.rs": {
+          "bytes": 20491,
+          "sha256": "40f62d39ba89a223cae47ad15da6a91b8915e754d64ddc4132a2a579048c5eee"
+        },
+        "undine/benches/support/mod.rs": {
+          "bytes": 8130,
+          "sha256": "5a2ad10dbe276ed628e9194a6d6b5fa1c854087c00c1af36b294a75a7e68afe3"
+        },
+        "undine/benches/support/plain_bivariate_baseline.rs": {
+          "bytes": 2074,
+          "sha256": "2d20bb2e19a459e3e60e9d19543badc30840c708354c28b86061fa93ddfd35b6"
+        },
+        "undine/benches/support/rs_striped_baseline.rs": {
+          "bytes": 10956,
+          "sha256": "28e33a7791c464afd467bf89a33d2dafb7e35d85d0f699922dc9d97b10cb0a7a"
+        },
+        "undine/benches/support/state_metrics.rs": {
+          "bytes": 3369,
+          "sha256": "94e285dcdeec01c05451d64d993ea45e7d52ee399427352a1025f1135faedf39"
+        },
+        "undine/benches/support/unauth_update_common.rs": {
+          "bytes": 43437,
+          "sha256": "f77d91f1ace7822ca7daaa464d467e8a21868ec4c36e58e02bab062468e481df"
+        },
+        "undine/benches/support/univariate_segment_baseline.rs": {
+          "bytes": 11295,
+          "sha256": "9afe1fe6848736f55bcb88c7f6b709e675361d3eb904463833e6c43645ccba60"
+        },
+        "undine/src/auth/allocation.rs": {
+          "bytes": 3706,
+          "sha256": "681d569ef9dba16b2a1ede8f1fe61b4b471d644531dffccb06fa66540b77edc8"
+        },
+        "undine/src/auth/client.rs": {
+          "bytes": 98010,
+          "sha256": "1893aabeff2f725a441564bb93b62a4c7e0806dc8926e3779c89428ae378e9d8"
+        },
+        "undine/src/auth/core.rs": {
+          "bytes": 5485,
+          "sha256": "978dcc17af8e0f625743d615e351f34ea5b198363495c11672806565df7ffd9c"
+        },
+        "undine/src/auth/deltas.rs": {
+          "bytes": 14183,
+          "sha256": "6236928f0ec612d28c2676c4670f6e1dda5a983a9852335af507c6ad5df25b5a"
+        },
+        "undine/src/auth/mapping.rs": {
+          "bytes": 7983,
+          "sha256": "bd023cf6207c39d24aa1a7be8c2491635002dfc93f5b20e0363d9bd7e5e60c8d"
+        },
+        "undine/src/auth/merkle.rs": {
+          "bytes": 8094,
+          "sha256": "79bd421122989466a7df0b577b48683602d2bda6050f40f5fa57f87da0697460"
+        },
+        "undine/src/auth/mod.rs": {
+          "bytes": 1016,
+          "sha256": "9046023c499a5841834602e0eb16905b5e1a369c47c8cf3fe4f124ad155294a5"
+        },
+        "undine/src/auth/read_path.rs": {
+          "bytes": 42255,
+          "sha256": "4319a86b0ce57e33f2f30f1d53817cdd1251f0691efee3361b9e20cf49250b1d"
+        },
+        "undine/src/auth/service.rs": {
+          "bytes": 29949,
+          "sha256": "b57d0a23c51f2d1e320e7d39682b88c9aae33cdd47710c43bd27cb166568a227"
+        },
+        "undine/src/auth/write.rs": {
+          "bytes": 17950,
+          "sha256": "6996a9f4b6d36f8f9a144787417a9a9e4d229f10d3a74765af4506ff4f59292d"
+        },
+        "undine/src/bin/bad_server.rs": {
+          "bytes": 114,
+          "sha256": "4ae62388abb8f32fc72693bb9205c7a60b3ac7c62e4a8a05478cdf88c6c53bef"
+        },
+        "undine/src/bin/client.rs": {
+          "bytes": 39282,
+          "sha256": "6ef9c344e78d2209d18351f8e0ff0372a4438c1cd56485ac20cb9d21478685e5"
+        },
+        "undine/src/bin/server.rs": {
+          "bytes": 96,
+          "sha256": "cf1b8b06310a0ee0ae30f96eb672353db4e31ecdefcea2bafd7ccbb6fb207ebe"
+        },
+        "undine/src/bin/server_common/mod.rs": {
+          "bytes": 17064,
+          "sha256": "73170c23e8addf62cc101081daab923c7036670ac33b11f140e17323b141698b"
+        },
+        "undine/src/coded_array/axis.rs": {
+          "bytes": 18780,
+          "sha256": "f368238f830fc71638d5dc481db0415f344768da5d8d7ef922171f2e3a6ea266"
+        },
+        "undine/src/coded_array/mod.rs": {
+          "bytes": 1314,
+          "sha256": "9abfc746861b77a1c6727822874edf3302174d1e05ec58ecff9aac257592a7c2"
+        },
+        "undine/src/coded_array/params.rs": {
+          "bytes": 35017,
+          "sha256": "d5125b8167600231300c2b0445ae3aef8e7ef75aac3115d11f02bf16564b2267"
+        },
+        "undine/src/coded_array/reconstruct.rs": {
+          "bytes": 4221,
+          "sha256": "facf7acd0665c8afdbe023ef2d664712f759bec17e8b42b7ffc19053225d078f"
+        },
+        "undine/src/coded_array/rs.rs": {
+          "bytes": 15936,
+          "sha256": "eadb8de9eb5814b67397152139492c564de232d982e4510616d987351d4e915e"
+        },
+        "undine/src/coded_array/segment.rs": {
+          "bytes": 26927,
+          "sha256": "d8b19743fe16e43f1d67eb04961bc6e52e5cdd2568c4202ba37642f7579ce126"
+        },
+        "undine/src/coded_array/shard_maths.rs": {
+          "bytes": 17482,
+          "sha256": "ff97dfc9d35de4c78cd55617a4d96a6748a7cc720994953e8fc4bb168d63ccac"
+        },
+        "undine/src/coded_array/store.rs": {
+          "bytes": 16282,
+          "sha256": "bb39c0e859d9fa835af73d59995484e2ed93e2ae85e1591b22afd9d48c00b41e"
+        },
+        "undine/src/core.rs": {
+          "bytes": 1029,
+          "sha256": "f091d963eea0382b478acae6e0c86f8f50c1a831daf9f417b9c71a671a90f5a3"
+        },
+        "undine/src/dev_tools/auth_system.rs": {
+          "bytes": 14636,
+          "sha256": "0b3e50ed1e01a615f581da2bb138b664abfcff713b3568f96513c09707a13b91"
+        },
+        "undine/src/dev_tools/mod.rs": {
+          "bytes": 135,
+          "sha256": "2f5991d422b22effb2b031d44f0bdd34580e1b42a607fbc225226192b9358d85"
+        },
+        "undine/src/fanout.rs": {
+          "bytes": 17028,
+          "sha256": "e57136dba4510bf4129710697e56d33b0fdadb796f5a9917bdaa33e3df53b27a"
+        },
+        "undine/src/field.rs": {
+          "bytes": 2976,
+          "sha256": "4e2794a98cf81a7008a998cf25f5b9375564b773cd14e968f3f0ce1cbd721a55"
+        },
+        "undine/src/lib.rs": {
+          "bytes": 2410,
+          "sha256": "e5d923d0dc7737618f1c23bd4240ae6066cc0c2e34d3bd2e0a9cc025b369586f"
+        },
+        "undine/src/net/auth.rs": {
+          "bytes": 32600,
+          "sha256": "c27408f5be02484aced6cc12c83e4decacff738c5be8ed6f8c098086df8acc2b"
+        },
+        "undine/src/net/client.rs": {
+          "bytes": 14244,
+          "sha256": "766bea6184ad24712bd66fbe4d71441bfe94289931bbbecb73fe11063d1b9690"
+        },
+        "undine/src/net/convert.rs": {
+          "bytes": 4099,
+          "sha256": "83146f1794ce71f47648d76ac6425059492f78a2d0f28e4d3e98187207eedb06"
+        },
+        "undine/src/net/mod.rs": {
+          "bytes": 15609,
+          "sha256": "9a81257eb554bdc48675a2bf59e6b6254d538e23cff7c25a3e01adb2916896a8"
+        },
+        "undine/src/net/registry.rs": {
+          "bytes": 33893,
+          "sha256": "4aad0d3bc0ebd4b8264f7462381b011ede97a1f03e1b27b0f294f62894ce7f12"
+        },
+        "undine/src/net/server.rs": {
+          "bytes": 20334,
+          "sha256": "4a6316a909eb15ac580a9f354bf79e4724d4ad73ff8c0a5ff87601b55996736e"
+        },
+        "undine/src/net/system.rs": {
+          "bytes": 6887,
+          "sha256": "28afdc068797802d2aa81b9d962b70feced218e0f3bee4931143192d397fc4fc"
+        },
+        "undine/src/net/unauth.rs": {
+          "bytes": 56961,
+          "sha256": "6c3c85e594a6252cbcdda04fe7ec77cec2e4a7ac1c8834d2bca9d8637d1d3d7a"
+        },
+        "undine/src/net/wire.rs": {
+          "bytes": 26738,
+          "sha256": "17ab61bdbcbbafcde7c6d3fec8dc257db20970759d2c66ef320fe43c3e4c3b0c"
+        },
+        "undine/src/shares.rs": {
+          "bytes": 1176,
+          "sha256": "88453dc1a61c996e6fc207c3770c98968e52190976d8140ca05f69e5f628e897"
+        },
+        "undine/src/unauth/api.rs": {
+          "bytes": 10362,
+          "sha256": "8c97f229693f70bc0d176eed604a0f1351f28d1f69fc92e65b0dfc77870d6d36"
+        },
+        "undine/src/unauth/client.rs": {
+          "bytes": 100340,
+          "sha256": "c403a1b0071cbbc36289e5414e3b0508a8afd67efcaaaa36d50d6fa0dd3aca4f"
+        },
+        "undine/src/unauth/layout.rs": {
+          "bytes": 9762,
+          "sha256": "ade88b8e373d957f4b2677c102f7e267ad7a6bcc691e0cbf14031debfbfdf8f9"
+        },
+        "undine/src/unauth/mod.rs": {
+          "bytes": 203787,
+          "sha256": "ace2061befaf0928205805b11db92f23e041c877e748a51a3ec40e60a70680a5"
+        },
+        "undine/src/unauth/service.rs": {
+          "bytes": 10180,
+          "sha256": "2ff318d8557b7b0812c6e8e40cc65a90a9c2fc2fadfa1a24fa39be3f6452b34a"
+        },
+        "undine/src/unauth/stitched_read.rs": {
+          "bytes": 20623,
+          "sha256": "4512fbd945a61520a5a0b447d749c120d4fc1e9b7174fa7285cc69b10183df06"
+        },
+        "undine/src/value.rs": {
+          "bytes": 2296,
+          "sha256": "d4e6ccf295959593baee3927af7c72fef0df7bc63ef66fe3a9ff96691889f66b"
+        }
+      },
+      "origin": "implementation repository, branch undinelog"
+    }
+  },
+  "schema_version": 1
+}

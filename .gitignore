@@ -1,0 +1,9 @@
+/undine/target/
+/borg/target/
+/results/runs/
+/results/gates/
+/artifact-run.log
+__pycache__/
+*.pyc
+*.swp
+*~

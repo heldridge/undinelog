@@ -1,0 +1,12 @@
+# Synthetic append-only-log batch fixture for the demo.
+#
+# This is not consensus data. It is a stable application-layer fixture for
+# exercising bulk-update layout, bulk-update encoding, and mock log-index-based reads.
+height=0
+format_version=1
+previous_digest_hex=0000000000000000000000000000000000000000000000000000000000000000
+payload_digest_hex=1111111111111111111111111111111111111111111111111111111111111111
+timestamp=1700000000
+policy=486604799
+nonce=2083236893
+payload_text=append-only log demo mock payload. This fixture is synthetic and stable.
