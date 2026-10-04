@@ -948,11 +948,7 @@ impl PirDatabase {
                 let a_hi = barrett_coeff_u64(params, acc_hi[g], 1);
                 acc_lo[g] = 0;
                 acc_hi[g] = 0;
-                let record_cells = self.record_cells(g);
-                for ((lo, hi), &cell) in sum_lo.iter_mut().zip(sum_hi.iter_mut()).zip(record_cells) {
-                    *lo += a_lo * cell as u64;
-                    *hi += a_hi * cell as u64;
-                }
+                add_scaled_cells(&mut sum_lo, &mut sum_hi, a_lo, a_hi, self.record_cells(g));
                 pending += 1;
                 if pending == REDUCE_EVERY {
                     for (lo, hi) in sum_lo.iter_mut().zip(sum_hi.iter_mut()) {
@@ -1038,6 +1034,69 @@ impl PirDatabase {
             &first_pass,
             &pack_keys,
         ))
+    }
+}
+
+/// `sum_lo[k] += a_lo * cells[k]` and `sum_hi[k] += a_hi * cells[k]`: the
+/// product of one stored item with a coefficient in its two residues. The
+/// coefficients are below `2^32`, so the products fit the lanes of the AVX2
+/// kernel, which is used when the host has it.
+fn add_scaled_cells(sum_lo: &mut [u64], sum_hi: &mut [u64], a_lo: u64, a_hi: u64, cells: &[u16]) {
+    #[cfg(target_arch = "x86_64")]
+    {
+        use std::sync::OnceLock;
+        static AVX2: OnceLock<bool> = OnceLock::new();
+        if *AVX2.get_or_init(|| is_x86_feature_detected!("avx2")) {
+            // SAFETY: the host supports AVX2.
+            unsafe { add_scaled_cells_avx2(sum_lo, sum_hi, a_lo, a_hi, cells) };
+            return;
+        }
+    }
+    for ((lo, hi), &cell) in sum_lo.iter_mut().zip(sum_hi.iter_mut()).zip(cells) {
+        *lo += a_lo * cell as u64;
+        *hi += a_hi * cell as u64;
+    }
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn add_scaled_cells_avx2(
+    sum_lo: &mut [u64],
+    sum_hi: &mut [u64],
+    a_lo: u64,
+    a_hi: u64,
+    cells: &[u16],
+) {
+    use std::arch::x86_64::*;
+    let n = cells.len();
+    let lo_ptr = sum_lo.as_mut_ptr();
+    let hi_ptr = sum_hi.as_mut_ptr();
+    let cell_ptr = cells.as_ptr();
+    let mut k = 0;
+    // SAFETY: every access stays within the slices, four lanes at a time.
+    unsafe {
+        let a_lo_v = _mm256_set1_epi64x(a_lo as i64);
+        let a_hi_v = _mm256_set1_epi64x(a_hi as i64);
+        while k + 4 <= n {
+            let four = _mm_loadl_epi64(cell_ptr.add(k) as *const _);
+            let c = _mm256_cvtepu16_epi64(four);
+            let lo = _mm256_loadu_si256(lo_ptr.add(k) as *const _);
+            let hi = _mm256_loadu_si256(hi_ptr.add(k) as *const _);
+            _mm256_storeu_si256(
+                lo_ptr.add(k) as *mut _,
+                _mm256_add_epi64(lo, _mm256_mul_epu32(a_lo_v, c)),
+            );
+            _mm256_storeu_si256(
+                hi_ptr.add(k) as *mut _,
+                _mm256_add_epi64(hi, _mm256_mul_epu32(a_hi_v, c)),
+            );
+            k += 4;
+        }
+    }
+    while k < n {
+        sum_lo[k] += a_lo * cells[k] as u64;
+        sum_hi[k] += a_hi * cells[k] as u64;
+        k += 1;
     }
 }
 

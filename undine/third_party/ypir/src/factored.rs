@@ -269,6 +269,49 @@ pub fn response_from_first_pass<'a>(
     packed_mod_switched
 }
 
+/// The reply computed without packing tables: every reply ciphertext is
+/// packed online from the hint of its columns and the first pass, with the
+/// public half of the packing keys regenerated from the public seed.
+pub fn response_from_first_pass_online<'a>(
+    params: &'a Params,
+    hint_0: &[u64],
+    first_pass: &[u64],
+    pack_pub_params_row_1s: &[PolyMatrixNTT<'a>],
+) -> Vec<Vec<u8>> {
+    let db_cols = simplepir_db_cols(params);
+    assert_eq!(first_pass.len(), db_cols);
+    let rlwe_q_prime_1 = params.get_q_prime_1();
+    let rlwe_q_prime_2 = params.get_q_prime_2();
+    let num_rlwe_outputs = db_cols / params.poly_len;
+    let y_constants = generate_y_constants(params);
+    let mut pack_pub_params = generate_fake_pack_pub_params(params);
+    for i in 0..pack_pub_params.len() {
+        let uncondensed = uncondense_matrix(params, &pack_pub_params_row_1s[i]);
+        pack_pub_params[i].copy_into(&uncondensed, 1, 0);
+    }
+    let mut out = Vec::with_capacity(num_rlwe_outputs);
+    let mut lwe_cts = vec![0u64; (params.poly_len + 1) * params.poly_len];
+    for output in 0..num_rlwe_outputs {
+        for j in 0..params.poly_len {
+            lwe_cts[j * params.poly_len..(j + 1) * params.poly_len]
+                .copy_from_slice(&hint_0[j * db_cols + output * params.poly_len..][..params.poly_len]);
+        }
+        lwe_cts[params.poly_len * params.poly_len..].fill(0);
+        let prepacked = prep_pack_lwes(params, &lwe_cts, params.poly_len);
+        let packed = pack_lwes(
+            params,
+            &first_pass[output * params.poly_len..(output + 1) * params.poly_len],
+            &prepacked,
+            &[],
+            params.poly_len,
+            &pack_pub_params,
+            &y_constants,
+        );
+        out.push(packed.raw().switch(rlwe_q_prime_1, rlwe_q_prime_2));
+    }
+    out
+}
+
 /// The packing keys a client uploads with its query
 /// (`run_simple_ypir_on_params`, query generation).
 pub fn client_pack_pub_params<'a>(params: &'a Params, client: &Client<'a>) -> Vec<PolyMatrixNTT<'a>> {
@@ -424,6 +467,7 @@ mod test {
         }
 
         let column_offline = offline_from_hint(&params, hint);
+        let hint_for_online = column_offline.hint_0.clone();
         for output in 0..db_cols / params.poly_len {
             let (prepacked, (first, rest, indices)) = packing_table_of_output(
                 &params,
@@ -462,10 +506,29 @@ mod test {
                 &pack_pub_params,
             );
             assert!(response == expected, "response differs from YServer's");
+            let started = std::time::Instant::now();
+            let online = response_from_first_pass_online(
+                &params,
+                &hint_for_online,
+                first_pass.as_slice(),
+                &pack_pub_params,
+            );
+            let online_time = started.elapsed();
+            let started = std::time::Instant::now();
+            let _ = response_from_first_pass(&params, &column_offline, first_pass.as_slice(), &pack_pub_params);
+            let table_time = started.elapsed();
+            eprintln!(
+                "packing of {} ciphertexts: online {:?}, with tables {:?}",
+                online.len(),
+                online_time,
+                table_time
+            );
 
             let decoded = client_decode(&params, &client, &response);
             let row = (0..db_cols).map(|col| value(target_row, col) as u64).collect::<Vec<_>>();
             assert!(decoded == row, "decoded row {target_row} is wrong");
+            let decoded_online = client_decode(&params, &client, &online);
+            assert!(decoded_online == row, "online packing decodes row {target_row} wrong");
         }
     }
 }

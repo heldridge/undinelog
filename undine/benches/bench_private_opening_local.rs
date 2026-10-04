@@ -98,7 +98,8 @@ struct BenchMeta {
     cells_per_record: usize,
     append_leaves: u64,
     hint_sample_columns: usize,
-    /// Instruction set of the PIR backend's kernels in this build.
+    /// Instruction set of the PIR backend's kernels: AVX-512 when the build
+    /// targets it, otherwise AVX2 when the host has it, otherwise scalar.
     pir_path: &'static str,
     setup_threads: usize,
     setup_cpus: Option<String>,
@@ -1304,6 +1305,8 @@ fn run_benchmark() {
             hint_sample_columns: common.hint_sample_columns,
             pir_path: if cfg!(target_feature = "avx512f") {
                 "avx512f"
+            } else if cfg!(target_arch = "x86_64") && std::arch::is_x86_feature_detected!("avx2") {
+                "avx2"
             } else {
                 "scalar"
             },

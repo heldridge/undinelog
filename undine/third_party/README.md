@@ -15,11 +15,14 @@ from those commits. They contain:
 - **Stable toolchain.** The `stdarch_x86_avx512` feature gate and YPIR's
   pinned nightly toolchain file are removed; the crates build with the
   toolchain of this repository.
-- **A scalar path next to the AVX-512 path.** Every routine that uses AVX-512
-  intrinsics keeps its upstream body under
+- **A scalar path and an AVX2 path next to the AVX-512 path.** Every
+  routine that uses AVX-512 intrinsics keeps its upstream body under
   `cfg(target_feature = "avx512f")` and has a scalar body otherwise. The
   scalar dot product reduces every 2^15 terms, so its 64-bit sums stay in
-  range for any database height.
+  range for any database height. On x86-64 hosts without AVX-512, the
+  multiply kernels of the response packing (`packing.rs`, module `avx2`)
+  run AVX2 code selected at run time, and the two additions of each
+  packing step are fused with their scalar multiplications.
 - **Local dependency.** YPIR depends on `../spiral-rs`.
 - **Column-based building blocks.** `ypir/src/factored.rs` runs the SimplePIR
   variant's preprocessing, response packing, query generation, and decoding

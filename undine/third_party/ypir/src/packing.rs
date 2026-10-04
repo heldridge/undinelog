@@ -431,12 +431,43 @@ pub fn pack_using_precomp_vals<'a>(
     precomp_tables: &[Vec<usize>],
     y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
 ) -> PolyMatrixNTT<'a> {
-    // let now = Instant::now();
-    // let mut working_set = vec![PolyMatrixNTT::zero(params, 1, 1); 1 << ell];
+    let mut working_set = packing_working_set(params, ell);
+    pack_using_precomp_vals_with(
+        params,
+        ell,
+        pub_params,
+        b_values,
+        precomp_res,
+        precomp_vals,
+        precomp_tables,
+        y_constants,
+        &mut working_set,
+    )
+}
+
+/// The working set of [`pack_using_precomp_vals_with`]: `2^(ell-1)`
+/// polynomials. Every entry is written before it is read, so a set can be
+/// reused across ciphertexts without clearing it.
+pub fn packing_working_set<'a>(params: &'a Params, ell: usize) -> Vec<PolyMatrixNTT<'a>> {
     let mut working_set = Vec::with_capacity(1 << (ell - 1));
     for _ in 0..(1 << (ell - 1)) {
         working_set.push(PolyMatrixNTT::zero(params, 1, 1));
     }
+    working_set
+}
+
+pub fn pack_using_precomp_vals_with<'a>(
+    params: &'a Params,
+    ell: usize,
+    pub_params: &[PolyMatrixNTT<'a>],
+    b_values: &[u64],
+    precomp_res: &PolyMatrixNTT<'a>,
+    precomp_vals: &[PolyMatrixNTT<'a>],
+    precomp_tables: &[Vec<usize>],
+    y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
+    working_set: &mut Vec<PolyMatrixNTT<'a>>,
+) -> PolyMatrixNTT<'a> {
+    assert_eq!(working_set.len(), 1 << (ell - 1));
 
     let mut y_times_ct_odd = PolyMatrixNTT::zero(params, 1, 1);
     let mut neg_y_times_ct_odd = PolyMatrixNTT::zero(params, 1, 1);
@@ -445,6 +476,7 @@ pub fn pack_using_precomp_vals<'a>(
 
     // println!("time_-1: {} us", now.elapsed().as_micros());
 
+    let profile = std::env::var_os("YPIR_PACK_PROFILE").is_some();
     let mut time_0 = 0;
     let mut time_1 = 0;
     let mut time_2 = 0;
@@ -464,30 +496,48 @@ pub fn pack_using_precomp_vals<'a>(
         let (first_half, second_half) = (&mut working_set[..num_in]).split_at_mut(num_out);
 
         for i in 0..num_out {
-            let now = Instant::now();
+            let now = profile.then(Instant::now);
             let ct_even = &mut first_half[i];
 
             let (y, neg_y) = (&y_constants.0[cur_ell - 1], &y_constants.1[cur_ell - 1]);
 
-            if cur_ell > 1 {
+            #[cfg(all(target_arch = "x86_64", not(target_feature = "avx512f")))]
+            let fused = cur_ell > 1 && avx2::available();
+            #[cfg(not(all(target_arch = "x86_64", not(target_feature = "avx512f"))))]
+            let fused = false;
+
+            if cur_ell > 1 && !fused {
                 let ct_odd = &mut second_half[i];
                 scalar_multiply_avx(&mut y_times_ct_odd, &y, &ct_odd);
                 scalar_multiply_avx(&mut neg_y_times_ct_odd, &neg_y, &ct_odd);
             }
 
-            time_0 += now.elapsed().as_micros();
+            if let Some(now) = now { time_0 += now.elapsed().as_micros(); }
 
-            let now = Instant::now();
-            if cur_ell > 1 {
+            let now = profile.then(Instant::now);
+            #[cfg(all(target_arch = "x86_64", not(target_feature = "avx512f")))]
+            if fused {
+                // SAFETY: the host supports AVX2.
+                unsafe {
+                    avx2::combine_halves(
+                        ct_even.as_mut_slice(),
+                        second_half[i].as_slice(),
+                        y.as_slice(),
+                        neg_y.as_slice(),
+                        ct_sum_1.as_mut_slice(),
+                    )
+                };
+            }
+            if cur_ell > 1 && !fused {
                 ct_sum_1.as_mut_slice().copy_from_slice(ct_even.as_slice());
                 fast_add_into_no_reduce(&mut ct_sum_1, &neg_y_times_ct_odd);
                 fast_add_into_no_reduce(ct_even, &y_times_ct_odd);
             }
-            time_1 += now.elapsed().as_micros();
+            if let Some(now) = now { time_1 += now.elapsed().as_micros(); }
 
             // --
 
-            let now = Instant::now();
+            let now = profile.then(Instant::now);
             let ct: &PolyMatrixNTT<'_> = &ct_sum_1;
             let t = (1 << cur_ell) + 1;
 
@@ -501,15 +551,15 @@ pub fn pack_using_precomp_vals<'a>(
             // w_times_ginv_ct.as_mut_slice().fill(0);
             fast_multiply_no_reduce(params, &mut w_times_ginv_ct, &w, &cur_ginv_ct_ntt, 0);
             num_muls += 1;
-            time_2 += now.elapsed().as_micros();
+            if let Some(now) = now { time_2 += now.elapsed().as_micros(); }
 
             if cur_ell > 1 {
-                let now = Instant::now();
+                let now = profile.then(Instant::now);
                 apply_automorph_ntt(params, &precomp_tables, &ct, ct_even, t);
 
                 // fast_add_into_no_reduce(ct_even, &ct_auto_1_ntt);
-                time_3 += now.elapsed().as_micros();
-                let now = Instant::now();
+                if let Some(now) = now { time_3 += now.elapsed().as_micros(); }
+                let now = profile.then(Instant::now);
 
                 // second condition prevents overflow
                 if i < num_out / 2 && ((cur_ell - 1) % 5 != 0) {
@@ -518,31 +568,31 @@ pub fn pack_using_precomp_vals<'a>(
                     // reduction right before or after addition is much faster than at multiplication time
                     fast_add_into(ct_even, &w_times_ginv_ct);
                 }
-                time_4 += now.elapsed().as_micros();
+                if let Some(now) = now { time_4 += now.elapsed().as_micros(); }
             } else {
-                let now = Instant::now();
-                if i < num_out / 2 {
-                    fast_add_into_no_reduce(ct_even, &w_times_ginv_ct);
-                } else {
-                    fast_add_into(ct_even, &w_times_ginv_ct);
+                let now = profile.then(Instant::now);
+                // The first level writes every entry of the working set.
+                ct_even
+                    .as_mut_slice()
+                    .copy_from_slice(w_times_ginv_ct.as_slice());
+                if i >= num_out / 2 {
+                    fast_reduce(ct_even);
                 }
-                time_4 += now.elapsed().as_micros();
+                if let Some(now) = now { time_4 += now.elapsed().as_micros(); }
             }
         }
     }
     // let now = Instant::now();
 
-    if false {
-        println!("time_0: {} us", time_0);
-        println!("time_1: {} us", time_1);
-        println!("time_2: {} us", time_2);
-        println!("time_3: {} us", time_3);
-        println!("time_4: {} us", time_4);
-        println!("idx_precomp: {}", idx_precomp);
-        println!("num_muls: {}", num_muls);
+    if std::env::var_os("YPIR_PACK_PROFILE").is_some() {
+        eprintln!(
+            "pack profile: scalar-mul {} us, add-no-reduce {} us, key-switch mul {} us, automorph {} us, add {} us",
+            time_0, time_1, time_2, time_3, time_4
+        );
     }
 
     assert_eq!(idx_precomp, precomp_vals.len());
+    let tail_started = Instant::now();
 
     let mut resulting_row_1 = working_set[0].clone();
     fast_reduce(&mut resulting_row_1);
@@ -578,7 +628,9 @@ pub fn pack_using_precomp_vals<'a>(
         }
     }
     let out = out_raw.ntt();
-    // println!("time_5: {} us", now.elapsed().as_micros());
+    if std::env::var_os("YPIR_PACK_PROFILE").is_some() {
+        eprintln!("pack tail: {} us", tail_started.elapsed().as_micros());
+    }
 
     // for z in 0..params.poly_len {
     //     let b_value = b_values[z];
@@ -669,6 +721,22 @@ pub fn fast_add_into(res: &mut PolyMatrixNTT, a: &PolyMatrixNTT) {
         for j in 0..res.cols {
             let res_poly = res.get_poly_mut(i, j);
             let a_poly = a.get_poly(i, j);
+            #[cfg(all(target_arch = "x86_64", not(target_feature = "avx512f")))]
+            if avx2::available() {
+                for c in 0..params.crt_count {
+                    let range = c * params.poly_len..(c + 1) * params.poly_len;
+                    // SAFETY: the host supports AVX2.
+                    unsafe {
+                        avx2::add_into_barrett(
+                            &mut res_poly[range.clone()],
+                            &a_poly[range],
+                            params.barrett_cr_1[c],
+                            params.moduli[c],
+                        )
+                    };
+                }
+                continue;
+            }
             for c in 0..params.crt_count {
                 for i in 0..params.poly_len {
                     let idx = c * params.poly_len + i;
@@ -752,6 +820,13 @@ pub fn fast_multiply_no_reduce(
 
     assert_eq!(a.cols, b.rows);
     assert_eq!(params.crt_count * params.poly_len, 2 * 2048);
+
+    #[cfg(target_arch = "x86_64")]
+    if avx2::available() {
+        // SAFETY: the host supports AVX2.
+        unsafe { avx2::multiply_no_reduce(params, res, a, b) };
+        return;
+    }
 
     let a_slc = a.as_slice();
     let b_slc = b.as_slice();
@@ -851,6 +926,12 @@ pub fn multiply_add_poly_avx(_params: &Params, res: &mut [u64], a: &[u64], b: &[
 
 #[cfg(not(target_feature = "avx512f"))]
 pub fn multiply_add_poly_avx(_params: &Params, res: &mut [u64], a: &[u64], b: &[u64]) {
+    #[cfg(target_arch = "x86_64")]
+    if avx2::available() {
+        // SAFETY: the host supports AVX2.
+        unsafe { avx2::multiply_add_poly(res, a, b) };
+        return;
+    }
     let low_mask = (1u64 << 32) - 1;
     for ((z, &x), &y) in res.iter_mut().zip(a.iter()).zip(b.iter()) {
         *z = z.wrapping_add((x & low_mask) * (y & low_mask));
@@ -881,9 +962,218 @@ pub fn multiply_poly_avx(_params: &Params, res: &mut [u64], a: &[u64], b: &[u64]
 
 #[cfg(not(target_feature = "avx512f"))]
 pub fn multiply_poly_avx(_params: &Params, res: &mut [u64], a: &[u64], b: &[u64]) {
+    #[cfg(target_arch = "x86_64")]
+    if avx2::available() {
+        // SAFETY: the host supports AVX2.
+        unsafe { avx2::multiply_poly(res, a, b) };
+        return;
+    }
     let low_mask = (1u64 << 32) - 1;
     for ((z, &x), &y) in res.iter_mut().zip(a.iter()).zip(b.iter()) {
         *z = (x & low_mask) * (y & low_mask);
+    }
+}
+
+/// The multiply kernels on AVX2, selected at run time on hosts without
+/// AVX-512. The products are of the low 32 bits of each 64-bit lane, as in
+/// the AVX-512 kernels.
+#[cfg(all(target_arch = "x86_64", not(target_feature = "avx512f")))]
+mod avx2 {
+    use std::arch::x86_64::*;
+
+    use spiral_rs::params::Params;
+    use spiral_rs::poly::{PolyMatrix, PolyMatrixNTT};
+
+    pub fn available() -> bool {
+        use std::sync::OnceLock;
+        static AVAILABLE: OnceLock<bool> = OnceLock::new();
+        *AVAILABLE.get_or_init(|| is_x86_feature_detected!("avx2"))
+    }
+
+    #[target_feature(enable = "avx2")]
+    pub unsafe fn multiply_no_reduce(
+        params: &Params,
+        res: &mut PolyMatrixNTT,
+        a: &PolyMatrixNTT,
+        b: &PolyMatrixNTT,
+    ) {
+        let a_ptr = a.as_slice().as_ptr();
+        let b_ptr = b.as_slice().as_ptr();
+        let res_ptr = res.as_mut_slice().as_mut_ptr();
+        let pol_sz = params.poly_len;
+        let cols = a.cols;
+        for idx in (0..pol_sz).step_by(4) {
+            let mut sum_lo = _mm256_setzero_si256();
+            let mut sum_hi = _mm256_setzero_si256();
+            for k in 0..cols {
+                let x = _mm256_loadu_si256(a_ptr.add(k * 2 * pol_sz + idx) as *const _);
+                let y = _mm256_loadu_si256(b_ptr.add(k * 2 * pol_sz + idx) as *const _);
+                let x_hi = _mm256_srli_epi64(x, 32);
+                let y_hi = _mm256_srli_epi64(y, 32);
+                sum_lo = _mm256_add_epi64(sum_lo, _mm256_mul_epu32(x, y));
+                sum_hi = _mm256_add_epi64(sum_hi, _mm256_mul_epu32(x_hi, y_hi));
+            }
+            _mm256_storeu_si256(res_ptr.add(idx) as *mut _, sum_lo);
+            _mm256_storeu_si256(res_ptr.add(pol_sz + idx) as *mut _, sum_hi);
+        }
+    }
+
+    /// `sum = even + neg_y * odd` and `even += y * odd`, in one pass.
+    #[target_feature(enable = "avx2")]
+    pub unsafe fn combine_halves(
+        even: &mut [u64],
+        odd: &[u64],
+        y: &[u64],
+        neg_y: &[u64],
+        sum: &mut [u64],
+    ) {
+        let n = even.len();
+        let (even_ptr, odd_ptr, y_ptr, neg_y_ptr, sum_ptr) = (
+            even.as_mut_ptr(),
+            odd.as_ptr(),
+            y.as_ptr(),
+            neg_y.as_ptr(),
+            sum.as_mut_ptr(),
+        );
+        let mut i = 0;
+        while i + 4 <= n {
+            let e = _mm256_loadu_si256(even_ptr.add(i) as *const _);
+            let o = _mm256_loadu_si256(odd_ptr.add(i) as *const _);
+            let yy = _mm256_loadu_si256(y_ptr.add(i) as *const _);
+            let ny = _mm256_loadu_si256(neg_y_ptr.add(i) as *const _);
+            _mm256_storeu_si256(
+                sum_ptr.add(i) as *mut _,
+                _mm256_add_epi64(e, _mm256_mul_epu32(o, ny)),
+            );
+            _mm256_storeu_si256(
+                even_ptr.add(i) as *mut _,
+                _mm256_add_epi64(e, _mm256_mul_epu32(o, yy)),
+            );
+            i += 4;
+        }
+        let low_mask = (1u64 << 32) - 1;
+        while i < n {
+            let e = even[i];
+            sum[i] = e.wrapping_add((odd[i] & low_mask) * (neg_y[i] & low_mask));
+            even[i] = e.wrapping_add((odd[i] & low_mask) * (y[i] & low_mask));
+            i += 1;
+        }
+    }
+
+    /// `res[k] = barrett(res[k] + a[k])` with the Barrett step of
+    /// [`super::fast_barrett_raw_u64`]: the quotient `floor(x * ratio / 2^64)`
+    /// is assembled from 32-bit products, so the result is the scalar one.
+    #[target_feature(enable = "avx2")]
+    pub unsafe fn add_into_barrett(res: &mut [u64], a: &[u64], ratio: u64, modulus: u64) {
+        let n = res.len();
+        let (a_ptr, res_ptr) = (a.as_ptr(), res.as_mut_ptr());
+        let mask = _mm256_set1_epi64x(0xffff_ffff);
+        let r_lo = _mm256_set1_epi64x((ratio & 0xffff_ffff) as i64);
+        let r_hi = _mm256_set1_epi64x((ratio >> 32) as i64);
+        let m = _mm256_set1_epi64x(modulus as i64);
+        let mut i = 0;
+        while i + 4 <= n {
+            let x = _mm256_add_epi64(
+                _mm256_loadu_si256(res_ptr.add(i) as *const _),
+                _mm256_loadu_si256(a_ptr.add(i) as *const _),
+            );
+            let v_lo = _mm256_and_si256(x, mask);
+            let v_hi = _mm256_srli_epi64(x, 32);
+            // x * ratio = A 2^64 + (m1 + m2) 2^32 + c
+            let a_part = _mm256_mul_epu32(v_hi, r_hi);
+            let m1 = _mm256_mul_epu32(v_hi, r_lo);
+            let m2 = _mm256_mul_epu32(v_lo, r_hi);
+            let c = _mm256_srli_epi64(_mm256_mul_epu32(v_lo, r_lo), 32);
+            let low = _mm256_add_epi64(_mm256_add_epi64(_mm256_and_si256(m1, mask), m2), c);
+            let quotient = _mm256_add_epi64(
+                _mm256_add_epi64(a_part, _mm256_srli_epi64(m1, 32)),
+                _mm256_srli_epi64(low, 32),
+            );
+            // x - quotient * modulus, modulo 2^64
+            let q_lo = _mm256_and_si256(quotient, mask);
+            let q_hi = _mm256_srli_epi64(quotient, 32);
+            let product = _mm256_add_epi64(
+                _mm256_mul_epu32(q_lo, m),
+                _mm256_slli_epi64(_mm256_mul_epu32(q_hi, m), 32),
+            );
+            _mm256_storeu_si256(res_ptr.add(i) as *mut _, _mm256_sub_epi64(x, product));
+            i += 4;
+        }
+        while i < n {
+            res[i] = super::fast_barrett_raw_u64(res[i] + a[i], ratio, modulus);
+            i += 1;
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        #[test]
+        fn barrett_add_matches_the_scalar_step() {
+            if !super::available() {
+                return;
+            }
+            let params = crate::params::params_for_scenario_simplepir(2048, 2048 * 14);
+            let mut state = 0x1234_5678_9abc_def0u64;
+            let mut next = || {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                state
+            };
+            for c in 0..params.crt_count {
+                let ratio = params.barrett_cr_1[c];
+                let modulus = params.moduli[c];
+                // Sums of products below 2^63 each, as the packing produces.
+                let res: Vec<u64> = (0..4099).map(|_| next() >> 1).collect();
+                let a: Vec<u64> = (0..4099).map(|_| next() >> 1).collect();
+                let expected: Vec<u64> = res
+                    .iter()
+                    .zip(&a)
+                    .map(|(&x, &y)| super::super::fast_barrett_raw_u64(x + y, ratio, modulus))
+                    .collect();
+                let mut got = res.clone();
+                unsafe { super::add_into_barrett(&mut got, &a, ratio, modulus) };
+                assert!(got == expected, "modulus {c}");
+            }
+        }
+    }
+
+    #[target_feature(enable = "avx2")]
+    pub unsafe fn multiply_add_poly(res: &mut [u64], a: &[u64], b: &[u64]) {
+        let n = res.len();
+        let (a_ptr, b_ptr, res_ptr) = (a.as_ptr(), b.as_ptr(), res.as_mut_ptr());
+        let mut i = 0;
+        while i + 4 <= n {
+            let x = _mm256_loadu_si256(a_ptr.add(i) as *const _);
+            let y = _mm256_loadu_si256(b_ptr.add(i) as *const _);
+            let z = _mm256_loadu_si256(res_ptr.add(i) as *const _);
+            let out = _mm256_add_epi64(z, _mm256_mul_epu32(x, y));
+            _mm256_storeu_si256(res_ptr.add(i) as *mut _, out);
+            i += 4;
+        }
+        let low_mask = (1u64 << 32) - 1;
+        while i < n {
+            res[i] = res[i].wrapping_add((a[i] & low_mask) * (b[i] & low_mask));
+            i += 1;
+        }
+    }
+
+    #[target_feature(enable = "avx2")]
+    pub unsafe fn multiply_poly(res: &mut [u64], a: &[u64], b: &[u64]) {
+        let n = res.len();
+        let (a_ptr, b_ptr, res_ptr) = (a.as_ptr(), b.as_ptr(), res.as_mut_ptr());
+        let mut i = 0;
+        while i + 4 <= n {
+            let x = _mm256_loadu_si256(a_ptr.add(i) as *const _);
+            let y = _mm256_loadu_si256(b_ptr.add(i) as *const _);
+            _mm256_storeu_si256(res_ptr.add(i) as *mut _, _mm256_mul_epu32(x, y));
+            i += 4;
+        }
+        let low_mask = (1u64 << 32) - 1;
+        while i < n {
+            res[i] = (a[i] & low_mask) * (b[i] & low_mask);
+            i += 1;
+        }
     }
 }
 
@@ -1103,10 +1393,11 @@ pub fn pack_many_lwes<'a>(
     assert_eq!(b_values.len(), num_rlwe_outputs * params.poly_len);
 
     let mut res = Vec::new();
+    let mut working_set = packing_working_set(params, params.poly_len_log2);
     for i in 0..num_rlwe_outputs {
         let (precomp_res, precomp_vals, precomp_tables) = &precomp[i];
 
-        let packed = pack_using_precomp_vals(
+        let packed = pack_using_precomp_vals_with(
             &params,
             params.poly_len_log2,
             &pack_pub_params_row_1s,
@@ -1115,6 +1406,7 @@ pub fn pack_many_lwes<'a>(
             &precomp_vals,
             &precomp_tables,
             &y_constants,
+            &mut working_set,
         );
 
         res.push(packed);
