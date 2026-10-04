@@ -65,12 +65,14 @@ PRIVATE_PREFIX = "BENCH_PRIVATE_OPENING"
 PRIVATE_KAPPA = 64
 PRIVATE_LOGS_GIB = (1, 4, 16, 64)
 PRIVATE_SWEEP_LOG_GIB = 4
-# A record holds this many column entries at every threshold.
-PRIVATE_RECORD_ENTRIES = 64
-PRIVATE_RECORD_SWEEP = (2,)
+# The public grouping: one segment per block up to 2^25 leaves, doubling
+# with every two further levels of the active prefix.
+PRIVATE_GROUPING_BASE_BITS = 25
+PRIVATE_BLOCK_SWEEP_GIB = 64
+PRIVATE_BLOCK_SWEEP = (1, 2, 4)
 PRIVATE_HINT_SAMPLE_COLUMNS = 64
-PRIVATE_SINGLE_CELLS = 64
-PRIVATE_SINGLE_CELL_SWEEP = (32, 64, 128)
+PRIVATE_SINGLE_CELLS = 512
+PRIVATE_SINGLE_CELL_SWEEP = (256, 512, 1024)
 PRIVATE_SINGLE_MEASURED_GIB = (1, 4)
 PRIVATE_SINGLE_SHAPE_GIB = (16, 64)
 PRIVATE_TABLE_LOGS_GIB = (1, 4)
@@ -149,11 +151,14 @@ TABLE_METADATA.update(
         "tab:private-maintainer": {
             "title": "Private openings of one position: one claim of a maintainer",
             "notes": (
-                "One claim answers from its primary columns, held as records "
-                "of 64 column entries (2 KiB) unless the row gives another "
-                "record size. A log of 1 GiB has 2^25 leaves. Database is "
-                "the bytes of the records; state adds the row table and the "
-                "preprocessing; both are MiB. Request and reply are "
+                "One claim answers from its primary columns, grouped into "
+                "blocks of the public grouping of the log length (one "
+                "segment per block at 1 GiB, doubling every two levels) "
+                "unless the row gives another block size. A log of 1 GiB "
+                "has 2^25 leaves. The record of a pattern is the two blocks "
+                "of its subtree and one entry per level above. Database is "
+                "the bytes of the primary columns; state adds the row table "
+                "and the preprocessing; both are MiB. Request and reply are "
                 "serialized KiB. The client's request (key, query, "
                 "serialization), the first pass, the complete answer from "
                 "serialized request to serialized reply, and the client's "
@@ -169,14 +174,16 @@ TABLE_METADATA.update(
         "tab:private-single": {
             "title": "Private openings of one position: a single server with the whole tree",
             "notes": (
-                "The server stores every cell of the tree in records of the "
-                "given size and answers with the code path of a maintainer. "
-                "Database and state are GiB, the request is MiB, and the "
-                "reply is KiB. Client request and decoding are milliseconds; "
-                "first pass and answer are seconds on one core. "
-                "Preprocessing is core-seconds, measured as for a "
-                "maintainer. The rows at 16 and 64 GiB give the database "
-                "dimensions and message sizes of those logs."
+                "The server stores every cell of the tree in blocks of the "
+                "given number of cells and answers with the code path of a "
+                "maintainer: the record of a pattern is the two blocks of "
+                "its subtree and one cell per level above. Database and "
+                "state are GiB, the request is MiB, and the reply is KiB. "
+                "Client request and decoding are milliseconds; first pass "
+                "and answer are seconds on one core. Preprocessing is "
+                "core-seconds, measured as for a maintainer. The rows at 16 "
+                "and 64 GiB give the database dimensions and message sizes "
+                "of those logs."
             ),
         },
         "tab:private-table": {
@@ -192,7 +199,7 @@ TABLE_METADATA.update(
         "tab:private-client": {
             "title": "Client work for one private opening",
             "notes": (
-                "A 12 MiB log, records of 64 column entries. Request and "
+                "A 12 MiB log at the public grouping. Request and "
                 "reply are serialized KiB; the reply is one claim's. Request "
                 "is key generation, the query, and serialization in "
                 "milliseconds. Private cells decode the replies and run "
@@ -1385,6 +1392,12 @@ def leaves_of_gib(gib: int) -> int:
     return gib * GIB // FIELD_BYTES
 
 
+def private_grouping(leaves: int) -> int:
+    """Segments per block of the public grouping for a log of `leaves`."""
+    height = 0 if leaves <= 1 else (leaves - 1).bit_length()
+    return 1 << (max(0, height - PRIVATE_GROUPING_BASE_BITS) // 2)
+
+
 def _private_job(
     manifest: Manifest,
     *,
@@ -1514,7 +1527,9 @@ def _private_maintainer(
 ) -> tuple[JobSpec, dict[str, str]]:
     leaves = leaves_of_gib(gib)
     database_gib = 2 * gib / kappa
-    ciphertexts = 13 * segments_per_record * kappa // PRIVATE_RECORD_ENTRIES
+    # Two blocks of `segments_per_record * kappa` entries plus the upper
+    # entries, in reply ciphertexts of 2048 symbols.
+    ciphertexts = -(-(2 * segments_per_record * kappa * 256 // 14 + 19 * 24) // 2048)
     job = _private_job(
         manifest,
         identifier=f"private-maintainer-undine-log{gib}gib-r{segments_per_record}-k{kappa}",
@@ -1529,8 +1544,8 @@ def _private_maintainer(
             "Build one claim's primary columns for the seeded log on all "
             "cores and preprocess them."
         ),
-        setup_seconds=30.0 + 8.0 * gib + 100.0 * database_gib,
-        repetition_seconds=6.0 + 1.2 * ciphertexts + 4.0 * database_gib,
+        setup_seconds=30.0 + 8.0 * gib + 20.0 * database_gib,
+        repetition_seconds=4.0 + 2.5 * ciphertexts + 2.0 * database_gib,
     )
     return job, _private_server_outputs(manifest, job, "maintainer", updates=True)
 
@@ -1575,15 +1590,19 @@ def _build_private_maintainer_table(manifest: Manifest) -> None:
         "client-decode-ms", "preprocess-core-s", "update-hint-ms",
         "update-packing-s",
     ]
-    points = [("log", PRIVATE_KAPPA, gib, 1) for gib in PRIVATE_LOGS_GIB]
+    points = [
+        ("log", PRIVATE_KAPPA, gib, private_grouping(leaves_of_gib(gib)))
+        for gib in PRIVATE_LOGS_GIB
+    ]
     points += [
-        ("kappa", kappa, PRIVATE_SWEEP_LOG_GIB, PRIVATE_RECORD_ENTRIES // kappa)
+        ("kappa", kappa, PRIVATE_SWEEP_LOG_GIB, private_grouping(leaves_of_gib(PRIVATE_SWEEP_LOG_GIB)))
         for kappa in KAPPAS
         if kappa != PRIVATE_KAPPA
     ]
     points += [
-        ("record", PRIVATE_KAPPA, PRIVATE_SWEEP_LOG_GIB, segments_per_record)
-        for segments_per_record in PRIVATE_RECORD_SWEEP
+        ("block", PRIVATE_KAPPA, PRIVATE_BLOCK_SWEEP_GIB, segments_per_record)
+        for segments_per_record in PRIVATE_BLOCK_SWEEP
+        if segments_per_record != private_grouping(leaves_of_gib(PRIVATE_BLOCK_SWEEP_GIB))
     ]
     for panel, kappa, gib, segments_per_record in points:
         _, outputs = _private_maintainer(manifest, kappa, gib, segments_per_record)
@@ -1623,8 +1642,8 @@ def _private_single(
         role="single",
         env=env,
         setup="Build the cells of the whole tree on all cores and preprocess them.",
-        setup_seconds=250.0 * gib,
-        repetition_seconds=10.0 * gib,
+        setup_seconds=150.0 * gib,
+        repetition_seconds=8.0 * gib,
     )
     return job, _private_server_outputs(manifest, job, "single", updates=False)
 
@@ -1696,7 +1715,8 @@ def _build_private_table_table(manifest: Manifest) -> None:
         "table-first-pass-ms", "records-answer-ms", "table-answer-ms",
     ]
     for gib in PRIVATE_TABLE_LOGS_GIB:
-        _, records = _private_maintainer(manifest, PRIVATE_KAPPA, gib, 1)
+        grouping = private_grouping(leaves_of_gib(gib))
+        _, records = _private_maintainer(manifest, PRIVATE_KAPPA, gib, grouping)
         job = _private_job(
             manifest,
             identifier=f"private-table-undine-log{gib}gib-k{PRIVATE_KAPPA}",
@@ -1704,7 +1724,7 @@ def _build_private_table_table(manifest: Manifest) -> None:
             env={
                 "KAPPA": PRIVATE_KAPPA,
                 "LEAVES": leaves_of_gib(gib),
-                "SEGMENTS_PER_RECORD": 1,
+                "SEGMENTS_PER_RECORD": grouping,
             },
             setup="Build the table of complete openings of one claim and preprocess it.",
             setup_seconds=60.0 * gib,
@@ -1758,7 +1778,7 @@ def _build_private_client_table(manifest: Manifest) -> None:
             env={
                 "KAPPA": kappa,
                 "LEAVES": PREFIX_BATCHES * BATCH_VALUES_4MIB,
-                "SEGMENTS_PER_RECORD": PRIVATE_RECORD_ENTRIES // kappa,
+                "SEGMENTS_PER_RECORD": private_grouping(PREFIX_BATCHES * BATCH_VALUES_4MIB),
             },
             setup=(
                 "Each of 3*kappa claims preprocesses its primary columns and "
@@ -2436,7 +2456,7 @@ def select_run_jobs(manifest: Manifest, mode: str) -> list[RunJob]:
         smallest = KAPPAS[0]
         add(
             f"private-maintainer-undine-log{PRIVATE_SWEEP_LOG_GIB}gib"
-            f"-r{PRIVATE_RECORD_ENTRIES // smallest}-k{smallest}",
+            f"-r{private_grouping(leaves_of_gib(PRIVATE_SWEEP_LOG_GIB))}-k{smallest}",
             overrides=small
             | {f"{PRIVATE_PREFIX}_APPEND_LEAVES": PRIVATE_SMOKE_APPEND_LEAVES},
         )
@@ -4223,7 +4243,7 @@ def full_preflight_risks() -> list[str]:
         "The 64-batch append sequences and the large corrupted range openings "
         "are the dominant CPU costs.",
         "The private-opening jobs build and preprocess their databases on all "
-        "cores; the single server at a 4 GiB log holds about 18 GiB of memory.",
+        "cores; the single server at a 4 GiB log holds about 15 GiB of memory.",
         "Thermal throttling or competing host load can widen confidence intervals "
         f"and push individual jobs toward {DEFAULT_MAX_REPETITIONS} repetitions.",
         f"A timing series that misses the precision target at "

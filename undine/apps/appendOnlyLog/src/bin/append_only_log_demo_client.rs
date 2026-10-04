@@ -25,7 +25,6 @@ struct Args {
     max_errors: Option<usize>,
     open_kappa: Option<usize>,
     private: bool,
-    segments_per_record: Option<usize>,
     source_kind: Option<String>,
     network: Option<String>,
     start_height: Option<u64>,
@@ -76,11 +75,6 @@ fn parse_args() -> Result<Args, String> {
                 args.open_kappa = Some(value.parse().map_err(|_| "invalid --open-kappa")?);
             }
             "--private" => args.private = true,
-            "--segments-per-record" => {
-                let value = it.next().ok_or("--segments-per-record missing value")?;
-                args.segments_per_record =
-                    Some(value.parse().map_err(|_| "invalid --segments-per-record")?);
-            }
             "--source-kind" => args.source_kind = it.next(),
             "--network" => args.network = it.next(),
             "--start-height" => {
@@ -103,7 +97,7 @@ fn usage() -> &'static str {
   state --anchor <path>
   tip --anchor <path>
   read-leaf --anchor <path> --index <n> [--max-errors <n>] [--open-kappa <n>]
-            [--private [--segments-per-record <n>]]
+            [--private]
   read-bulk-updates --anchor <path> --height <n> [--out <path>] [--open-kappa <n>]
   read-range --anchor <path> --height <n> --offset <n> --len <n> [--out <path>]
              [--open-kappa <n>]
@@ -114,7 +108,7 @@ number of claims; the maintainers stitch while they serve and keep their state.
 
 --private opens the leaf without revealing its index: the client sends one PIR
 query, the same to every maintainer, and each maintainer answers from its
-primary columns. --segments-per-record sets the record size (default 1)."
+primary columns, over blocks of the public grouping of the log length."
 }
 
 fn main() {
@@ -144,10 +138,6 @@ fn main() {
     }
     if args.private && args.open_kappa.is_some() {
         eprintln!("--private opens at the stored threshold; it cannot be combined with --open-kappa");
-        std::process::exit(1);
-    }
-    if args.segments_per_record.is_some() && !args.private {
-        eprintln!("--segments-per-record applies to --private");
         std::process::exit(1);
     }
     if !cfg!(feature = "private") && args.private {
@@ -301,11 +291,7 @@ fn read_leaf(args: &Args) {
     let correcting = max_errors > 0;
     #[cfg(feature = "private")]
     let private_result = args.private.then(|| {
-        client.read_leaf_private_with_path(
-            index,
-            args.segments_per_record.unwrap_or(1),
-            correcting.then_some(max_errors),
-        )
+        client.read_leaf_private_with_path(index, correcting.then_some(max_errors))
     });
     #[cfg(not(feature = "private"))]
     let private_result = None;

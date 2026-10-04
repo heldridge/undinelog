@@ -6,6 +6,7 @@ mod cluster;
 
 use cluster::{LocalServer, written_cluster};
 use paper_a_optimized::core::NodeLinearization;
+use paper_a_optimized::private::layout::UPPER_ENTRY;
 use paper_a_optimized::private::{PrivateLayout, local_claims, record_entries};
 use paper_a_optimized::unauth::service::{UnauthRequest, UnauthResponse, UnauthService};
 use paper_a_optimized::unauth::{CodedArrayParams, build_kappa_double_params};
@@ -73,34 +74,55 @@ fn assert_layout_matches_public_openings(
                 assert_eq!(reply.shares.len(), 1);
                 let share = &reply.shares[0];
                 assert_eq!(share.registry_index(), server.label);
-                let record = row[entry.slot].expect("planned slot holds a record");
+                let id = row[entry.slot].expect("planned slot holds an item");
+                // A block slot names the block and the entry within it; an
+                // upper slot names the node, whose entry is one field element.
+                let (record, entry_in_record) = if entry.slot < 2 {
+                    (id, entry.entry_in_record)
+                } else {
+                    assert_eq!(entry.entry_in_record, UPPER_ENTRY);
+                    assert_eq!(layout.upper_array_index(entry.slot - 2, id), entry.array_index);
+                    let index = layout.upper_entry_index(entry.slot - 2, id);
+                    (
+                        index / layout.entries_per_record(),
+                        index % layout.entries_per_record(),
+                    )
+                };
                 let entries = records
                     .entry(record)
                     .or_insert_with(|| record_entries(store, &layout, server.label, record));
                 assert_eq!(entries.len(), layout.entries_per_record());
                 assert_eq!(
-                    Some(entries[entry.entry_in_record]),
+                    Some(entries[entry_in_record]),
                     share.value(),
-                    "leaf {leaf}, node {:?}: record {record} entry {}",
+                    "leaf {leaf}, node {:?}: record {record} entry {entry_in_record}",
                     entry.node,
-                    entry.entry_in_record
                 );
             }
         }
     }
 
-    // The patterns that place one record in one upper slot are consecutive:
-    // they are the leaves of one subtree.
+    // The patterns that read one upper node are the groups below its
+    // sibling, a contiguous range.
     for slot in 2..layout.slots() {
-        let mut last_pattern_of: HashMap<usize, usize> = HashMap::new();
-        for pattern in 0..layout.patterns() {
-            if let Some(record) = layout.row(pattern)[slot] {
-                if let Some(last) = last_pattern_of.insert(record, pattern) {
-                    // A record may hold sibling roots of several subtrees, so
-                    // runs of one record may repeat; within the sibling of one
-                    // subtree they are consecutive.
-                    assert!(last < pattern);
-                }
+        let level = slot - 2;
+        for pos in 0..layout.upper_count(level) {
+            let readers = (0..layout.patterns())
+                .filter(|&pattern| layout.row(pattern)[slot] == Some(pos))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                readers,
+                layout.upper_patterns(level, pos).collect::<Vec<_>>(),
+                "level {level}, node {pos}"
+            );
+        }
+    }
+    // A block sits in the slot of its parity.
+    for pattern in 0..layout.patterns() {
+        let row = layout.row(pattern);
+        for slot in 0..2 {
+            if let Some(block) = row[slot] {
+                assert_eq!(block % 2, slot);
             }
         }
     }
@@ -233,11 +255,16 @@ fn whole_tree_layout_locates_every_cell_of_an_opening() {
             // The leaf itself is always stored; its entry is its cell.
             assert_eq!(plan[0].node.pos, leaf);
             for entry in &plan {
-                let record = row[entry.slot].expect("planned slot holds a record");
-                assert_eq!(
-                    record as u64 * cells_per_record as u64 + entry.entry_in_record as u64,
-                    entry.array_index
-                );
+                let id = row[entry.slot].expect("planned slot holds an item");
+                if entry.slot < 2 {
+                    assert_eq!(
+                        id as u64 * cells_per_record as u64 + entry.entry_in_record as u64,
+                        entry.array_index
+                    );
+                } else {
+                    assert_eq!(entry.entry_in_record, UPPER_ENTRY);
+                    assert_eq!(layout.upper_array_index(entry.slot - 2, id), entry.array_index);
+                }
             }
         }
     }

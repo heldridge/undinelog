@@ -301,10 +301,6 @@ fn client_cli_limits_private_to_auth_reads() {
             vec!["--mode", "auth", "--op", "read", "--private", "--open-kappa", "4"],
             "it cannot be combined with --open-kappa",
         ),
-        (
-            vec!["--mode", "auth", "--op", "read", "--segments-per-record", "2"],
-            "--segments-per-record applies to --private",
-        ),
     ] {
         let output = Command::new(env!("CARGO_BIN_EXE_client"))
             .args(&args)
@@ -381,8 +377,6 @@ fn client_cli_opens_a_position_privately() {
             "--index",
             "5",
             "--private",
-            "--segments-per-record",
-            "2",
             "--max-errors",
             "1",
         ],

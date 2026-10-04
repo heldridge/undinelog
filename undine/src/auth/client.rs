@@ -2213,28 +2213,26 @@ where
 
     /// Open leaf `index` privately and return its value and path.
     ///
-    /// The client sends one PIR query, the same to every server, over records
-    /// of `segments_per_record` segments. It decodes each reply into the
-    /// shares of a public opening and then combines and verifies them as a
-    /// public opening does, correcting up to `max_errors` bad replies when
-    /// given.
+    /// The client sends one PIR query, the same to every server, over the
+    /// blocks of the public grouping of the log length. It decodes each reply
+    /// into the shares of a public opening and then combines and verifies
+    /// them as a public opening does, correcting up to `max_errors` bad
+    /// replies when given.
     #[cfg(feature = "private")]
     pub fn read_private_with_path(
         &mut self,
         index: u64,
-        segments_per_record: usize,
         max_errors: Option<usize>,
     ) -> Result<(Value256, AuthPath), ClientError> {
         self.refresh_allocated_leaves()?;
         if index >= self.allocated_leaves as u64 {
             return Err(ClientError::InvalidIndex);
         }
-        let opening = crate::private::PrivateOpening::new(
+        let opening = crate::private::PrivateOpening::for_log(
             &self.params,
             &self.auth,
             self.node_linearization,
             self.allocated_leaves as u64,
-            segments_per_record,
             index,
         )
         .map_err(|err| ClientError::InvalidResponse(err.to_string()))?;
@@ -2271,12 +2269,8 @@ where
 
     /// Open leaf `index` privately and return its value.
     #[cfg(feature = "private")]
-    pub fn read_private(
-        &mut self,
-        index: u64,
-        segments_per_record: usize,
-    ) -> Result<Value256, ClientError> {
-        let (value, _) = self.read_private_with_path(index, segments_per_record, None)?;
+    pub fn read_private(&mut self, index: u64) -> Result<Value256, ClientError> {
+        let (value, _) = self.read_private_with_path(index, None)?;
         Ok(value)
     }
 

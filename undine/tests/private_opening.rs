@@ -22,12 +22,12 @@ fn corrupt(servers: &[LocalServer], labels: &[usize]) -> Vec<LocalServer> {
 
 #[test]
 fn private_openings_equal_public_openings() {
-    for &(kappa, tree_height, leaves, segments_per_record) in &[
-        (2usize, 7usize, 1usize, 1usize),
-        (2, 7, 37, 1),
-        (2, 7, 64, 2),
-        (4, 8, 150, 1),
-        (2, 50, 29, 1),
+    for &(kappa, tree_height, leaves) in &[
+        (2usize, 7usize, 1usize),
+        (2, 7, 37),
+        (2, 7, 64),
+        (4, 8, 150),
+        (2, 50, 29),
     ] {
         let (params, auth, servers, values, root) =
             written_cluster(kappa, 3 * kappa, tree_height, leaves, 101);
@@ -40,7 +40,7 @@ fn private_openings_equal_public_openings() {
         for index in indices {
             let (public_value, public_path) = client.read_with_path(index).expect("public opening");
             let (value, path) = client
-                .read_private_with_path(index, segments_per_record, None)
+                .read_private_with_path(index, None)
                 .expect("private opening");
             assert_eq!(value, values[index as usize]);
             assert_eq!(value, public_value);
@@ -63,7 +63,7 @@ fn private_openings_correct_bad_replies() {
     let mut client = reader(&params, &auth, leaves, &servers);
     for index in [0u64, 13, 44] {
         let (value, path) = client
-            .read_private_with_path(index, 1, Some(kappa))
+            .read_private_with_path(index, Some(kappa))
             .expect("private opening with corrupted replies");
         assert_eq!(value, values[index as usize]);
         assert_eq!(path.root, root);
@@ -77,7 +77,7 @@ fn private_openings_correct_bad_replies() {
     let corrupted_only = [servers[1].clone(), servers[4].clone()];
     let mut plain = reader(&params, &auth, leaves, &corrupted_only);
     plain.set_trusted_root(root);
-    assert!(plain.read_private_with_path(13, 1, None).is_err());
+    assert!(plain.read_private_with_path(13, None).is_err());
 }
 
 #[test]
@@ -116,7 +116,7 @@ fn servers_answer_only_their_current_log() {
     let (params, auth, servers, values, _root) = written_cluster(kappa, 3 * kappa, 6, leaves, 104);
     let mut client = reader(&params, &auth, leaves, &servers);
     assert!(matches!(
-        client.read_private_with_path(leaves as u64, 1, None),
+        client.read_private_with_path(leaves as u64, None),
         Err(ClientError::InvalidIndex)
     ));
 
@@ -134,12 +134,26 @@ fn servers_answer_only_their_current_log() {
     let request = opening.request();
     let mut guard = servers[0].inner.lock().expect("server lock");
     assert!(guard.handle_private_read(&request).is_err());
+
+    // A request with another grouping than the public one is refused too.
+    let other_grouping = PrivateOpening::new(
+        &params,
+        &auth,
+        NodeLinearization::Preorder,
+        leaves as u64,
+        2,
+        0,
+    )
+    .expect("opening");
+    let request = other_grouping.request();
+    assert_eq!(request.leaves, leaves as u64);
+    assert!(guard.handle_private_read(&request).is_err());
     drop(guard);
 
     // The preprocessing is reused across requests and still answers.
     for index in [3u64, 19] {
         assert_eq!(
-            client.read_private(index, 1).expect("private opening"),
+            client.read_private(index).expect("private opening"),
             values[index as usize]
         );
     }

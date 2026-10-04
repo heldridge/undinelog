@@ -34,13 +34,14 @@ use paper_a_optimized::net::wire::{
     decode_binary, encode_binary,
 };
 use paper_a_optimized::private::bulk::CHUNK_BITS;
+use paper_a_optimized::private::pir::UPPER_CELLS;
 use paper_a_optimized::private::wire::{
     WORD_BYTES, pack_words, request_to_net, response_from_net, unpack_words,
 };
 use paper_a_optimized::private::{
     BulkLog, PackKeys, PirClient, PirDatabase, PirError, PirShape, PlannedEntry, PrivateLayout,
     PrivateOpening, PrivateReadResponse, TableDatabase, build_primary_columns,
-    build_tree_cells, bulk_leaf_value, entry_from_cells,
+    build_tree_cells, bulk_leaf_value, entry_from_cells, segments_per_block,
 };
 use paper_a_optimized::unauth::error_correcting_share_target;
 use paper_a_optimized::merkle::{default_hash, leaf_key, parent, recompute_root, sibling};
@@ -123,8 +124,8 @@ struct ShapeFields {
     slots: u64,
     db_rows: u64,
     db_cols: u64,
-    /// Database columns that hold records: `slots` times the plaintext cells
-    /// of a record.
+    /// Database columns that hold stored data: the plaintext cells of a
+    /// record, two blocks and one entry per upper slot.
     record_columns: u64,
     /// Ciphertexts of one reply.
     outputs: u64,
@@ -450,7 +451,7 @@ fn shape_fields(
         slots: shape.slots as u64,
         db_rows: shape.db_rows() as u64,
         db_cols: shape.db_cols() as u64,
-        record_columns: (shape.slots * shape.record_cells) as u64,
+        record_columns: shape.row_cells() as u64,
         outputs: shape.outputs() as u64,
         database_bytes: layout.records() as u64 * record_bytes,
         request_bytes: request_message_bytes(
@@ -551,9 +552,9 @@ fn stored_opening(database: &PirDatabase, layout: &PrivateLayout, leaf: u64) -> 
         .opening_plan(leaf)
         .iter()
         .map(|entry| {
-            let record = row[entry.slot].expect("a planned entry has a record");
+            let id = row[entry.slot].expect("a planned entry has an item");
             let cells = database
-                .record_cells(record)
+                .slot_cells(entry.slot, id)
                 .iter()
                 .map(|&cell| cell as u64)
                 .collect::<Vec<_>>();
@@ -572,7 +573,7 @@ fn trial_leaf(layout: &PrivateLayout, trial: usize) -> u64 {
 
 /// `count` database columns that hold records, evenly spread.
 fn sample_columns(shape: &PirShape, count: usize) -> Vec<usize> {
-    let record_columns = shape.slots * shape.record_cells;
+    let record_columns = shape.row_cells();
     let count = count.min(record_columns);
     (0..count).map(|i| i * record_columns / count).collect()
 }
@@ -670,7 +671,7 @@ fn packing_table_trials(common: &Common, database: &PirDatabase) -> MetricStats 
 }
 
 fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
-    let segments_per_record = parse_usize_env("SEGMENTS_PER_RECORD", 1);
+    let segments_per_record = parse_usize_env("SEGMENTS_PER_RECORD", segments_per_block(common.leaves));
     let append_leaves = parse_usize_env("APPEND_LEAVES", DEFAULT_APPEND_LEAVES) as u64;
     let registry_index = 0usize;
     let params = build_params(common.kappa, common.kappa);
@@ -700,15 +701,12 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     let serving_state_bytes = preprocessed_bytes + database.record_state_bytes() as u64;
 
     // Openings against the log of `leaves` leaves.
-    let entries_per_record = layout.entries_per_record();
     let answers = {
         let expected = |leaf: u64| stored_opening(&database, &layout, leaf);
         // The stored cells are the entries of the bulk log.
         let leaf = trial_leaf(&layout, 0);
-        let row = database.row(layout.pattern_of(leaf));
         for (entry, value) in layout.opening_plan(leaf).iter().zip(expected(leaf)) {
-            let record = row[entry.slot].expect("record");
-            let index = record * entries_per_record + entry.entry_in_record;
+            let index = layout.entry_index(entry.array_index);
             assert!(value == bulk.entries()[index], "stored entry of the bulk log");
         }
         answer_trials(
@@ -753,8 +751,18 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
             assert!(
                 database.record_cells(record)
                     == &fresh[record * record_cells..(record + 1) * record_cells],
-                "record {record} after the updates"
+                "block {record} after the updates"
             );
+        }
+        let fresh_upper = PirDatabase::upper_from_cells(&final_layout, &fresh);
+        for (level, cells) in fresh_upper.iter().enumerate() {
+            for pos in 0..final_layout.upper_count(level) {
+                assert!(
+                    database.upper_cells(level, pos)
+                        == &cells[pos * UPPER_CELLS..(pos + 1) * UPPER_CELLS],
+                    "upper node {pos} at level {level} after the updates"
+                );
+            }
         }
     }
     let cols = sample_columns(&database.shape(), common.hint_sample_columns);
@@ -893,7 +901,7 @@ fn run_single(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
 }
 
 fn run_table(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
-    let segments_per_record = parse_usize_env("SEGMENTS_PER_RECORD", 1);
+    let segments_per_record = parse_usize_env("SEGMENTS_PER_RECORD", segments_per_block(common.leaves));
     let registry_index = 0usize;
     let params = build_params(common.kappa, common.kappa);
     let auth = AuthParams::new(common.tree_height);
@@ -1069,7 +1077,7 @@ fn same_replies(left: &AuthReadResponse, right: &AuthReadResponse) -> bool {
 }
 
 fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
-    let segments_per_record = parse_usize_env("SEGMENTS_PER_RECORD", 1);
+    let segments_per_record = parse_usize_env("SEGMENTS_PER_RECORD", segments_per_block(common.leaves));
     let memory_mib = parse_usize_env("CLIENT_SETUP_MEMORY_MIB", DEFAULT_CLIENT_SETUP_MEMORY_MIB);
     let kappa = common.kappa;
     let claims = error_correcting_share_target(kappa, kappa);
@@ -1082,8 +1090,6 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         .expect("opening");
     let layout = opening.layout().clone();
     let plan = layout.opening_plan(index);
-    let row = layout.row(layout.pattern_of(index));
-    let entries_per_record = layout.entries_per_record();
     let request = opening.request();
     let fields = shape_fields(&layout, kappa, segments_per_record, claims - 1);
 
@@ -1109,15 +1115,11 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
                         build_primary_columns(&params, &auth, ORDER, common.leaves, BENCH_SEED, claim, 1);
                     if claim < kappa {
                         let entry = &plan[claim % plan.len()];
-                        let record = row[entry.slot].expect("record");
-                        bulk.entries[record * entries_per_record + entry.entry_in_record] += fp_one();
+                        bulk.entries[layout.entry_index(entry.array_index)] += fp_one();
                     }
                     let stored = plan
                         .iter()
-                        .map(|entry| {
-                            let record = row[entry.slot].expect("record");
-                            bulk.entries[record * entries_per_record + entry.entry_in_record]
-                        })
+                        .map(|entry| bulk.entries[layout.entry_index(entry.array_index)])
                         .collect::<Vec<_>>();
                     let database = PirDatabase::from_entries(&layout, &bulk.entries);
                     let response = database
@@ -1296,7 +1298,7 @@ fn run_benchmark() {
             kappa: common.kappa,
             leaves: common.leaves,
             tree_height: common.tree_height,
-            segments_per_record: parse_usize_env("SEGMENTS_PER_RECORD", 1),
+            segments_per_record: parse_usize_env("SEGMENTS_PER_RECORD", segments_per_block(common.leaves)),
             cells_per_record: parse_usize_env("CELLS_PER_RECORD", DEFAULT_CELLS_PER_RECORD),
             append_leaves: parse_usize_env("APPEND_LEAVES", DEFAULT_APPEND_LEAVES) as u64,
             hint_sample_columns: common.hint_sample_columns,

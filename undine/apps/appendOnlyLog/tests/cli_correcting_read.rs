@@ -288,7 +288,6 @@ fn client_binary_opens_a_leaf_privately() {
         assert_eq!(public["private"].as_bool(), Some(false));
         for extra in [
             &["--private"][..],
-            &["--private", "--segments-per-record", "2"][..],
             &["--private", "--max-errors", "1"][..],
         ] {
             let private = read_leaf(index, extra);

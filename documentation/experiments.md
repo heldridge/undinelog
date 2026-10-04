@@ -115,9 +115,12 @@ holds. One process measures one configuration.
 
 **One claim of a maintainer** (`tab:private-maintainer`). The claim's primary
 columns are built for a seeded log of 1, 4, 16, and 64 GiB at threshold 64,
-and for a 4 GiB log at thresholds 8, 16, and 32. A record holds 64 column
-entries (2 KiB) at every threshold; one more job uses records of 128 entries
-at threshold 64. Each repetition opens one position: the client's request
+and for a 4 GiB log at thresholds 8, 16, and 32. The columns are grouped
+into blocks by the public grouping of the log length, one segment per block
+at 1 GiB and doubling every two levels of the active prefix; three more jobs
+at 64 GiB use blocks of 1, 2, and 4 segments. The record of a pattern is the
+two blocks of its subtree and one entry per level above. Each repetition
+opens one position: the client's request
 (key generation, query, serialization), the maintainer's first pass, the
 complete answer from the serialized request to the serialized reply, and the
 client's decoding of the reply. Each repetition also computes the hint of 64
@@ -128,9 +131,9 @@ repetition appends 4 MiB to the log and updates the preprocessing from the
 changed records, timing the hint patch and the packing tables.
 
 **A single server** (`tab:private-single`). The server stores every cell of
-the tree in records of 64 cells (2 KiB) and runs the same request, answer,
-decoding, and preprocessing measurements at 1 and 4 GiB, and with records of
-32 and 128 cells at 1 GiB. The job at 1 GiB also reports the database
+the tree in blocks of 512 cells (16 KiB) and runs the same request, answer,
+decoding, and preprocessing measurements at 1 and 4 GiB, and with blocks of
+256 and 1024 cells at 1 GiB. The job at 1 GiB also reports the database
 dimensions and message sizes of the 16 and 64 GiB logs.
 
 **The table of complete openings** (`tab:private-table`). YPIR's server
@@ -138,7 +141,8 @@ answers over a table with one complete opening per pattern, for the claim of
 the maintainer jobs at 1 and 4 GiB. Its reply is checked to equal the
 record-based reply byte for byte.
 
-**The client** (`tab:private-client`). On a 12 MiB log, each of `3 kappa`
+**The client** (`tab:private-client`). On a 12 MiB log, at the public
+grouping, each of `3 kappa`
 claims preprocesses its own primary columns and answers one request; `kappa`
 of them lie about one node of the path. The client's request, its decoding
 plus Combine+Verify from `kappa` correct replies and from all `3 kappa`

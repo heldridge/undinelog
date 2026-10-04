@@ -136,7 +136,7 @@ fn a_server_updates_its_state_after_an_append() {
     let (params, auth, servers, mut values, _root) =
         written_cluster(kappa, 3 * kappa, 8, leaves, 113);
     let mut client = reader(&params, &auth, leaves, &servers);
-    assert_eq!(client.read_private(7, 1).expect("private opening"), values[7]);
+    assert_eq!(client.read_private(7).expect("private opening"), values[7]);
 
     let appended = (0..15u64)
         .map(|idx| encode_value(Fp::from(77_000 + idx)))
@@ -148,7 +148,7 @@ fn a_server_updates_its_state_after_an_append() {
     // private openings still equal the public ones.
     for index in [0u64, 7, 19, 20, 34] {
         let (value, path) = client
-            .read_private_with_path(index, 1, None)
+            .read_private_with_path(index, None)
             .expect("private opening after the append");
         assert_eq!(value, values[index as usize]);
         let (public_value, public_path) = client.read_with_path(index).expect("public opening");

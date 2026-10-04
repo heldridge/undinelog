@@ -32,7 +32,6 @@ struct Args {
     kappa: Option<usize>,
     open_kappa: Option<usize>,
     private: bool,
-    segments_per_record: Option<usize>,
     node_linearization: Option<String>,
     shard_count: Option<usize>,
     tree_height: Option<usize>,
@@ -114,11 +113,6 @@ fn parse_args() -> Result<Args, String> {
                 args.open_kappa = Some(v.parse().map_err(|_| "invalid --open-kappa")?);
             }
             "--private" => args.private = true,
-            "--segments-per-record" => {
-                let v = it.next().ok_or("--segments-per-record missing value")?;
-                args.segments_per_record =
-                    Some(v.parse().map_err(|_| "invalid --segments-per-record")?);
-            }
             "--max-errors" => {
                 let v = it.next().ok_or("--max-errors missing value")?;
                 args.max_errors = v.parse().map_err(|_| "invalid --max-errors")?;
@@ -523,10 +517,6 @@ fn main() {
         eprintln!("--private opens at the stored threshold; it cannot be combined with --open-kappa");
         std::process::exit(1);
     }
-    if args.segments_per_record.is_some() && !args.private {
-        eprintln!("--segments-per-record applies to --private");
-        std::process::exit(1);
-    }
     if !cfg!(feature = "private") && args.private {
         eprintln!("this client is built without private openings");
         std::process::exit(1);
@@ -752,7 +742,6 @@ fn main() {
                         let (value, path) = client
                             .read_private_with_path(
                                 index,
-                                args.segments_per_record.unwrap_or(1),
                                 (args.max_errors > 0).then_some(args.max_errors),
                             )
                             .unwrap_or_else(|err| {

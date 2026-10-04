@@ -39,14 +39,19 @@ const LOW_MASK: u64 = (1u64 << 32) - 1;
 /// Marks an empty slot in the row table.
 const NO_RECORD: u32 = u32::MAX;
 
+/// Plaintext cells of one stored entry, the width of a slot above the
+/// group's subtree.
+pub const UPPER_CELLS: usize = (ENTRY_BYTES * 8).div_ceil(CELL_BITS);
+
 /// Dimensions of the PIR database of a layout.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PirShape {
     /// Rows that hold a pattern.
     pub patterns: usize,
-    /// Slots per row.
+    /// Slots per record: two blocks and one entry per level above the
+    /// group's subtree.
     pub slots: usize,
-    /// Plaintext cells per record.
+    /// Plaintext cells per block, the width of slots 0 and 1.
     pub record_cells: usize,
 }
 
@@ -60,9 +65,40 @@ impl PirShape {
         }
     }
 
-    /// Plaintext cells of one row before padding.
+    /// Slots above the group's subtree.
+    pub fn upper_slots(&self) -> usize {
+        self.slots - 2
+    }
+
+    /// Plaintext cells of one slot.
+    pub fn slot_width(&self, slot: usize) -> usize {
+        if slot < 2 { self.record_cells } else { UPPER_CELLS }
+    }
+
+    /// First database column of one slot.
+    pub fn slot_offset(&self, slot: usize) -> usize {
+        if slot < 2 {
+            slot * self.record_cells
+        } else {
+            2 * self.record_cells + (slot - 2) * UPPER_CELLS
+        }
+    }
+
+    /// The slot and the offset within it of one database column, or `None`
+    /// for a padding column.
+    pub fn slot_of_column(&self, col: usize) -> Option<(usize, usize)> {
+        if col < 2 * self.record_cells {
+            Some((col / self.record_cells, col % self.record_cells))
+        } else {
+            let upper = col - 2 * self.record_cells;
+            let slot = 2 + upper / UPPER_CELLS;
+            (slot < self.slots).then_some((slot, upper % UPPER_CELLS))
+        }
+    }
+
+    /// Plaintext cells of one record before padding.
     pub fn row_cells(&self) -> usize {
-        self.slots * self.record_cells
+        2 * self.record_cells + self.upper_slots() * UPPER_CELLS
     }
 
     /// YPIR parameters for this shape, shared by all users of the shape.
@@ -109,15 +145,20 @@ impl PirShape {
     }
 }
 
-/// Write the entries of a record as plaintext cells, least significant bits
+/// Write the entries of a block as plaintext cells, least significant bits
 /// first.
 pub fn entries_to_cells(entries: &[Fp], out: &mut [u16]) {
+    bytes_to_cells(entries.iter().flat_map(|entry| encode_value(*entry)), out)
+}
+
+/// Write a byte string as plaintext cells, least significant bits first.
+pub fn bytes_to_cells(bytes: impl IntoIterator<Item = u8>, out: &mut [u16]) {
     let mut acc = 0u64;
     let mut acc_bits = 0usize;
     let mut next = 0usize;
     let mask = (1u64 << CELL_BITS) - 1;
-    for entry in entries {
-        for byte in encode_value(*entry) {
+    {
+        for byte in bytes {
             acc |= (byte as u64) << acc_bits;
             acc_bits += 8;
             while acc_bits >= CELL_BITS {
@@ -152,8 +193,13 @@ pub fn or_entry_into_cells(cells: &mut [u16], entry_in_record: usize, entry: Fp)
     }
 }
 
-/// Read entry `entry_in_record` back from the cells of a record.
+/// Read entry `entry_in_record` back from the cells of a block.
 pub fn entry_from_cells(cells: &[u64], entry_in_record: usize) -> Fp {
+    decode_value(bytes_from_cells(cells, entry_in_record))
+}
+
+/// Read the bytes of entry `entry_in_record` from the cells of a block.
+pub fn bytes_from_cells(cells: &[u64], entry_in_record: usize) -> [u8; ENTRY_BYTES] {
     let mut bytes = [0u8; ENTRY_BYTES];
     let first_bit = entry_in_record * ENTRY_BYTES * 8;
     for (k, byte) in bytes.iter_mut().enumerate() {
@@ -166,7 +212,7 @@ pub fn entry_from_cells(cells: &[u64], entry_in_record: usize) -> Fp {
         }
         *byte = value as u8;
     }
-    decode_value(bytes)
+    bytes
 }
 
 /// The packing keys of a client, as plain words: for each of the
@@ -259,10 +305,15 @@ pub struct UpdateTimes {
 pub struct PirDatabase {
     shape: PirShape,
     params: &'static Params,
-    /// `records x record_cells` plaintext cells.
+    /// `records x record_cells` plaintext cells of the blocks.
     cells: Vec<u16>,
     records: usize,
-    /// `patterns x slots` record numbers; [`NO_RECORD`] for an empty slot.
+    /// Per level above the groups, `count x UPPER_CELLS` plaintext cells:
+    /// the entry of every stored node of that level, by position.
+    upper: Vec<Vec<u16>>,
+    /// `patterns x slots` ids; [`NO_RECORD`] for an empty slot. Slots 0 and 1
+    /// hold block numbers, the slots above hold positions of upper nodes
+    /// within their level.
     rows: Vec<u32>,
     offline: OfflinePrecomputedValues<'static>,
 }
@@ -311,9 +362,41 @@ impl PirDatabase {
         cells
     }
 
-    /// Build the database from the plaintext cells of all records.
+    /// Build the database from the plaintext cells of all blocks.
     pub fn from_cells(layout: &PrivateLayout, cells: Vec<u16>) -> Self {
         Self::from_cells_timed(layout, cells, 1).0
+    }
+
+    /// The cells of every upper node, level by level, read from the cells
+    /// of the block that holds its entry.
+    pub fn upper_from_cells(layout: &PrivateLayout, cells: &[u16]) -> Vec<Vec<u16>> {
+        let shape = PirShape::of(layout);
+        let per_record = layout.entries_per_record();
+        let mut block = vec![0u64; shape.record_cells];
+        let mut last_record = usize::MAX;
+        (0..layout.upper_slots())
+            .map(|level| {
+                let count = layout.upper_count(level);
+                let mut upper = vec![0u16; count * UPPER_CELLS];
+                for pos in 0..count {
+                    let index = layout.upper_entry_index(level, pos);
+                    let record = index / per_record;
+                    if record != last_record {
+                        for (wide, &cell) in block.iter_mut().zip(
+                            &cells[record * shape.record_cells..(record + 1) * shape.record_cells],
+                        ) {
+                            *wide = cell as u64;
+                        }
+                        last_record = record;
+                    }
+                    bytes_to_cells(
+                        bytes_from_cells(&block, index % per_record),
+                        &mut upper[pos * UPPER_CELLS..(pos + 1) * UPPER_CELLS],
+                    );
+                }
+                upper
+            })
+            .collect()
     }
 
     /// [`Self::from_cells`] with the hint computed on `threads` threads,
@@ -328,8 +411,9 @@ impl PirDatabase {
         assert_eq!(cells.len(), records * shape.record_cells);
         let params = shape.params();
         let rows = layout.rows_table();
+        let upper = Self::upper_from_cells(layout, &cells);
         let start = std::time::Instant::now();
-        let hint = Self::hint(&shape, params, &cells, &rows, threads);
+        let hint = Self::hint(&shape, params, &cells, &upper, &rows, threads);
         let hint_time = start.elapsed();
         let start = std::time::Instant::now();
         let offline = factored::offline_from_hint(params, hint);
@@ -340,6 +424,7 @@ impl PirDatabase {
                 params,
                 cells,
                 records,
+                upper,
                 rows,
                 offline,
             },
@@ -351,17 +436,27 @@ impl PirDatabase {
     }
 
     /// The plaintext values of database column `col`, one per row.
-    fn fill_column(shape: &PirShape, cells: &[u16], rows: &[u32], col: usize, values: &mut [u16]) {
+    fn fill_column(
+        shape: &PirShape,
+        cells: &[u16],
+        upper: &[Vec<u16>],
+        rows: &[u32],
+        col: usize,
+        values: &mut [u16],
+    ) {
         values.fill(0);
-        let slot = col / shape.record_cells;
-        if slot >= shape.slots {
+        let Some((slot, offset)) = shape.slot_of_column(col) else {
             return;
-        }
-        let offset = col % shape.record_cells;
+        };
+        let (table, width) = if slot < 2 {
+            (cells, shape.record_cells)
+        } else {
+            (upper[slot - 2].as_slice(), UPPER_CELLS)
+        };
         for pattern in 0..shape.patterns {
-            let record = rows[pattern * shape.slots + slot];
-            if record != NO_RECORD {
-                values[pattern] = cells[record as usize * shape.record_cells + offset];
+            let id = rows[pattern * shape.slots + slot];
+            if id != NO_RECORD {
+                values[pattern] = table[id as usize * width + offset];
             }
         }
     }
@@ -371,13 +466,15 @@ impl PirDatabase {
         shape: &PirShape,
         params: &'static Params,
         cells: &[u16],
+        upper: &[Vec<u16>],
         rows: &[u32],
         threads: usize,
     ) -> Vec<u64> {
         let db_cols = factored::simplepir_db_cols(params);
         let preprocessed_query = factored::pseudorandom_query(params, SEED_0);
-        let fill_column =
-            |col: usize, values: &mut [u16]| Self::fill_column(shape, cells, rows, col, values);
+        let fill_column = |col: usize, values: &mut [u16]| {
+            Self::fill_column(shape, cells, upper, rows, col, values)
+        };
         let threads = threads.clamp(1, db_cols);
         if threads == 1 {
             return factored::hint_from_columns(params, &preprocessed_query, 0..db_cols, fill_column);
@@ -502,8 +599,10 @@ impl PirDatabase {
             }
         }
 
-        // New rows.
+        // New rows and new upper nodes.
         let rows = layout.rows_table();
+        let old_upper = std::mem::take(&mut self.upper);
+        let upper = Self::upper_from_cells(layout, &self.cells);
 
         // The hint, moved to the new column count.
         let old_cols = factored::simplepir_db_cols(self.params);
@@ -523,8 +622,20 @@ impl PirDatabase {
                 NO_RECORD
             }
         };
-        let changed = |old: u32, new: u32| -> bool {
-            old != new || (new != NO_RECORD && old_cells.contains_key(&(new as usize)))
+        fn upper_cells_of(table: &[Vec<u16>], level: usize, pos: usize) -> Option<&[u16]> {
+            let cells = table.get(level)?;
+            cells.get(pos * UPPER_CELLS..(pos + 1) * UPPER_CELLS)
+        }
+        let changed = |slot: usize, old: u32, new: u32| -> bool {
+            if old != new || new == NO_RECORD {
+                return old != new;
+            }
+            let id = new as usize;
+            if slot < 2 {
+                old_cells.contains_key(&id)
+            } else {
+                upper_cells_of(&old_upper, slot - 2, id) != upper_cells_of(&upper, slot - 2, id)
+            }
         };
         // The change of one slot is a sum over its runs: every column of the
         // slot gains its cell's change times the hint of the run's row
@@ -540,12 +651,14 @@ impl PirDatabase {
         let mut sum_lo = vec![0u64; poly_len * TILE];
         let mut sum_hi = vec![0u64; poly_len * TILE];
         for slot in 0..shape.slots {
+            let width = shape.slot_width(slot);
+            let column_base = shape.slot_offset(slot);
             let mut runs: Vec<(Option<&[u16]>, Option<&[u16]>, std::ops::Range<usize>)> = Vec::new();
             let mut pattern = 0usize;
             while pattern < shape.patterns {
                 let old = old_record_at(pattern, slot);
                 let new = rows[pattern * shape.slots + slot];
-                if !changed(old, new) {
+                if !changed(slot, old, new) {
                     pattern += 1;
                     continue;
                 }
@@ -557,30 +670,38 @@ impl PirDatabase {
                     pattern += 1;
                 }
                 let before: Option<&[u16]> = (old != NO_RECORD).then(|| {
-                    let record = old as usize;
-                    match old_cells.get(&record) {
-                        Some(cells) => cells.as_slice(),
-                        None => &self.cells[record * record_cells..(record + 1) * record_cells],
+                    let id = old as usize;
+                    if slot < 2 {
+                        match old_cells.get(&id) {
+                            Some(cells) => cells.as_slice(),
+                            None => &self.cells[id * record_cells..(id + 1) * record_cells],
+                        }
+                    } else {
+                        upper_cells_of(&old_upper, slot - 2, id).expect("old upper node")
                     }
                 });
                 let after: Option<&[u16]> = (new != NO_RECORD).then(|| {
-                    let record = new as usize;
-                    &self.cells[record * record_cells..(record + 1) * record_cells]
+                    let id = new as usize;
+                    if slot < 2 {
+                        &self.cells[id * record_cells..(id + 1) * record_cells]
+                    } else {
+                        upper_cells_of(&upper, slot - 2, id).expect("new upper node")
+                    }
                 });
                 runs.push((before, after, start..pattern));
             }
             // The hint of each run's row range, in the two residues,
             // computed when a cell of the run first differs.
             let mut range_hints: Vec<Option<(Vec<u64>, Vec<u64>)>> = vec![None; runs.len()];
-            for tile_start in (0..record_cells).step_by(TILE) {
-                let width = TILE.min(record_cells - tile_start);
+            for tile_start in (0..width).step_by(TILE) {
+                let tile_width = TILE.min(width - tile_start);
                 let mut touched = false;
                 let mut pending = 0usize;
                 for (run, (before, after, row_range)) in runs.iter().enumerate() {
                     let mut delta_lo = [0u64; TILE];
                     let mut delta_hi = [0u64; TILE];
                     let mut any = false;
-                    for t in 0..width {
+                    for t in 0..tile_width {
                         let offset = tile_start + t;
                         let delta = after.map_or(0, |cells| cells[offset] as i64)
                             - before.map_or(0, |cells| cells[offset] as i64);
@@ -626,8 +747,8 @@ impl PirDatabase {
                     continue;
                 }
                 for i in 0..poly_len {
-                    let base = i * db_cols + slot * record_cells + tile_start;
-                    for t in 0..width {
+                    let base = i * db_cols + column_base + tile_start;
+                    for t in 0..tile_width {
                         let lo = barrett_coeff_u64(params, sum_lo[i * TILE + t], 0);
                         let hi = barrett_coeff_u64(params, sum_hi[i * TILE + t], 1);
                         let add = barrett_u64(params, params.crt_compose_2(lo, hi));
@@ -653,6 +774,7 @@ impl PirDatabase {
         self.shape = shape;
         self.params = params;
         self.records = records;
+        self.upper = upper;
         self.rows = rows;
         UpdateTimes {
             hint: hint_time,
@@ -673,7 +795,9 @@ impl PirDatabase {
                     self.params,
                     &preprocessed_query,
                     col..col + 1,
-                    |col, values| Self::fill_column(shape, &self.cells, &self.rows, col, values),
+                    |col, values| {
+                        Self::fill_column(shape, &self.cells, &self.upper, &self.rows, col, values)
+                    },
                 )
             })
             .collect()
@@ -731,7 +855,20 @@ impl PirDatabase {
     /// Bytes of the stored records and of the table that places them in
     /// rows.
     pub fn record_state_bytes(&self) -> usize {
-        self.cells.len() * 2 + self.rows.len() * 4
+        let upper = self.upper.iter().map(Vec::len).sum::<usize>();
+        (self.cells.len() + upper) * 2 + self.rows.len() * 4
+    }
+
+    /// The plaintext cells of the upper node `level` levels above the
+    /// groups at position `pos`.
+    pub fn upper_cells(&self, level: usize, pos: usize) -> &[u16] {
+        &self.upper[level][pos * UPPER_CELLS..(pos + 1) * UPPER_CELLS]
+    }
+
+    /// The plaintext cells of the item in one slot of a record: a block for
+    /// slots 0 and 1, an upper node above.
+    pub fn slot_cells(&self, slot: usize, id: usize) -> &[u16] {
+        if slot < 2 { self.record_cells(id) } else { self.upper_cells(slot - 2, id) }
     }
 
     /// Dimensions of this database.
@@ -778,7 +915,7 @@ impl PirDatabase {
         // many products fit in 64 bits.
         const REDUCE_EVERY: usize = 1 << 15;
 
-        for slot in 0..shape.slots {
+        for slot in 0..2.min(shape.slots) {
             touched.clear();
             for pattern in 0..shape.patterns {
                 let record = self.rows[pattern * shape.slots + slot];
@@ -825,10 +962,65 @@ impl PirDatabase {
                     pending = 0;
                 }
             }
-            let base = slot * shape.record_cells;
+            let base = shape.slot_offset(slot);
             for offset in 0..shape.record_cells {
                 let lo = barrett_coeff_u64(params, sum_lo[offset], 0);
                 let hi = barrett_coeff_u64(params, sum_hi[offset], 1);
+                out[base + offset] = barrett_u64(params, params.crt_compose_2(lo, hi));
+            }
+        }
+
+        // Above the groups, each stored node is multiplied once by the sum
+        // of the coefficients of the patterns below its sibling, a
+        // contiguous range.
+        let mut upper_lo = [0u64; UPPER_CELLS];
+        let mut upper_hi = [0u64; UPPER_CELLS];
+        for level in 0..shape.upper_slots() {
+            upper_lo.fill(0);
+            upper_hi.fill(0);
+            let mut pending = 0usize;
+            let count = self.upper[level].len() / UPPER_CELLS;
+            for pos in 0..count {
+                let start = ((pos ^ 1) << level).min(shape.patterns);
+                let end = (((pos ^ 1) + 1) << level).min(shape.patterns);
+                let mut lo = 0u64;
+                let mut hi = 0u64;
+                for &coefficient in &query[start..end] {
+                    lo += coefficient & LOW_MASK;
+                    hi += coefficient >> 32;
+                    if lo >= 1 << 62 {
+                        lo = barrett_coeff_u64(params, lo, 0);
+                    }
+                    if hi >= 1 << 62 {
+                        hi = barrett_coeff_u64(params, hi, 1);
+                    }
+                }
+                let a_lo = barrett_coeff_u64(params, lo, 0);
+                let a_hi = barrett_coeff_u64(params, hi, 1);
+                if a_lo == 0 && a_hi == 0 {
+                    continue;
+                }
+                for ((lo, hi), &cell) in upper_lo
+                    .iter_mut()
+                    .zip(upper_hi.iter_mut())
+                    .zip(self.upper_cells(level, pos))
+                {
+                    *lo += a_lo * cell as u64;
+                    *hi += a_hi * cell as u64;
+                }
+                pending += 1;
+                if pending == REDUCE_EVERY {
+                    for (lo, hi) in upper_lo.iter_mut().zip(upper_hi.iter_mut()) {
+                        *lo = barrett_coeff_u64(params, *lo, 0);
+                        *hi = barrett_coeff_u64(params, *hi, 1);
+                    }
+                    pending = 0;
+                }
+            }
+            let base = shape.slot_offset(2 + level);
+            for offset in 0..UPPER_CELLS {
+                let lo = barrett_coeff_u64(params, upper_lo[offset], 0);
+                let hi = barrett_coeff_u64(params, upper_hi[offset], 1);
                 out[base + offset] = barrett_u64(params, params.crt_compose_2(lo, hi));
             }
         }
@@ -901,7 +1093,8 @@ impl PirClient {
         let cells = factored::client_decode(params, &self.client, response);
         Ok((0..self.shape.slots)
             .map(|slot| {
-                cells[slot * self.shape.record_cells..(slot + 1) * self.shape.record_cells].to_vec()
+                let offset = self.shape.slot_offset(slot);
+                cells[offset..offset + self.shape.slot_width(slot)].to_vec()
             })
             .collect())
     }
@@ -929,16 +1122,15 @@ impl TableDatabase {
         // `YServer::new` reads its input row by row.
         let table = (0..db_rows).flat_map(|row| {
             (0..db_cols).map(move |col| {
-                let slot = col / shape.record_cells;
-                if row >= shape.patterns || slot >= shape.slots {
+                let Some((slot, offset)) = shape.slot_of_column(col) else {
+                    return 0u16;
+                };
+                if row >= shape.patterns {
                     return 0u16;
                 }
                 match database.rows[row * shape.slots + slot] {
                     NO_RECORD => 0,
-                    record => {
-                        database.cells
-                            [record as usize * shape.record_cells + col % shape.record_cells]
-                    }
+                    id => database.slot_cells(slot, id as usize)[offset],
                 }
             })
         });

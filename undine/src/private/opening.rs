@@ -16,7 +16,9 @@ use crate::unauth::CodedArrayParams;
 use crate::value::Value256;
 
 /// The request of a private opening. It is the same for every maintainer
-/// and for every position with the same pattern count.
+/// and for every position with the same pattern count. The block size is
+/// the public grouping of the log length, which the client derives from the
+/// anchor and the maintainer checks.
 #[derive(Clone, Debug)]
 pub struct PrivateReadRequest {
     /// Filled leaves of the log the client opens: the anchor's length.
@@ -55,7 +57,22 @@ pub struct PrivateOpening {
 
 impl PrivateOpening {
     /// Prepare the opening of leaf `index` of a log of `leaves` filled
-    /// leaves, with a fresh secret key.
+    /// leaves under the public grouping, with a fresh secret key.
+    pub fn for_log(
+        params: &CodedArrayParams,
+        auth: &AuthParams,
+        node_linearization: NodeLinearization,
+        leaves: u64,
+        index: u64,
+    ) -> Result<Self, LayoutError> {
+        let grouping = crate::private::layout::segments_per_block(leaves);
+        Self::new(params, auth, node_linearization, leaves, grouping, index)
+    }
+
+    /// Prepare the opening of leaf `index` of a log of `leaves` filled
+    /// leaves with blocks of `segments_per_record` segments, with a fresh
+    /// secret key. A maintainer answers only the public grouping of the
+    /// log length.
     pub fn new(
         params: &CodedArrayParams,
         auth: &AuthParams,
@@ -271,8 +288,8 @@ impl AuthServer {
         self.private_state.as_deref()
     }
 
-    /// Answer a private opening at the stored threshold and the current log
-    /// length.
+    /// Answer a private opening at the stored threshold, the current log
+    /// length, and the public grouping of that length.
     pub fn handle_private_read(
         &mut self,
         request: &PrivateReadRequest,
@@ -290,7 +307,14 @@ impl AuthServer {
                 self.allocated_leaves()
             ));
         }
-        self.prepare_private(request.segments_per_record)?;
+        let grouping = crate::private::layout::segments_per_block(request.leaves);
+        if request.segments_per_record != grouping {
+            return Err(format!(
+                "private openings of a log of {} leaves use blocks of {grouping} segments",
+                request.leaves
+            ));
+        }
+        self.prepare_private(grouping)?;
         self.private_state
             .as_ref()
             .expect("private state was just prepared")

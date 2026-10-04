@@ -97,14 +97,13 @@ impl AppendOnlyLogClient {
     }
 
     /// Open one leaf privately: one PIR query, the same to every maintainer,
-    /// over records of `segments_per_record` segments. The replies are
-    /// combined and verified like those of a public opening, correcting up
-    /// to `max_errors` bad ones when given.
+    /// over the blocks of the public grouping of the log length. The replies
+    /// are combined and verified like those of a public opening, correcting
+    /// up to `max_errors` bad ones when given.
     #[cfg(feature = "private")]
     pub fn read_leaf_private_with_path(
         &mut self,
         index: u64,
-        segments_per_record: usize,
         max_errors: Option<usize>,
     ) -> Result<(Value256, AuthPath), ArchiveError> {
         self.ensure_trusted_root_for_read()?;
@@ -116,7 +115,7 @@ impl AppendOnlyLogClient {
         }
         self.archive
             .inner
-            .read_private_with_path(index, segments_per_record, max_errors)
+            .read_private_with_path(index, max_errors)
             .map_err(ArchiveError::Auth)
     }
 

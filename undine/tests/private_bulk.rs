@@ -237,8 +237,10 @@ fn an_update_from_the_changed_records_equals_a_fresh_database() {
         );
         for pattern in [0, new_layout.patterns() - 1] {
             assert_eq!(by_changed.row(pattern), fresh.row(pattern), "{context}");
-            for record in fresh.row(pattern).into_iter().flatten() {
-                assert!(by_changed.record_cells(record) == fresh.record_cells(record));
+            for (slot, id) in fresh.row(pattern).into_iter().enumerate() {
+                if let Some(id) = id {
+                    assert!(by_changed.slot_cells(slot, id) == fresh.slot_cells(slot, id));
+                }
             }
         }
     }
@@ -327,14 +329,14 @@ fn large_log_probe() {
 
     // The decoded row holds the records of the pattern.
     let row = layout.row(shape.patterns / 3);
-    for (slot, record) in row.iter().enumerate() {
-        if let Some(record) = record {
+    for (slot, item) in row.iter().enumerate() {
+        if let Some(id) = item {
             let expected = database
-                .record_cells(*record)
+                .slot_cells(slot, *id)
                 .iter()
                 .map(|&cell| cell as u64)
                 .collect::<Vec<_>>();
-            assert!(slots[slot] == expected, "slot {slot} decodes its record");
+            assert!(slots[slot] == expected, "slot {slot} decodes its item");
         }
     }
     println!("peak {} MiB", peak_rss_mib());

@@ -120,7 +120,14 @@ class ManifestTests(unittest.TestCase):
                 "maintainer": len(MODULE.PRIVATE_LOGS_GIB)
                 + len(MODULE.KAPPAS)
                 - 1
-                + len(MODULE.PRIVATE_RECORD_SWEEP),
+                + sum(
+                    1
+                    for block in MODULE.PRIVATE_BLOCK_SWEEP
+                    if block
+                    != MODULE.private_grouping(
+                        MODULE.leaves_of_gib(MODULE.PRIVATE_BLOCK_SWEEP_GIB)
+                    )
+                ),
                 "single": len(MODULE.PRIVATE_SINGLE_CELL_SWEEP)
                 + len(MODULE.PRIVATE_SINGLE_MEASURED_GIB)
                 - 1,
@@ -129,16 +136,21 @@ class ManifestTests(unittest.TestCase):
             },
         )
 
-    def test_private_records_hold_the_same_entries_at_every_threshold(self) -> None:
+    def test_private_blocks_follow_the_public_grouping(self) -> None:
+        self.assertEqual(MODULE.private_grouping(MODULE.leaves_of_gib(1)), 1)
+        self.assertEqual(MODULE.private_grouping(MODULE.leaves_of_gib(4)), 2)
+        self.assertEqual(MODULE.private_grouping(MODULE.leaves_of_gib(16)), 4)
+        self.assertEqual(MODULE.private_grouping(MODULE.leaves_of_gib(64)), 8)
+        self.assertEqual(MODULE.private_grouping(3 * MODULE.BATCH_VALUES_4MIB), 1)
         for job in self.manifest.jobs.values():
             env = job.env_dict()
             role = env.get(f"{MODULE.PRIVATE_PREFIX}_ROLE")
-            if role not in {"maintainer", "client"}:
+            if role not in {"maintainer", "table", "client"}:
                 continue
-            kappa = int(env[f"{MODULE.PRIVATE_PREFIX}_KAPPA"])
+            leaves = int(env[f"{MODULE.PRIVATE_PREFIX}_LEAVES"])
             segments = int(env[f"{MODULE.PRIVATE_PREFIX}_SEGMENTS_PER_RECORD"])
-            if kappa != MODULE.PRIVATE_KAPPA:
-                self.assertEqual(kappa * segments, MODULE.PRIVATE_RECORD_ENTRIES, job.id)
+            if "-log64gib-" not in job.id or role != "maintainer":
+                self.assertEqual(segments, MODULE.private_grouping(leaves), job.id)
 
     def test_fragment_sizes_agree_between_layouts_at_segment_kappa_squared(self) -> None:
         for kappa in MODULE.KAPPAS:
@@ -148,8 +160,8 @@ class ManifestTests(unittest.TestCase):
             )
 
     def test_exact_full_job_count_is_stable(self) -> None:
-        self.assertEqual(len(self.manifest.jobs), 66)
-        self.assertEqual(len(self.manifest.cells), 663)
+        self.assertEqual(len(self.manifest.jobs), 68)
+        self.assertEqual(len(self.manifest.cells), 691)
 
     def test_every_table_cell_satisfies_its_unit_contract(self) -> None:
         for cell in self.manifest.cells.values():

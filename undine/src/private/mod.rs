@@ -23,7 +23,7 @@ pub use bulk::{
     BulkColumns, BulkLog, build_primary_columns, build_primary_columns_in_chunks,
     build_tree_cells, bulk_leaf_value,
 };
-pub use layout::{LayoutError, PlannedEntry, PrivateLayout};
+pub use layout::{LayoutError, PlannedEntry, PrivateLayout, segments_per_block};
 pub use opening::{
     PrivateOpening, PrivateReadReply, PrivateReadRequest, PrivateReadResponse, PrivateState,
 };

@@ -54,18 +54,19 @@ fn assert_private_answers(kappa: usize, tree_height: usize, leaves: usize, segme
             "response differs from the table's for pattern {pattern}"
         );
 
-        // The client decodes the records of the row.
+        // The client decodes the record of the pattern: its blocks and the
+        // entries of its upper nodes.
         let slots = client.decode(&response).expect("decode");
         let row = layout.row(pattern);
         assert_eq!(slots.len(), row.len());
-        for (slot, record) in row.iter().enumerate() {
-            let expected = match record {
-                Some(record) => database
-                    .record_cells(*record)
+        for (slot, item) in row.iter().enumerate() {
+            let expected = match item {
+                Some(id) => database
+                    .slot_cells(slot, *id)
                     .iter()
                     .map(|&cell| cell as u64)
                     .collect::<Vec<_>>(),
-                None => vec![0u64; shape.record_cells],
+                None => vec![0u64; shape.slot_width(slot)],
             };
             assert!(slots[slot] == expected, "pattern {pattern}, slot {slot}");
         }
