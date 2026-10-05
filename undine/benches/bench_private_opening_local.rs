@@ -41,7 +41,7 @@ use paper_a_optimized::private::wire::{
 use paper_a_optimized::private::{
     BulkLog, PackKeys, PirClient, PirDatabase, PirError, PirShape, PlannedEntry, PrivateLayout,
     PrivateOpening, PrivateReadResponse, TableDatabase, build_primary_columns,
-    build_tree_cells, bulk_leaf_value, entry_from_cells, segments_per_block,
+    build_tree_cells, bulk_leaf_value, entry_from_cells, pattern_bits, Grouping,
 };
 use paper_a_optimized::unauth::error_correcting_share_target;
 use paper_a_optimized::merkle::{default_hash, leaf_key, parent, recompute_root, sibling};
@@ -122,11 +122,15 @@ struct ShapeFields {
     record_bytes: u64,
     records: u64,
     patterns: u64,
+    /// Leaves per pattern, as a power of two.
+    pattern_bits: u64,
     slots: u64,
+    /// Slots of a record that hold groups.
+    group_slots: u64,
     db_rows: u64,
     db_cols: u64,
     /// Database columns that hold stored data: the plaintext cells of a
-    /// record, two blocks and one entry per upper slot.
+    /// record, its groups and one entry per upper slot.
     record_columns: u64,
     /// Ciphertexts of one reply.
     outputs: u64,
@@ -416,11 +420,11 @@ fn blob_bytes(len: u64) -> u64 {
 }
 
 /// Serialized bytes of the request message of a database shape.
-fn request_message_bytes(shape: &PirShape, leaves: u64, kappa: u64, record_parameter: u64) -> u64 {
+fn request_message_bytes(shape: &PirShape, leaves: u64, kappa: u64, pattern_bits: u64) -> u64 {
     // Message tag, three integers, and the two blobs of seven-byte words.
     1 + varint_bytes(leaves)
         + varint_bytes(kappa)
-        + varint_bytes(record_parameter)
+        + varint_bytes(pattern_bits)
         + blob_bytes(shape.db_rows() as u64 * WORD_BYTES as u64)
         + blob_bytes((shape.pack_key_words() * WORD_BYTES) as u64)
 }
@@ -435,12 +439,7 @@ fn reply_message_bytes(shape: &PirShape, registry_index: u64) -> u64 {
         + outputs * blob_bytes(shape.ciphertext_bytes() as u64)
 }
 
-fn shape_fields(
-    layout: &PrivateLayout,
-    kappa: usize,
-    record_parameter: usize,
-    registry_index: usize,
-) -> ShapeFields {
+fn shape_fields(layout: &PrivateLayout, kappa: usize, registry_index: usize) -> ShapeFields {
     let shape = PirShape::of(layout);
     let record_bytes = layout.entries_per_record() as u64 * FIELD_BYTES;
     ShapeFields {
@@ -449,7 +448,9 @@ fn shape_fields(
         record_bytes,
         records: layout.records() as u64,
         patterns: shape.patterns as u64,
+        pattern_bits: u64::from(layout.group_bits()),
         slots: shape.slots as u64,
+        group_slots: shape.group_slots as u64,
         db_rows: shape.db_rows() as u64,
         db_cols: shape.db_cols() as u64,
         record_columns: shape.row_cells() as u64,
@@ -459,7 +460,7 @@ fn shape_fields(
             &shape,
             layout.leaves(),
             kappa as u64,
-            record_parameter as u64,
+            u64::from(layout.group_bits()),
         ),
         reply_bytes: reply_message_bytes(&shape, registry_index as u64),
     }
@@ -469,12 +470,7 @@ fn shape_fields(
 // One request, answer, and decoding on the wire.
 
 /// The serialized request of a client with a fresh key for `pattern`.
-fn client_request(
-    layout: &PrivateLayout,
-    kappa: usize,
-    record_parameter: usize,
-    pattern: usize,
-) -> (PirClient, Vec<u8>) {
+fn client_request(layout: &PrivateLayout, kappa: usize, pattern: usize) -> (PirClient, Vec<u8>) {
     let client = PirClient::generate(PirShape::of(layout));
     let query = client.query(pattern);
     let pack_keys = client.pack_keys();
@@ -482,7 +478,7 @@ fn client_request(
         req: AuthPrivateReadRequest {
             leaves: layout.leaves(),
             kappa: kappa as u64,
-            segments_per_record: record_parameter as u64,
+            pattern_bits: u64::from(layout.group_bits()),
             query: NetByteBlob(pack_words(&query)),
             pack_keys: NetByteBlob(pack_words(&pack_keys.words)),
         },
@@ -594,7 +590,6 @@ fn answer_trials(
     trials: usize,
     layout: &PrivateLayout,
     kappa: usize,
-    record_parameter: usize,
     registry_index: usize,
     fields: &ShapeFields,
     first_pass: &dyn Fn(&[u64]) -> Result<Vec<u64>, PirError>,
@@ -613,7 +608,7 @@ fn answer_trials(
         let plan = layout.opening_plan(leaf);
 
         let ((client, request), request_ns) =
-            timed(|| client_request(layout, kappa, record_parameter, pattern));
+            timed(|| client_request(layout, kappa, pattern));
         assert_eq!(request.len() as u64, fields.request_bytes, "request bytes");
         samples.client_request.push(request_ns);
 
@@ -671,14 +666,47 @@ fn packing_table_trials(common: &Common, database: &PirDatabase) -> MetricStats 
     stats_from_samples(samples)
 }
 
+/// The grouping of a run: the public one by default. `PATTERN_BITS` sets
+/// the pattern size and `SEGMENTS_PER_RECORD` the group; with only
+/// `SEGMENTS_PER_RECORD`, the pattern is the largest whose subtree fits in
+/// one group, so a record holds two groups.
+fn grouping_of_env(common: &Common) -> Grouping {
+    let segments = std::env::var(format!("{ENV_PREFIX}_SEGMENTS_PER_RECORD")).ok();
+    let bits = std::env::var(format!("{ENV_PREFIX}_PATTERN_BITS")).ok();
+    let segments_per_group = parse_usize_env("SEGMENTS_PER_RECORD", 1);
+    match (segments, bits) {
+        (Some(_), None) => Grouping::one_group(segments_per_group, common.kappa * common.kappa),
+        _ => Grouping {
+            segments_per_group,
+            pattern_bits: parse_usize_env(
+                "PATTERN_BITS",
+                pattern_bits(common.leaves, common.kappa) as usize,
+            ) as u32,
+        },
+    }
+}
+
+/// The pattern size of a server that stores the whole tree in groups of
+/// `cells_per_record` cells: the public one for threshold 1 by default, and
+/// with only `CELLS_PER_RECORD` the largest that fits in one group.
+fn single_pattern_bits(common: &Common, cells_per_record: usize) -> u32 {
+    let cells = std::env::var(format!("{ENV_PREFIX}_CELLS_PER_RECORD")).ok();
+    let bits = std::env::var(format!("{ENV_PREFIX}_PATTERN_BITS")).ok();
+    match (cells, bits) {
+        (Some(_), None) => Grouping::one_group(1, cells_per_record).pattern_bits,
+        _ => parse_usize_env("PATTERN_BITS", pattern_bits(common.leaves, 1) as usize) as u32,
+    }
+}
+
 fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
-    let segments_per_record = parse_usize_env("SEGMENTS_PER_RECORD", segments_per_block(common.leaves));
+    let grouping = grouping_of_env(common);
+    let segments_per_record = grouping.segments_per_group;
     let append_leaves = parse_usize_env("APPEND_LEAVES", DEFAULT_APPEND_LEAVES) as u64;
     let registry_index = 0usize;
     let params = build_params(common.kappa, common.kappa);
     let auth = AuthParams::new(common.tree_height);
     let layout_at = |leaves: u64| {
-        PrivateLayout::new(&params, &auth, ORDER, leaves, segments_per_record).expect("layout")
+        PrivateLayout::with_grouping(&params, &auth, ORDER, leaves, grouping).expect("layout")
     };
 
     // Setup: the primary columns of the seeded log and their preprocessing.
@@ -697,7 +725,7 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     let (mut database, _) = PirDatabase::from_cells_timed(&layout, cells, cpus.setup_threads);
     cpus.restore();
 
-    let fields = shape_fields(&layout, common.kappa, segments_per_record, registry_index);
+    let fields = shape_fields(&layout, common.kappa, registry_index);
     let preprocessed_bytes = database.preprocessed_bytes() as u64;
     let serving_state_bytes = preprocessed_bytes + database.record_state_bytes() as u64;
 
@@ -714,7 +742,6 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
             common.trials,
             &layout,
             common.kappa,
-            segments_per_record,
             registry_index,
             &fields,
             &|query| database.first_pass(query),
@@ -772,12 +799,8 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     }
     for leaf in [0, common.leaves - 1, common.leaves, leaves - 1] {
         let plan = final_layout.opening_plan(leaf);
-        let (client, request) = client_request(
-            &final_layout,
-            common.kappa,
-            segments_per_record,
-            final_layout.pattern_of(leaf),
-        );
+        let (client, request) =
+            client_request(&final_layout, common.kappa, final_layout.pattern_of(leaf));
         let reply = serve(
             &|query, pack_keys| database.answer(query, pack_keys),
             registry_index,
@@ -812,10 +835,12 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
 
 fn run_single(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     let cells_per_record = parse_usize_env("CELLS_PER_RECORD", DEFAULT_CELLS_PER_RECORD);
+    let pattern = single_pattern_bits(common, cells_per_record);
     let shape_leaves = parse_usize_list_env("SHAPE_LEAVES_LIST");
     let auth = AuthParams::new(common.tree_height);
     let layout_at = |leaves: u64| {
-        PrivateLayout::whole_tree(&auth, ORDER, leaves, cells_per_record).expect("layout")
+        PrivateLayout::whole_tree_with_pattern(&auth, ORDER, leaves, cells_per_record, pattern)
+            .expect("layout")
     };
 
     let layout = layout_at(common.leaves);
@@ -824,7 +849,7 @@ fn run_single(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     cpus.restore();
 
     // The single server serves one database: kappa is one on the wire.
-    let fields = shape_fields(&layout, 1, cells_per_record, 0);
+    let fields = shape_fields(&layout, 1, 0);
     let preprocessed_bytes = database.preprocessed_bytes() as u64;
     let serving_state_bytes = preprocessed_bytes + database.record_state_bytes() as u64;
 
@@ -858,7 +883,6 @@ fn run_single(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
             common.trials,
             &layout,
             1,
-            cells_per_record,
             0,
             &fields,
             &|query| database.first_pass(query),
@@ -888,25 +912,37 @@ fn run_single(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         append_leaves: None,
         packing_table_ns,
     }))];
+    // A longer log has the pattern size of its own length: the measured
+    // log's distance from the public size is kept.
+    let offset = i64::from(pattern) - i64::from(pattern_bits(common.leaves, 1));
     for leaves in shape_leaves {
-        let layout = layout_at(leaves as u64);
+        let shape_pattern = (i64::from(pattern_bits(leaves as u64, 1)) + offset) as u32;
+        let layout = PrivateLayout::whole_tree_with_pattern(
+            &auth,
+            ORDER,
+            leaves as u64,
+            cells_per_record,
+            shape_pattern,
+        )
+        .expect("layout");
         entries.push(BenchEntry::Shape(ShapeEntry {
             role: "single-shape",
             kappa: 1,
             segments_per_record: 0,
             cells_per_record,
-            shape: shape_fields(&layout, 1, cells_per_record, 0),
+            shape: shape_fields(&layout, 1, 0),
         }));
     }
     entries
 }
 
 fn run_table(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
-    let segments_per_record = parse_usize_env("SEGMENTS_PER_RECORD", segments_per_block(common.leaves));
+    let grouping = grouping_of_env(common);
+    let segments_per_record = grouping.segments_per_group;
     let registry_index = 0usize;
     let params = build_params(common.kappa, common.kappa);
     let auth = AuthParams::new(common.tree_height);
-    let layout = PrivateLayout::new(&params, &auth, ORDER, common.leaves, segments_per_record)
+    let layout = PrivateLayout::with_grouping(&params, &auth, ORDER, common.leaves, grouping)
         .expect("layout");
 
     let bulk = build_primary_columns(
@@ -924,11 +960,11 @@ fn run_table(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     let table = TableDatabase::from_database(&database);
     cpus.restore();
 
-    let fields = shape_fields(&layout, common.kappa, segments_per_record, registry_index);
+    let fields = shape_fields(&layout, common.kappa, registry_index);
     let table_bytes = fields.patterns * fields.slots * fields.record_bytes;
     // The table answers with the bytes of the record-based database.
     {
-        let (_, request) = client_request(&layout, common.kappa, segments_per_record, 0);
+        let (_, request) = client_request(&layout, common.kappa, 0);
         let (query, pack_keys) = parse_request(&request);
         assert!(
             table.answer(&query, &pack_keys).expect("table answer")
@@ -943,7 +979,7 @@ fn run_table(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         let leaf = trial_leaf(&layout, trial);
         let plan = layout.opening_plan(leaf);
         let (client, request) =
-            client_request(&layout, common.kappa, segments_per_record, layout.pattern_of(leaf));
+            client_request(&layout, common.kappa, layout.pattern_of(leaf));
         let (query, _) = parse_request(&request);
         first_pass.push(timed(|| table.first_pass(&query).expect("first pass")).1);
         let (reply, answer_ns) = timed(|| {
@@ -1078,7 +1114,8 @@ fn same_replies(left: &AuthReadResponse, right: &AuthReadResponse) -> bool {
 }
 
 fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
-    let segments_per_record = parse_usize_env("SEGMENTS_PER_RECORD", segments_per_block(common.leaves));
+    let grouping = grouping_of_env(common);
+    let segments_per_record = grouping.segments_per_group;
     let memory_mib = parse_usize_env("CLIENT_SETUP_MEMORY_MIB", DEFAULT_CLIENT_SETUP_MEMORY_MIB);
     let kappa = common.kappa;
     let claims = error_correcting_share_target(kappa, kappa);
@@ -1087,12 +1124,12 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     let index = common.leaves / 2 + 1;
 
     // One opening whose replies the setup collects.
-    let opening = PrivateOpening::new(&params, &auth, ORDER, common.leaves, segments_per_record, index)
+    let opening = PrivateOpening::with_grouping(&params, &auth, ORDER, common.leaves, grouping, index)
         .expect("opening");
     let layout = opening.layout().clone();
     let plan = layout.opening_plan(index);
     let request = opening.request();
-    let fields = shape_fields(&layout, kappa, segments_per_record, claims - 1);
+    let fields = shape_fields(&layout, kappa, claims - 1);
 
     // Each claim preprocesses its own database and answers the request. The
     // first `kappa` claims lie about one node of the path each.
@@ -1208,12 +1245,12 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     let mut public_bad = Vec::with_capacity(common.trials);
     for _ in 0..common.trials {
         let (bytes, ns) = timed(|| {
-            let opening = PrivateOpening::new(
+            let opening = PrivateOpening::with_grouping(
                 &params,
                 &auth,
                 ORDER,
                 common.leaves,
-                segments_per_record,
+                grouping,
                 index,
             )
             .expect("opening");
@@ -1299,7 +1336,7 @@ fn run_benchmark() {
             kappa: common.kappa,
             leaves: common.leaves,
             tree_height: common.tree_height,
-            segments_per_record: parse_usize_env("SEGMENTS_PER_RECORD", segments_per_block(common.leaves)),
+            segments_per_record: parse_usize_env("SEGMENTS_PER_RECORD", 1),
             cells_per_record: parse_usize_env("CELLS_PER_RECORD", DEFAULT_CELLS_PER_RECORD),
             append_leaves: parse_usize_env("APPEND_LEAVES", DEFAULT_APPEND_LEAVES) as u64,
             hint_sample_columns: common.hint_sample_columns,

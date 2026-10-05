@@ -23,6 +23,16 @@ from those commits. They contain:
   multiply kernels of the response packing (`packing.rs`, module `avx2`)
   run AVX2 code selected at run time, and the two additions of each
   packing step are fused with their scalar multiplications.
+- **Compact packing tables.** A response-packing table stores its
+  gadget-decomposed polynomials in condensed form at their real size
+  (`packing::Condensed`: the two CRT residues of a coefficient in one
+  word, `poly_len` words per polynomial), where upstream keeps a matrix of
+  twice that size with a zero half, and `fast_multiply_condensed` reads
+  that layout. `factored::offline_from_hint` derives the table of each
+  output from its prepacked hint columns and releases those columns, which
+  the online packing never reads. A table is 96 MiB per response
+  ciphertext instead of about 320 MiB; the responses are unchanged, byte
+  for byte.
 - **Local dependency.** YPIR depends on `../spiral-rs`.
 - **Column-based building blocks.** `ypir/src/factored.rs` runs the SimplePIR
   variant's preprocessing, response packing, query generation, and decoding

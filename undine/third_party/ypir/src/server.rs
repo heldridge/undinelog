@@ -141,7 +141,7 @@ pub fn generate_fake_pack_pub_params<'a>(params: &'a Params) -> Vec<PolyMatrixNT
     pack_pub_params
 }
 
-pub type Precomp<'a> = Vec<(PolyMatrixNTT<'a>, Vec<PolyMatrixNTT<'a>>, Vec<Vec<usize>>)>;
+pub type Precomp<'a> = Vec<(PolyMatrixNTT<'a>, Vec<crate::packing::Condensed>, Vec<Vec<usize>>)>;
 
 #[derive(Clone)]
 pub struct OfflinePrecomputedValues<'a> {

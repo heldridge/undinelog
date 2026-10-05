@@ -115,11 +115,13 @@ holds. One process measures one configuration.
 
 **One claim of a maintainer** (`tab:private-maintainer`). The claim's primary
 columns are built for a seeded log of 1, 4, 16, and 64 GiB at threshold 64,
-and for a 4 GiB log at thresholds 8, 16, and 32. The columns are grouped
-into blocks by the public grouping of the log length, one segment per block
-at 1 GiB and doubling every two levels of the active prefix; three more jobs
-at 64 GiB use blocks of 1, 2, and 4 segments. The record of a pattern is the
-two blocks of its subtree and one entry per level above. Each repetition
+and for a 4 GiB log at thresholds 8, 16, and 32. The group is one segment,
+and the pattern size is the public one of the log length and the
+threshold, `max(2 log2 kappa - 1, floor((h + log2 kappa - 5) / 2))` leaves
+as a power of two: `2^13` to `2^16` leaves at threshold 64. Three more jobs
+at 64 GiB use patterns of `2^14`, `2^15`, and `2^17` leaves next to the
+public `2^16`. The record of a pattern is the columns of the segments that
+its subtree meets and one entry per level above. Each repetition
 opens one position: the client's request
 (key generation, query, serialization), the maintainer's first pass, the
 complete answer from the serialized request to the serialized reply, and the
@@ -131,10 +133,12 @@ repetition appends 4 MiB to the log and updates the preprocessing from the
 changed records, timing the hint patch and the packing tables.
 
 **A single server** (`tab:private-single`). The server stores every cell of
-the tree in blocks of 512 cells (16 KiB) and runs the same request, answer,
-decoding, and preprocessing measurements at 1 and 4 GiB, and with blocks of
-256 and 1024 cells at 1 GiB. The job at 1 GiB also reports the database
-dimensions and message sizes of the 16 and 64 GiB logs.
+the tree in groups of 64 cells and runs the same request, answer, decoding,
+and preprocessing measurements at 1 and 4 GiB with the public pattern size
+of threshold 1, `2^10` and `2^11` leaves, and with patterns of `2^9` and
+`2^11` leaves at 1 GiB. The job at 1 GiB also reports the database
+dimensions and message sizes of the 16 and 64 GiB logs at their own pattern
+sizes.
 
 **The table of complete openings** (`tab:private-table`). YPIR's server
 answers over a table with one complete opening per pattern, for the claim of

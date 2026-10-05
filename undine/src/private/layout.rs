@@ -1,30 +1,33 @@
-//! Blocks, patterns, and records of the private-opening database.
+//! Groups, patterns, and records of the private-opening database.
 //!
-//! # Blocks
-//! A maintainer's database is its primary columns. A *block* is the primary
-//! columns of `segments_per_record` consecutive segments of one claim:
-//! `segments_per_record * kappa` stored entries. The cell at array index `p`
-//! is read from the entry `(p / segment_cells, w_index(p % segment_cells))`,
-//! exactly as in a public point read.
+//! # Groups
+//! A maintainer's database is its primary columns. A *group* is the unit of
+//! storage and of retrieval: the primary columns of `segments_per_record`
+//! consecutive segments of one claim, `segments_per_record * kappa` stored
+//! entries (the code calls a group a record of the store). Under the public
+//! grouping a group is one segment. The cell at array index `p` is read from
+//! the entry `(p / segment_cells, w_index(p % segment_cells))`, exactly as
+//! in a public point read.
 //!
 //! # Patterns and records
-//! The leaves are cut into groups of `2^group_bits` consecutive leaves, and a
-//! *pattern* is one group. A group is a subtree, and its nodes occupy one
-//! contiguous range of the preorder array that is shorter than a block, so it
-//! lies in at most two consecutive blocks. The opening of a leaf of the group
-//! consists of a lower part inside that subtree, whose cells depend on the
-//! leaf, and of one sibling at each level above the subtree, which depends
-//! on the group alone. The *record* of a pattern lists, in fixed *slots*:
-//! - slots 0 and 1: the blocks that hold the group's subtree, each in the
-//!   slot of its parity;
-//! - slot `2 + j`: the entry of the sibling of the group's ancestor `j`
-//!   levels above the subtree root, for the levels inside the filled part of
-//!   the tree. Such a sibling is an *upper node*, named by its level and its
-//!   position within the level.
+//! A *pattern* is the combination of groups that holds the openings of the
+//! `2^pattern_bits` leaves below one node. The subtree of that node is one
+//! contiguous range of the preorder array, so it meets at most
+//! `group_slots = span + 1` consecutive groups, where `span` is the number
+//! of groups it fills. The opening of a leaf of the pattern consists of a
+//! lower part inside that subtree, whose cells depend on the leaf, and of
+//! one sibling at each level above the subtree, which depends on the
+//! pattern alone. The *record* of a pattern lists, in fixed *slots*:
+//! - slots `0..group_slots`: the groups that the subtree meets, group `g`
+//!   in slot `g % group_slots`;
+//! - slot `group_slots + j`: the entry of the sibling of the pattern root's
+//!   ancestor `j` levels above the root, for the levels inside the filled
+//!   part of the tree. Such a sibling is an *upper node*, named by its
+//!   level and its position within the level.
 //!
 //! A slot is empty when its sibling is a default node or when the subtree
-//! fits in one block. The same record serves every leaf of the group, so a
-//! request names only the pattern.
+//! meets fewer groups. The same record serves every leaf of the pattern,
+//! so a request names only the pattern.
 
 use crate::auth::AuthParams;
 use crate::auth::mapping::{self, NodeLinearization};
@@ -40,6 +43,9 @@ pub enum LayoutError {
     EmptyLog,
     /// The log holds more leaves than the tree has.
     TooManyLeaves { leaves: u64, tree_height: usize },
+    /// The subtree of a pattern must fill at least one group and fit in the
+    /// tree.
+    PatternBits { pattern_bits: u32, group_cells: usize },
 }
 
 impl std::fmt::Display for LayoutError {
@@ -52,6 +58,10 @@ impl std::fmt::Display for LayoutError {
             LayoutError::TooManyLeaves { leaves, tree_height } => {
                 write!(f, "{leaves} leaves exceed a tree of height {tree_height}")
             }
+            LayoutError::PatternBits { pattern_bits, group_cells } => write!(
+                f,
+                "patterns of 2^{pattern_bits} leaves do not fill a group of {group_cells} cells"
+            ),
         }
     }
 }
@@ -86,6 +96,9 @@ pub struct PrivateLayout {
     segment_cells: usize,
     segments_per_record: usize,
     group_bits: u32,
+    /// Slots of a record that hold groups: the groups a subtree fills, and
+    /// one more.
+    group_slots: usize,
     upper_slots: usize,
     records: usize,
     patterns: usize,
@@ -96,34 +109,81 @@ pub struct PrivateLayout {
 /// Index of the entry whose symbols fill a slot above the group's subtree.
 pub const UPPER_ENTRY: usize = 0;
 
-/// Height of the active prefix at which the public grouping starts to
-/// grow: a block is one segment up to `2^GROUPING_BASE_BITS` leaves and
-/// doubles with every two further levels, so it grows with the square root
-/// of the log.
-pub const GROUPING_BASE_BITS: u32 = 25;
+/// How a fragment is cut for private openings: the group and the pattern.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Grouping {
+    /// Segments per group.
+    pub segments_per_group: usize,
+    /// Leaves per pattern, as a power of two.
+    pub pattern_bits: u32,
+}
 
-/// The public grouping: segments per block for a log of `leaves` leaves.
-/// Every client and every maintainer derive it from the log length in the
-/// anchor, so one query serves all maintainers of a registry.
-pub fn segments_per_block(leaves: u64) -> usize {
+/// The public pattern size balances the client's upload against its
+/// download. The query has one coefficient of 7 bytes per pattern,
+/// `7 * leaves / 2^g` bytes for patterns of `2^g` leaves. The record holds
+/// the columns of the pattern's subtree, `2^(g+1) / kappa` entries at 110
+/// bytes each in the reply (32 bytes carried at 12 KiB per 2^11 symbols of
+/// 14 bits). The two are equal at `2^g = sqrt(0.032 * leaves * kappa)`, in
+/// powers of two `g = floor((h + log2 kappa - PATTERN_SHIFT) / 2)` for the
+/// height `h` of the active prefix.
+pub const PATTERN_SHIFT: i64 = 5;
+
+/// The public pattern size for a log of `leaves` leaves at threshold
+/// `kappa`, a power of two: the balance, and at least the pattern whose
+/// subtree fills one segment, `2 log2 kappa - 1`, which returns two columns,
+/// the least a maintainer returns.
+pub fn pattern_bits(leaves: u64, kappa: usize) -> u32 {
+    assert!(kappa.is_power_of_two(), "the threshold is a power of two");
     let height = if leaves <= 1 { 0 } else { (leaves - 1).ilog2() + 1 };
-    1usize << (height.saturating_sub(GROUPING_BASE_BITS) / 2)
+    let log_kappa = i64::from(kappa.ilog2());
+    let balance = (i64::from(height) + log_kappa - PATTERN_SHIFT).div_euclid(2);
+    balance.max(2 * log_kappa - 1).max(0) as u32
+}
+
+impl Grouping {
+    /// The public grouping of a log of `leaves` leaves at threshold `kappa`:
+    /// the segment as the group and the public pattern size. Every client
+    /// and every maintainer derive it from the log length in the anchor and
+    /// the threshold, so one query serves every maintainer of a registry.
+    pub fn public(leaves: u64, kappa: usize) -> Self {
+        Self {
+            segments_per_group: 1,
+            pattern_bits: pattern_bits(leaves, kappa),
+        }
+    }
+
+    /// Groups of `segments_per_group` segments of `segment_cells` cells with
+    /// the largest pattern whose subtree fits in one group, so that a
+    /// record holds two groups.
+    pub fn one_group(segments_per_group: usize, segment_cells: usize) -> Self {
+        Self {
+            segments_per_group,
+            pattern_bits: (segments_per_group * segment_cells + 1).ilog2().saturating_sub(1),
+        }
+    }
 }
 
 impl PrivateLayout {
     /// Layout for a log of `leaves` filled leaves at the threshold of
-    /// `params`, with the public grouping [`segments_per_block`].
+    /// `params`, with the public grouping [`Grouping::public`].
     pub fn for_log(
         params: &CodedArrayParams,
         auth: &AuthParams,
         node_linearization: NodeLinearization,
         leaves: u64,
     ) -> Result<Self, LayoutError> {
-        Self::new(params, auth, node_linearization, leaves, segments_per_block(leaves))
+        Self::with_grouping(
+            params,
+            auth,
+            node_linearization,
+            leaves,
+            Grouping::public(leaves, params.s),
+        )
     }
 
     /// Layout for a log of `leaves` filled leaves at the threshold of
-    /// `params`, with blocks of `segments_per_record` segments.
+    /// `params`, with groups of `segments_per_record` segments and the
+    /// largest pattern whose subtree fits in one group.
     pub fn new(
         params: &CodedArrayParams,
         auth: &AuthParams,
@@ -131,6 +191,28 @@ impl PrivateLayout {
         leaves: u64,
         segments_per_record: usize,
     ) -> Result<Self, LayoutError> {
+        if segments_per_record == 0 || !segments_per_record.is_power_of_two() {
+            return Err(LayoutError::SegmentsPerRecord(segments_per_record));
+        }
+        Self::with_grouping(
+            params,
+            auth,
+            node_linearization,
+            leaves,
+            Grouping::one_group(segments_per_record, params.n_grid),
+        )
+    }
+
+    /// Layout for a log of `leaves` filled leaves at the threshold of
+    /// `params`, with the groups and the pattern size of `grouping`.
+    pub fn with_grouping(
+        params: &CodedArrayParams,
+        auth: &AuthParams,
+        node_linearization: NodeLinearization,
+        leaves: u64,
+        grouping: Grouping,
+    ) -> Result<Self, LayoutError> {
+        let segments_per_record = grouping.segments_per_group;
         if segments_per_record == 0 || !segments_per_record.is_power_of_two() {
             return Err(LayoutError::SegmentsPerRecord(segments_per_record));
         }
@@ -143,8 +225,8 @@ impl PrivateLayout {
         }
         let segment_cells = params.n_grid;
         let record_cells = segments_per_record * segment_cells;
-        // Largest subtree with at most `record_cells` nodes: `2^(g+1) - 1`.
-        let group_bits = ((record_cells + 1).ilog2() - 1).min(tree_height as u32);
+        let (group_bits, group_slots) =
+            Self::pattern_of_grouping(grouping.pattern_bits, record_cells, tree_height)?;
         // Smallest `a` with `leaves <= 2^a`: levels above it hold default
         // siblings for every leaf.
         let active_bits = if leaves <= 1 { 0 } else { (leaves - 1).ilog2() + 1 };
@@ -164,6 +246,7 @@ impl PrivateLayout {
             segment_cells,
             segments_per_record,
             group_bits,
+            group_slots,
             upper_slots,
             records,
             patterns,
@@ -171,15 +254,58 @@ impl PrivateLayout {
         })
     }
 
+    /// The pattern size clipped to the tree, and the group slots of its
+    /// record: a subtree of `2^(g+1) - 1` cells fills `span` groups of
+    /// `group_cells` cells and meets at most `span + 1`.
+    fn pattern_of_grouping(
+        pattern_bits: u32,
+        group_cells: usize,
+        tree_height: usize,
+    ) -> Result<(u32, usize), LayoutError> {
+        let group_bits = pattern_bits.min(tree_height as u32);
+        let subtree_cells = (1u64 << (group_bits + 1)) - 1;
+        // A pattern below the tree's height fills at least one group; a
+        // tree smaller than a group is one pattern.
+        if group_bits < tree_height as u32 && subtree_cells + 1 < group_cells as u64 {
+            return Err(LayoutError::PatternBits {
+                pattern_bits,
+                group_cells,
+            });
+        }
+        let span = subtree_cells.div_ceil(group_cells as u64) as usize;
+        Ok((group_bits, span + 1))
+    }
+
     /// Layout for a server that stores the whole tree, with no coding: a
-    /// record is `cells_per_record` consecutive cells of the maintained
-    /// array, and every cell is one entry. The patterns, rows, and slots are
-    /// those of [`Self::new`] for records of that many cells.
+    /// group is `cells_per_record` consecutive cells of the maintained
+    /// array, and every cell is one entry. The pattern is the largest whose
+    /// subtree fits in one group.
     pub fn whole_tree(
         auth: &AuthParams,
         node_linearization: NodeLinearization,
         leaves: u64,
         cells_per_record: usize,
+    ) -> Result<Self, LayoutError> {
+        if cells_per_record == 0 || !cells_per_record.is_power_of_two() {
+            return Err(LayoutError::SegmentsPerRecord(cells_per_record));
+        }
+        Self::whole_tree_with_pattern(
+            auth,
+            node_linearization,
+            leaves,
+            cells_per_record,
+            Grouping::one_group(1, cells_per_record).pattern_bits,
+        )
+    }
+
+    /// Layout for a server that stores the whole tree, with groups of
+    /// `cells_per_record` cells and patterns of `2^pattern_bits` leaves.
+    pub fn whole_tree_with_pattern(
+        auth: &AuthParams,
+        node_linearization: NodeLinearization,
+        leaves: u64,
+        cells_per_record: usize,
+        pattern_bits: u32,
     ) -> Result<Self, LayoutError> {
         if cells_per_record == 0 || !cells_per_record.is_power_of_two() {
             return Err(LayoutError::SegmentsPerRecord(cells_per_record));
@@ -191,7 +317,8 @@ impl PrivateLayout {
         if tree_height < 64 && leaves > (1u64 << tree_height) {
             return Err(LayoutError::TooManyLeaves { leaves, tree_height });
         }
-        let group_bits = ((cells_per_record + 1).ilog2() - 1).min(tree_height as u32);
+        let (group_bits, group_slots) =
+            Self::pattern_of_grouping(pattern_bits, cells_per_record, tree_height)?;
         let active_bits = if leaves <= 1 { 0 } else { (leaves - 1).ilog2() + 1 };
         let cells = mapping::cursor(node_linearization, tree_height as u16, leaves);
         let upper_slots = active_bits.saturating_sub(group_bits) as usize;
@@ -204,11 +331,25 @@ impl PrivateLayout {
             segment_cells: cells_per_record,
             segments_per_record: 1,
             group_bits,
+            group_slots,
             upper_slots,
             records: cells.div_ceil(cells_per_record as u64) as usize,
             patterns,
             w_index_of_offset: (0..cells_per_record as u32).collect(),
         })
+    }
+
+    /// The groups and the pattern size of this layout.
+    pub fn grouping(&self) -> Grouping {
+        Grouping {
+            segments_per_group: self.segments_per_record,
+            pattern_bits: self.group_bits,
+        }
+    }
+
+    /// Slots of a record that hold groups.
+    pub fn group_slots(&self) -> usize {
+        self.group_slots
     }
 
     /// Number of filled leaves.
@@ -251,10 +392,10 @@ impl PrivateLayout {
         self.patterns
     }
 
-    /// Slots per record: two blocks and one entry per level above the
-    /// group's subtree.
+    /// Slots per record: the groups of the pattern's subtree and one entry
+    /// per level above it.
     pub fn slots(&self) -> usize {
-        2 + self.upper_slots
+        self.group_slots + self.upper_slots
     }
 
     /// Levels above the group's subtree with stored siblings.
@@ -339,23 +480,22 @@ impl PrivateLayout {
             .array_index(root)
             .expect("the subtree root of a pattern is active");
         let first_record = self.record_of_index(first_index);
-        row[first_record % 2] = Some(first_record);
         let subtree_cells = (1u64 << (self.group_bits + 1)) - 1;
         let last_record = self.record_of_index(first_index + subtree_cells - 1);
-        if last_record != first_record && last_record < self.records {
-            row[last_record % 2] = Some(last_record);
+        for record in first_record..=last_record.min(self.records - 1) {
+            row[record % self.group_slots] = Some(record);
         }
         for level in 0..self.upper_slots {
             let pos = (pattern >> level) ^ 1;
             if pos < self.upper_count(level) {
-                row[2 + level] = Some(pos);
+                row[self.group_slots + level] = Some(pos);
             }
         }
         row
     }
 
     /// The records of all patterns as one table of `patterns x slots` ids,
-    /// with `u32::MAX` for an empty slot: block numbers in slots 0 and 1,
+    /// with `u32::MAX` for an empty slot: group numbers in the group slots,
     /// positions of upper nodes within their level in the slots above. It equals [`Self::row`] for every
     /// pattern and is computed level by level.
     pub fn rows_table(&self) -> Vec<u32> {
@@ -388,15 +528,14 @@ impl PrivateLayout {
             let row = &mut table[pattern * slots..(pattern + 1) * slots];
             let first_index = indices[pattern];
             let first_record = self.record_of_index(first_index);
-            row[first_record % 2] = first_record as u32;
             let last_record = self.record_of_index(first_index + subtree_cells - 1);
-            if last_record != first_record && last_record < self.records {
-                row[last_record % 2] = last_record as u32;
+            for record in first_record..=last_record.min(self.records - 1) {
+                row[record % self.group_slots] = record as u32;
             }
             for level in 0..self.upper_slots {
                 let pos = (pattern >> level) ^ 1;
                 if pos < self.upper_count(level) {
-                    row[2 + level] = pos as u32;
+                    row[self.group_slots + level] = pos as u32;
                 }
             }
         }
@@ -451,7 +590,7 @@ impl PrivateLayout {
             if let Some(array_index) = self.array_index(node) {
                 if node.level > root_level {
                     let record = self.record_of_index(array_index);
-                    let slot = record % 2;
+                    let slot = record % self.group_slots;
                     assert_eq!(row[slot], Some(record), "opening cell outside its pattern record");
                     plan.push(PlannedEntry {
                         node,
@@ -463,7 +602,7 @@ impl PrivateLayout {
                     // Upper siblings beyond the filled levels are default
                     // nodes and never reach this branch.
                     let level = (root_level - node.level) as usize;
-                    let slot = 2 + level;
+                    let slot = self.group_slots + level;
                     assert_eq!(
                         row[slot],
                         Some(node.pos as usize),

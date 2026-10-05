@@ -8,7 +8,7 @@ use crate::auth::AuthParams;
 use crate::auth::mapping::NodeLinearization;
 use crate::auth::merkle::{NodeKey, leaf_key, parent, sibling};
 use crate::auth::service::{AuthReadNodeReply, AuthReadResponse, AuthServer};
-use crate::private::layout::{LayoutError, PlannedEntry, PrivateLayout};
+use crate::private::layout::{Grouping, LayoutError, PlannedEntry, PrivateLayout};
 use crate::private::pir::{PackKeys, PirClient, PirDatabase, PirShape, entry_from_cells};
 use crate::private::records::local_claims;
 use crate::shares::ShardShare;
@@ -16,17 +16,19 @@ use crate::unauth::CodedArrayParams;
 use crate::value::Value256;
 
 /// The request of a private opening. It is the same for every maintainer
-/// and for every position with the same pattern count. The block size is
-/// the public grouping of the log length, which the client derives from the
-/// anchor and the maintainer checks.
+/// and for every position of a log. The groups and the pattern size are the
+/// public grouping of the log length and the threshold, which the client
+/// and the maintainer both derive from these two values.
 #[derive(Clone, Debug)]
 pub struct PrivateReadRequest {
     /// Filled leaves of the log the client opens: the anchor's length.
     pub leaves: u64,
     /// Threshold at which the client combines the replies.
     pub kappa: usize,
-    /// Record size, in segments.
-    pub segments_per_record: usize,
+    /// Leaves per pattern, as a power of two: the public pattern size of
+    /// `leaves` and `kappa`, repeated so that a maintainer refuses a request
+    /// built for another one.
+    pub pattern_bits: u32,
     /// The PIR query: one coefficient per database row.
     pub query: Vec<u64>,
     /// The packing keys of the client's secret key.
@@ -65,14 +67,13 @@ impl PrivateOpening {
         leaves: u64,
         index: u64,
     ) -> Result<Self, LayoutError> {
-        let grouping = crate::private::layout::segments_per_block(leaves);
-        Self::new(params, auth, node_linearization, leaves, grouping, index)
+        let grouping = Grouping::public(leaves, params.s);
+        Self::with_grouping(params, auth, node_linearization, leaves, grouping, index)
     }
 
     /// Prepare the opening of leaf `index` of a log of `leaves` filled
-    /// leaves with blocks of `segments_per_record` segments, with a fresh
-    /// secret key. A maintainer answers only the public grouping of the
-    /// log length.
+    /// leaves with groups of `segments_per_record` segments and the largest
+    /// pattern whose subtree fits in one group, with a fresh secret key.
     pub fn new(
         params: &CodedArrayParams,
         auth: &AuthParams,
@@ -81,8 +82,27 @@ impl PrivateOpening {
         segments_per_record: usize,
         index: u64,
     ) -> Result<Self, LayoutError> {
+        if segments_per_record == 0 || !segments_per_record.is_power_of_two() {
+            return Err(LayoutError::SegmentsPerRecord(segments_per_record));
+        }
+        let grouping = Grouping::one_group(segments_per_record, params.n_grid);
+        Self::with_grouping(params, auth, node_linearization, leaves, grouping, index)
+    }
+
+    /// Prepare the opening of leaf `index` of a log of `leaves` filled
+    /// leaves with the groups and the pattern size of `grouping`, with a
+    /// fresh secret key. A maintainer answers only the public grouping of
+    /// the log length.
+    pub fn with_grouping(
+        params: &CodedArrayParams,
+        auth: &AuthParams,
+        node_linearization: NodeLinearization,
+        leaves: u64,
+        grouping: Grouping,
+        index: u64,
+    ) -> Result<Self, LayoutError> {
         let layout =
-            PrivateLayout::new(params, auth, node_linearization, leaves, segments_per_record)?;
+            PrivateLayout::with_grouping(params, auth, node_linearization, leaves, grouping)?;
         let plan = layout.opening_plan(index);
         let client = PirClient::generate(PirShape::of(&layout));
         Ok(Self {
@@ -104,7 +124,7 @@ impl PrivateOpening {
         PrivateReadRequest {
             leaves: self.layout.leaves(),
             kappa: self.layout.kappa(),
-            segments_per_record: self.layout.segments_per_record(),
+            pattern_bits: self.layout.group_bits(),
             query: self.client.query(self.layout.pattern_of(self.index)),
             pack_keys: self.client.pack_keys(),
         }
@@ -151,28 +171,28 @@ impl PrivateOpening {
 }
 
 /// A maintainer's preprocessed state for private openings: one PIR database
-/// per claim, for one log length and one record size.
+/// per claim, for one log length and one grouping.
 pub struct PrivateState {
     leaves: usize,
     root: Value256,
     kappa: usize,
-    segments_per_record: usize,
+    grouping: Grouping,
     databases: Vec<(usize, PirDatabase)>,
     /// Updates applied since the state was built.
     updates: usize,
 }
 
 impl PrivateState {
-    /// Preprocess the claims of `server` for records of `segments_per_record`
-    /// segments.
-    pub fn build(server: &AuthServer, segments_per_record: usize) -> Result<Self, String> {
+    /// Preprocess the claims of `server` for the groups and the pattern
+    /// size of `grouping`.
+    pub fn build(server: &AuthServer, grouping: Grouping) -> Result<Self, String> {
         let leaves = server.allocated_leaves();
-        let layout = PrivateLayout::new(
+        let layout = PrivateLayout::with_grouping(
             &server.params,
             &server.auth,
             server.node_linearization,
             leaves,
-            segments_per_record,
+            grouping,
         )
         .map_err(|err| err.to_string())?;
         let store = &server.store.unauth;
@@ -186,7 +206,7 @@ impl PrivateState {
             leaves: leaves as usize,
             root: server.store.root,
             kappa: server.params.need,
-            segments_per_record,
+            grouping,
             databases,
             updates: 0,
         })
@@ -203,23 +223,23 @@ impl PrivateState {
     }
 
     /// Whether this state can be brought to the current fragment of `server`
-    /// by an update: the threshold and the record size are the same and the
+    /// by an update: the threshold and the grouping are the same and the
     /// log is at least as long.
-    pub fn is_updatable(&self, server: &AuthServer, segments_per_record: usize) -> bool {
+    pub fn is_updatable(&self, server: &AuthServer, grouping: Grouping) -> bool {
         self.kappa == server.params.need
-            && self.segments_per_record == segments_per_record
+            && self.grouping == grouping
             && self.leaves as u64 <= server.allocated_leaves()
     }
 
     /// Bring every database to the current fragment of `server`.
     pub fn update(&mut self, server: &AuthServer) -> Result<(), String> {
         let leaves = server.allocated_leaves();
-        let layout = PrivateLayout::new(
+        let layout = PrivateLayout::with_grouping(
             &server.params,
             &server.auth,
             server.node_linearization,
             leaves,
-            self.segments_per_record,
+            self.grouping,
         )
         .map_err(|err| err.to_string())?;
         for (registry_index, database) in &mut self.databases {
@@ -232,12 +252,12 @@ impl PrivateState {
     }
 
     /// Whether this state was built from the current fragment of `server`
-    /// with the given record size.
-    pub fn is_current(&self, server: &AuthServer, segments_per_record: usize) -> bool {
+    /// with the given grouping.
+    pub fn is_current(&self, server: &AuthServer, grouping: Grouping) -> bool {
         self.leaves as u64 == server.allocated_leaves()
             && self.root == server.store.root
             && self.kappa == server.params.need
-            && self.segments_per_record == segments_per_record
+            && self.grouping == grouping
     }
 
     /// Answer a request against every claim.
@@ -260,18 +280,18 @@ impl PrivateState {
 }
 
 impl AuthServer {
-    /// Preprocess this server's claims for private openings with records of
-    /// `segments_per_record` segments. The state is reused while the
+    /// Preprocess this server's claims for private openings with the groups
+    /// and the pattern size of `grouping`. The state is reused while the
     /// fragment is unchanged and updated after an append; a change of
-    /// threshold or record size builds it again.
-    pub fn prepare_private(&mut self, segments_per_record: usize) -> Result<(), String> {
+    /// threshold or grouping builds it again.
+    pub fn prepare_private(&mut self, grouping: Grouping) -> Result<(), String> {
         if let Some(state) = self.private_state.take() {
-            if state.is_current(self, segments_per_record) {
+            if state.is_current(self, grouping) {
                 self.private_state = Some(state);
                 return Ok(());
             }
             // After an append, preprocess only the difference.
-            if state.is_updatable(self, segments_per_record) {
+            if state.is_updatable(self, grouping) {
                 if let Ok(mut state) = Arc::try_unwrap(state) {
                     state.update(self)?;
                     self.private_state = Some(Arc::new(state));
@@ -279,7 +299,7 @@ impl AuthServer {
                 }
             }
         }
-        self.private_state = Some(Arc::new(PrivateState::build(self, segments_per_record)?));
+        self.private_state = Some(Arc::new(PrivateState::build(self, grouping)?));
         Ok(())
     }
 
@@ -307,11 +327,13 @@ impl AuthServer {
                 self.allocated_leaves()
             ));
         }
-        let grouping = crate::private::layout::segments_per_block(request.leaves);
-        if request.segments_per_record != grouping {
+        // The public grouping changes with the log length, so a state of
+        // an earlier grouping is built again here.
+        let grouping = Grouping::public(request.leaves, self.params.need);
+        if request.pattern_bits != grouping.pattern_bits {
             return Err(format!(
-                "private openings of a log of {} leaves use blocks of {grouping} segments",
-                request.leaves
+                "private openings of a log of {} leaves at threshold {} use patterns of 2^{} leaves",
+                request.leaves, self.params.need, grouping.pattern_bits
             ));
         }
         self.prepare_private(grouping)?;

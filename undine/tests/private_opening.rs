@@ -28,9 +28,21 @@ fn private_openings_equal_public_openings() {
         (2, 7, 64),
         (4, 8, 150),
         (2, 50, 29),
+        // A log long enough for the public pattern to span several segments.
+        (2, 10, 600),
     ] {
         let (params, auth, servers, values, root) =
             written_cluster(kappa, 3 * kappa, tree_height, leaves, 101);
+        if leaves == 600 {
+            let layout = paper_a_optimized::private::PrivateLayout::for_log(
+                &params,
+                &auth,
+                NodeLinearization::Preorder,
+                leaves as u64,
+            )
+            .expect("layout");
+            assert!(layout.group_slots() > 2, "the public pattern spans several segments");
+        }
         let mut client = reader(&params, &auth, leaves, &servers);
         let indices = if leaves <= 40 {
             (0..leaves as u64).collect::<Vec<_>>()
@@ -98,7 +110,7 @@ fn a_private_request_has_one_shape_for_every_position() {
         (
             request.leaves,
             request.kappa,
-            request.segments_per_record,
+            request.pattern_bits,
             request.query.len(),
             request.pack_keys.words.len(),
         )

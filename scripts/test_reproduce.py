@@ -120,15 +120,9 @@ class ManifestTests(unittest.TestCase):
                 "maintainer": len(MODULE.PRIVATE_LOGS_GIB)
                 + len(MODULE.KAPPAS)
                 - 1
-                + sum(
-                    1
-                    for block in MODULE.PRIVATE_BLOCK_SWEEP
-                    if block
-                    != MODULE.private_grouping(
-                        MODULE.leaves_of_gib(MODULE.PRIVATE_BLOCK_SWEEP_GIB)
-                    )
-                ),
-                "single": len(MODULE.PRIVATE_SINGLE_CELL_SWEEP)
+                + len(MODULE.PRIVATE_PATTERN_SWEEP_OFFSETS),
+                "single": 1
+                + len(MODULE.PRIVATE_SINGLE_PATTERN_OFFSETS)
                 + len(MODULE.PRIVATE_SINGLE_MEASURED_GIB)
                 - 1,
                 "table": len(MODULE.PRIVATE_TABLE_LOGS_GIB),
@@ -136,21 +130,54 @@ class ManifestTests(unittest.TestCase):
             },
         )
 
-    def test_private_blocks_follow_the_public_grouping(self) -> None:
-        self.assertEqual(MODULE.private_grouping(MODULE.leaves_of_gib(1)), 1)
-        self.assertEqual(MODULE.private_grouping(MODULE.leaves_of_gib(4)), 2)
-        self.assertEqual(MODULE.private_grouping(MODULE.leaves_of_gib(16)), 4)
-        self.assertEqual(MODULE.private_grouping(MODULE.leaves_of_gib(64)), 8)
-        self.assertEqual(MODULE.private_grouping(3 * MODULE.BATCH_VALUES_4MIB), 1)
+    def test_private_patterns_follow_the_public_grouping(self) -> None:
+        bits = MODULE.private_pattern_bits
+        # kappa = 64: patterns of 2^13 to 2^16 leaves on logs of 1 to 64 GiB.
+        self.assertEqual(
+            [bits(MODULE.leaves_of_gib(gib), 64) for gib in (1, 4, 16, 64)],
+            [13, 14, 15, 16],
+        )
+        # Smaller thresholds on the 4 GiB log, and the smallest pattern.
+        self.assertEqual(
+            [bits(MODULE.leaves_of_gib(4), kappa) for kappa in (8, 16, 32)],
+            [12, 13, 13],
+        )
+        self.assertEqual(bits(3 * MODULE.BATCH_VALUES_4MIB, 64), 11)
+        self.assertEqual(bits(MODULE.leaves_of_gib(1), 128), 13)
+        # The single server is threshold 1.
+        self.assertEqual(bits(MODULE.leaves_of_gib(1), 1), 10)
+        self.assertEqual(bits(MODULE.leaves_of_gib(4), 1), 11)
+        # A record of the 64 GiB log at kappa = 64 holds 33 columns; the
+        # estimate allows 24 upper entries.
+        self.assertEqual(MODULE.private_reply_ciphertexts(16, 64 * 64, 64), 20)
+        sweep = {
+            bits(MODULE.leaves_of_gib(MODULE.PRIVATE_PATTERN_SWEEP_GIB), MODULE.PRIVATE_KAPPA)
+            + offset
+            for offset in MODULE.PRIVATE_PATTERN_SWEEP_OFFSETS
+        }
         for job in self.manifest.jobs.values():
             env = job.env_dict()
             role = env.get(f"{MODULE.PRIVATE_PREFIX}_ROLE")
-            if role not in {"maintainer", "table", "client"}:
+            if role is None:
                 continue
             leaves = int(env[f"{MODULE.PRIVATE_PREFIX}_LEAVES"])
-            segments = int(env[f"{MODULE.PRIVATE_PREFIX}_SEGMENTS_PER_RECORD"])
-            if "-log64gib-" not in job.id or role != "maintainer":
-                self.assertEqual(segments, MODULE.private_grouping(leaves), job.id)
+            pattern = int(env[f"{MODULE.PRIVATE_PREFIX}_PATTERN_BITS"])
+            if role == "single":
+                self.assertEqual(
+                    int(env[f"{MODULE.PRIVATE_PREFIX}_CELLS_PER_RECORD"]),
+                    MODULE.PRIVATE_SINGLE_GROUP_CELLS,
+                )
+                self.assertIn(
+                    pattern - bits(leaves, 1),
+                    (0, *MODULE.PRIVATE_SINGLE_PATTERN_OFFSETS),
+                    job.id,
+                )
+                continue
+            kappa = int(env[f"{MODULE.PRIVATE_PREFIX}_KAPPA"])
+            self.assertEqual(int(env[f"{MODULE.PRIVATE_PREFIX}_SEGMENTS_PER_RECORD"]), 1)
+            if pattern != bits(leaves, kappa):
+                self.assertEqual(role, "maintainer", job.id)
+                self.assertIn(pattern, sweep, job.id)
 
     def test_fragment_sizes_agree_between_layouts_at_segment_kappa_squared(self) -> None:
         for kappa in MODULE.KAPPAS:

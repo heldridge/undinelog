@@ -170,22 +170,21 @@ pub fn offline_from_hint<'a>(params: &'a Params, hint_0: Vec<u64>) -> OfflinePre
 
     let y_constants = generate_y_constants(params);
 
-    let combined = [&hint_0[..], &vec![0u64; db_cols]].concat();
-    assert_eq!(combined.len(), db_cols * (params.poly_len + 1));
-    let prepacked_lwe = prep_pack_many_lwes(params, &combined, num_rlwe_outputs);
-
     let fake_pack_pub_params = generate_fake_pack_pub_params(params);
 
-    let mut precomp: Precomp = Vec::new();
-    for i in 0..prepacked_lwe.len() {
-        let tup = precompute_pack(
+    // The prepacked columns of one output are an input to its table only:
+    // they are derived per output and released, so the state holds the
+    // hint and the tables.
+    let mut precomp: Precomp = Vec::with_capacity(num_rlwe_outputs);
+    for output in 0..num_rlwe_outputs {
+        let (_, table) = packing_table_of_output(
             params,
-            params.poly_len_log2,
-            &prepacked_lwe[i],
+            &hint_0,
+            output,
             &fake_pack_pub_params,
             &y_constants,
         );
-        precomp.push(tup);
+        precomp.push(table);
     }
 
     OfflinePrecomputedValues {
@@ -194,7 +193,7 @@ pub fn offline_from_hint<'a>(params: &'a Params, hint_0: Vec<u64>) -> OfflinePre
         pseudorandom_query_1: vec![],
         y_constants,
         smaller_server: None,
-        prepacked_lwe,
+        prepacked_lwe: Vec::new(),
         fake_pack_pub_params,
         precomp,
     }
@@ -211,7 +210,7 @@ pub fn packing_table_of_output<'a>(
     y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
 ) -> (
     Vec<PolyMatrixNTT<'a>>,
-    (PolyMatrixNTT<'a>, Vec<PolyMatrixNTT<'a>>, Vec<Vec<usize>>),
+    (PolyMatrixNTT<'a>, Vec<crate::packing::Condensed>, Vec<Vec<usize>>),
 ) {
     let db_cols = simplepir_db_cols(params);
     assert_eq!(hint_0.len(), db_cols * params.poly_len);
@@ -476,14 +475,13 @@ mod test {
                 &column_offline.fake_pack_pub_params,
                 &column_offline.y_constants,
             );
-            let same = |left: &[PolyMatrixNTT], right: &[PolyMatrixNTT]| {
-                left.len() == right.len()
-                    && left.iter().zip(right).all(|(a, b)| a.as_slice() == b.as_slice())
-            };
-            assert!(same(&prepacked, &column_offline.prepacked_lwe[output]));
+            assert_eq!(prepacked.len(), params.poly_len);
             let expected = &column_offline.precomp[output];
             assert!(first.as_slice() == expected.0.as_slice());
-            assert!(same(&rest, &expected.1));
+            assert!(
+                rest.len() == expected.1.len()
+                    && rest.iter().zip(&expected.1).all(|(a, b)| a.as_slice() == b.as_slice())
+            );
             assert!(indices == expected.2, "packing table of output {output}");
         }
 

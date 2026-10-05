@@ -283,7 +283,7 @@ pub fn precompute_pack<'a>(
     rlwe_cts: &[PolyMatrixNTT<'a>],
     fake_pub_params: &[PolyMatrixNTT<'a>],
     y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
-) -> (PolyMatrixNTT<'a>, Vec<PolyMatrixNTT<'a>>, Vec<Vec<usize>>) {
+) -> (PolyMatrixNTT<'a>, Vec<Condensed>, Vec<Vec<usize>>) {
     assert!(fake_pub_params.len() == params.poly_len_log2);
     assert_eq!(params.crt_count, 2);
 
@@ -387,7 +387,7 @@ pub fn precompute_pack<'a>(
                 //     &ct_auto_1_ntt.raw().as_slice()[..30]
                 // );
 
-                res.push(condense_matrix(params, cur_ginv_ct_ntt));
+                res.push(condense_compact(params, cur_ginv_ct_ntt));
 
                 let pub_param = &fake_pub_params[params.poly_len_log2 - 1 - (cur_ell - 1)];
                 // let ginv_ct_ntt = ginv_ct.ntt();
@@ -427,7 +427,7 @@ pub fn pack_using_precomp_vals<'a>(
     pub_params: &[PolyMatrixNTT<'a>],
     b_values: &[u64],
     precomp_res: &PolyMatrixNTT<'a>,
-    precomp_vals: &[PolyMatrixNTT<'a>],
+    precomp_vals: &[Condensed],
     precomp_tables: &[Vec<usize>],
     y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
 ) -> PolyMatrixNTT<'a> {
@@ -462,7 +462,7 @@ pub fn pack_using_precomp_vals_with<'a>(
     pub_params: &[PolyMatrixNTT<'a>],
     b_values: &[u64],
     precomp_res: &PolyMatrixNTT<'a>,
-    precomp_vals: &[PolyMatrixNTT<'a>],
+    precomp_vals: &[Condensed],
     precomp_tables: &[Vec<usize>],
     y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
     working_set: &mut Vec<PolyMatrixNTT<'a>>,
@@ -549,7 +549,7 @@ pub fn pack_using_precomp_vals_with<'a>(
             // let w_times_ginv_ct = &w * cur_ginv_ct_ntt;
             // multiply(&mut w_times_ginv_ct, &w, &cur_ginv_ct_ntt);
             // w_times_ginv_ct.as_mut_slice().fill(0);
-            fast_multiply_no_reduce(params, &mut w_times_ginv_ct, &w, &cur_ginv_ct_ntt, 0);
+            fast_multiply_condensed(params, &mut w_times_ginv_ct, &w, cur_ginv_ct_ntt);
             num_muls += 1;
             if let Some(now) = now { time_2 += now.elapsed().as_micros(); }
 
@@ -754,6 +754,97 @@ pub fn fast_add_into(res: &mut PolyMatrixNTT, a: &PolyMatrixNTT) {
     }
 }
 
+/// `res = a * b` without reduction, for a condensed key matrix `a` of one
+/// row (stride `2 * poly_len` words per polynomial) and a compact table
+/// matrix `b` (stride `poly_len`): the low and the high 32-bit halves are
+/// multiplied separately and summed over the gadget digits.
+#[cfg(target_feature = "avx512f")]
+pub fn fast_multiply_condensed(
+    params: &Params,
+    res: &mut PolyMatrixNTT,
+    a: &PolyMatrixNTT,
+    b: &Condensed,
+) {
+    assert_eq!(res.rows, 1);
+    assert_eq!(res.cols, 1);
+    assert_eq!(a.rows, 1);
+    assert_eq!(a.cols, b.rows);
+    assert_eq!(params.crt_count * params.poly_len, 2 * 2048);
+
+    unsafe {
+        let a_ptr = a.as_slice().as_ptr();
+        let b_ptr = b.as_slice().as_ptr();
+        let res_ptr = res.as_mut_slice().as_mut_ptr();
+        let pol_sz = params.poly_len;
+
+        for idx in (0..pol_sz).step_by(8) {
+            let mut sum_lo = _mm512_setzero_si512();
+            let mut sum_hi = _mm512_setzero_si512();
+            for k in 0..a.cols {
+                let p_x = a_ptr.add(k * 2 * pol_sz + idx);
+                let p_y = b_ptr.add(k * pol_sz + idx);
+
+                let x = _mm512_load_si512(p_x as *const _);
+                let x_lo = x;
+                let x_hi = _mm512_srli_epi64(x, 32);
+                let y = _mm512_loadu_si512(p_y as *const _);
+                let y_lo = y;
+                let y_hi = _mm512_srli_epi64(y, 32);
+
+                let product_lo = _mm512_mul_epu32(x_lo, y_lo);
+                let product_hi = _mm512_mul_epu32(x_hi, y_hi);
+
+                sum_lo = _mm512_add_epi64(sum_lo, product_lo);
+                sum_hi = _mm512_add_epi64(sum_hi, product_hi);
+            }
+
+            let p_z = res_ptr.add(idx);
+            _mm512_store_si512(p_z as *mut _, sum_lo);
+            let p_z = res_ptr.add(pol_sz + idx);
+            _mm512_store_si512(p_z as *mut _, sum_hi);
+        }
+    }
+}
+
+#[cfg(not(target_feature = "avx512f"))]
+pub fn fast_multiply_condensed(
+    params: &Params,
+    res: &mut PolyMatrixNTT,
+    a: &PolyMatrixNTT,
+    b: &Condensed,
+) {
+    assert_eq!(res.rows, 1);
+    assert_eq!(res.cols, 1);
+    assert_eq!(a.rows, 1);
+    assert_eq!(a.cols, b.rows);
+    assert_eq!(params.crt_count * params.poly_len, 2 * 2048);
+
+    #[cfg(target_arch = "x86_64")]
+    if avx2::available() {
+        unsafe { avx2::multiply_condensed(params, res, a, b) };
+        return;
+    }
+
+    let a_slc = a.as_slice();
+    let b_slc = b.as_slice();
+    let res_slc = res.as_mut_slice();
+    let pol_sz = params.poly_len;
+    let low_mask = (1u64 << 32) - 1;
+
+    for idx in 0..pol_sz {
+        let mut sum_lo = 0u64;
+        let mut sum_hi = 0u64;
+        for k in 0..a.cols {
+            let x = a_slc[k * 2 * pol_sz + idx];
+            let y = b_slc[k * pol_sz + idx];
+            sum_lo = sum_lo.wrapping_add((x & low_mask) * (y & low_mask));
+            sum_hi = sum_hi.wrapping_add((x >> 32) * (y >> 32));
+        }
+        res_slc[idx] = sum_lo;
+        res_slc[pol_sz + idx] = sum_hi;
+    }
+}
+
 #[cfg(target_feature = "avx512f")]
 pub fn fast_multiply_no_reduce(
     params: &Params,
@@ -870,6 +961,41 @@ fn multiply_no_reduce_scalar(
             }
         }
     }
+}
+
+/// A condensed polynomial matrix of one column: the two CRT residues of
+/// every coefficient packed into one 64-bit word, so a polynomial is
+/// `poly_len` words and a matrix of `rows` rows is `rows * poly_len` words.
+/// The response-packing tables are stored in this form, half the size of
+/// a `PolyMatrixNTT` of the same shape.
+#[derive(Clone)]
+pub struct Condensed {
+    pub rows: usize,
+    pub poly_len: usize,
+    pub data: Vec<u64>,
+}
+
+impl Condensed {
+    pub fn as_slice(&self) -> &[u64] {
+        &self.data
+    }
+
+    pub fn row(&self, k: usize) -> &[u64] {
+        &self.data[k * self.poly_len..(k + 1) * self.poly_len]
+    }
+}
+
+/// Condense a one-column matrix into the compact form.
+pub fn condense_compact<'a>(params: &'a Params, a: &PolyMatrixNTT<'a>) -> Condensed {
+    assert_eq!(a.cols, 1);
+    let mut data = Vec::with_capacity(a.rows * params.poly_len);
+    for i in 0..a.rows {
+        let a_poly = a.get_poly(i, 0);
+        for z in 0..params.poly_len {
+            data.push(a_poly[z] | (a_poly[z + params.poly_len] << 32));
+        }
+    }
+    Condensed { rows: a.rows, poly_len: params.poly_len, data }
 }
 
 pub fn condense_matrix<'a>(params: &'a Params, a: &PolyMatrixNTT<'a>) -> PolyMatrixNTT<'a> {
@@ -1008,6 +1134,35 @@ mod avx2 {
             for k in 0..cols {
                 let x = _mm256_loadu_si256(a_ptr.add(k * 2 * pol_sz + idx) as *const _);
                 let y = _mm256_loadu_si256(b_ptr.add(k * 2 * pol_sz + idx) as *const _);
+                let x_hi = _mm256_srli_epi64(x, 32);
+                let y_hi = _mm256_srli_epi64(y, 32);
+                sum_lo = _mm256_add_epi64(sum_lo, _mm256_mul_epu32(x, y));
+                sum_hi = _mm256_add_epi64(sum_hi, _mm256_mul_epu32(x_hi, y_hi));
+            }
+            _mm256_storeu_si256(res_ptr.add(idx) as *mut _, sum_lo);
+            _mm256_storeu_si256(res_ptr.add(pol_sz + idx) as *mut _, sum_hi);
+        }
+    }
+
+    /// `res = a * b` without reduction, `b` a compact table matrix.
+    #[target_feature(enable = "avx2")]
+    pub unsafe fn multiply_condensed(
+        params: &Params,
+        res: &mut PolyMatrixNTT,
+        a: &PolyMatrixNTT,
+        b: &super::Condensed,
+    ) {
+        let a_ptr = a.as_slice().as_ptr();
+        let b_ptr = b.as_slice().as_ptr();
+        let res_ptr = res.as_mut_slice().as_mut_ptr();
+        let pol_sz = params.poly_len;
+        let cols = a.cols;
+        for idx in (0..pol_sz).step_by(4) {
+            let mut sum_lo = _mm256_setzero_si256();
+            let mut sum_hi = _mm256_setzero_si256();
+            for k in 0..cols {
+                let x = _mm256_loadu_si256(a_ptr.add(k * 2 * pol_sz + idx) as *const _);
+                let y = _mm256_loadu_si256(b_ptr.add(k * pol_sz + idx) as *const _);
                 let x_hi = _mm256_srli_epi64(x, 32);
                 let y_hi = _mm256_srli_epi64(y, 32);
                 sum_lo = _mm256_add_epi64(sum_lo, _mm256_mul_epu32(x, y));
@@ -1388,8 +1543,13 @@ pub fn pack_many_lwes<'a>(
     pack_pub_params_row_1s: &[PolyMatrixNTT<'a>],
     y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
 ) -> Vec<PolyMatrixNTT<'a>> {
-    assert_eq!(prep_rlwe_cts.len(), num_rlwe_outputs);
-    assert_eq!(prep_rlwe_cts[0].len(), params.poly_len);
+    // The prepacked columns are an input to the tables, not to the packing;
+    // a caller that released them passes an empty slice.
+    if !prep_rlwe_cts.is_empty() {
+        assert_eq!(prep_rlwe_cts.len(), num_rlwe_outputs);
+        assert_eq!(prep_rlwe_cts[0].len(), params.poly_len);
+    }
+    assert_eq!(precomp.len(), num_rlwe_outputs);
     assert_eq!(b_values.len(), num_rlwe_outputs * params.poly_len);
 
     let mut res = Vec::new();

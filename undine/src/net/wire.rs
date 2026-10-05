@@ -631,7 +631,7 @@ pub struct AuthSubtreeUpperPathReadRequest {
 pub struct AuthPrivateReadRequest {
     pub leaves: u64,
     pub kappa: u64,
-    pub segments_per_record: u64,
+    pub pattern_bits: u64,
     pub query: NetByteBlob,
     pub pack_keys: NetByteBlob,
 }

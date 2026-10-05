@@ -48,10 +48,12 @@ pub const UPPER_CELLS: usize = (ENTRY_BYTES * 8).div_ceil(CELL_BITS);
 pub struct PirShape {
     /// Rows that hold a pattern.
     pub patterns: usize,
-    /// Slots per record: two blocks and one entry per level above the
-    /// group's subtree.
+    /// Slots per record: the groups of the pattern's subtree and one entry
+    /// per level above it.
     pub slots: usize,
-    /// Plaintext cells per block, the width of slots 0 and 1.
+    /// Slots that hold groups, the first slots of a record.
+    pub group_slots: usize,
+    /// Plaintext cells per group, the width of a group slot.
     pub record_cells: usize,
 }
 
@@ -61,44 +63,45 @@ impl PirShape {
         Self {
             patterns: layout.patterns(),
             slots: layout.slots(),
+            group_slots: layout.group_slots(),
             record_cells: (layout.entries_per_record() * ENTRY_BYTES * 8).div_ceil(CELL_BITS),
         }
     }
 
-    /// Slots above the group's subtree.
+    /// Slots above the pattern's subtree.
     pub fn upper_slots(&self) -> usize {
-        self.slots - 2
+        self.slots - self.group_slots
     }
 
     /// Plaintext cells of one slot.
     pub fn slot_width(&self, slot: usize) -> usize {
-        if slot < 2 { self.record_cells } else { UPPER_CELLS }
+        if slot < self.group_slots { self.record_cells } else { UPPER_CELLS }
     }
 
     /// First database column of one slot.
     pub fn slot_offset(&self, slot: usize) -> usize {
-        if slot < 2 {
+        if slot < self.group_slots {
             slot * self.record_cells
         } else {
-            2 * self.record_cells + (slot - 2) * UPPER_CELLS
+            self.group_slots * self.record_cells + (slot - self.group_slots) * UPPER_CELLS
         }
     }
 
     /// The slot and the offset within it of one database column, or `None`
     /// for a padding column.
     pub fn slot_of_column(&self, col: usize) -> Option<(usize, usize)> {
-        if col < 2 * self.record_cells {
+        if col < self.group_slots * self.record_cells {
             Some((col / self.record_cells, col % self.record_cells))
         } else {
-            let upper = col - 2 * self.record_cells;
-            let slot = 2 + upper / UPPER_CELLS;
+            let upper = col - self.group_slots * self.record_cells;
+            let slot = self.group_slots + upper / UPPER_CELLS;
             (slot < self.slots).then_some((slot, upper % UPPER_CELLS))
         }
     }
 
     /// Plaintext cells of one record before padding.
     pub fn row_cells(&self) -> usize {
-        2 * self.record_cells + self.upper_slots() * UPPER_CELLS
+        self.group_slots * self.record_cells + self.upper_slots() * UPPER_CELLS
     }
 
     /// YPIR parameters for this shape, shared by all users of the shape.
@@ -448,10 +451,10 @@ impl PirDatabase {
         let Some((slot, offset)) = shape.slot_of_column(col) else {
             return;
         };
-        let (table, width) = if slot < 2 {
+        let (table, width) = if slot < shape.group_slots {
             (cells, shape.record_cells)
         } else {
-            (upper[slot - 2].as_slice(), UPPER_CELLS)
+            (upper[slot - shape.group_slots].as_slice(), UPPER_CELLS)
         };
         for pattern in 0..shape.patterns {
             let id = rows[pattern * shape.slots + slot];
@@ -568,6 +571,11 @@ impl PirDatabase {
         assert!(shape.patterns >= self.shape.patterns, "the log shrank");
         assert!(shape.slots >= self.shape.slots, "the log shrank");
         let record_cells = shape.record_cells;
+        let group_slots = shape.group_slots;
+        assert_eq!(
+            group_slots, self.shape.group_slots,
+            "an update keeps the groups and the pattern size"
+        );
         let records = layout.records();
         assert!(records >= self.records, "the log shrank");
         let params = shape.params();
@@ -631,10 +639,11 @@ impl PirDatabase {
                 return old != new;
             }
             let id = new as usize;
-            if slot < 2 {
+            if slot < group_slots {
                 old_cells.contains_key(&id)
             } else {
-                upper_cells_of(&old_upper, slot - 2, id) != upper_cells_of(&upper, slot - 2, id)
+                upper_cells_of(&old_upper, slot - group_slots, id)
+                    != upper_cells_of(&upper, slot - group_slots, id)
             }
         };
         // The change of one slot is a sum over its runs: every column of the
@@ -671,21 +680,21 @@ impl PirDatabase {
                 }
                 let before: Option<&[u16]> = (old != NO_RECORD).then(|| {
                     let id = old as usize;
-                    if slot < 2 {
+                    if slot < group_slots {
                         match old_cells.get(&id) {
                             Some(cells) => cells.as_slice(),
                             None => &self.cells[id * record_cells..(id + 1) * record_cells],
                         }
                     } else {
-                        upper_cells_of(&old_upper, slot - 2, id).expect("old upper node")
+                        upper_cells_of(&old_upper, slot - group_slots, id).expect("old upper node")
                     }
                 });
                 let after: Option<&[u16]> = (new != NO_RECORD).then(|| {
                     let id = new as usize;
-                    if slot < 2 {
+                    if slot < group_slots {
                         &self.cells[id * record_cells..(id + 1) * record_cells]
                     } else {
-                        upper_cells_of(&upper, slot - 2, id).expect("new upper node")
+                        upper_cells_of(&upper, slot - group_slots, id).expect("new upper node")
                     }
                 });
                 runs.push((before, after, start..pattern));
@@ -803,19 +812,20 @@ impl PirDatabase {
             .collect()
     }
 
-    /// Derive the response-packing tables of one response ciphertext from
-    /// the stored hint and return their bytes. The tables of a database are
-    /// those of its [`PirShape::outputs`] ciphertexts, each derived this way.
+    /// Derive the response-packing table of one response ciphertext from
+    /// the stored hint and return the bytes that the state keeps of it.
+    /// The tables of a database are those of its [`PirShape::outputs`]
+    /// ciphertexts, each derived this way; the prepacked columns of the
+    /// output are an input to the table and are released with it.
     pub fn packing_table_of_output(&self, output: usize) -> usize {
-        let (prepacked, (first, rest, _)) = factored::packing_table_of_output(
+        let (_prepacked, (first, rest, _)) = factored::packing_table_of_output(
             self.params,
             &self.offline.hint_0,
             output,
             &self.offline.fake_pack_pub_params,
             &self.offline.y_constants,
         );
-        let poly = |matrix: &PolyMatrixNTT<'static>| matrix.as_slice().len() * 8;
-        prepacked.iter().map(poly).sum::<usize>() + poly(&first) + rest.iter().map(poly).sum::<usize>()
+        first.as_slice().len() * 8 + rest.iter().map(|table| table.as_slice().len() * 8).sum::<usize>()
     }
 
     /// The stored hint of one database column: `poly_len` values.
@@ -842,7 +852,7 @@ impl PirDatabase {
             .iter()
             .map(|(first, rest, indices)| {
                 poly(first)
-                    + rest.iter().map(poly).sum::<usize>()
+                    + rest.iter().map(|table| table.as_slice().len() * 8).sum::<usize>()
                     + indices
                         .iter()
                         .map(|list| list.len() * std::mem::size_of::<usize>())
@@ -865,10 +875,15 @@ impl PirDatabase {
         &self.upper[level][pos * UPPER_CELLS..(pos + 1) * UPPER_CELLS]
     }
 
-    /// The plaintext cells of the item in one slot of a record: a block for
-    /// slots 0 and 1, an upper node above.
+    /// The plaintext cells of the item in one slot of a record: a group in
+    /// a group slot, an upper node above.
     pub fn slot_cells(&self, slot: usize, id: usize) -> &[u16] {
-        if slot < 2 { self.record_cells(id) } else { self.upper_cells(slot - 2, id) }
+        let group_slots = self.shape.group_slots;
+        if slot < group_slots {
+            self.record_cells(id)
+        } else {
+            self.upper_cells(slot - group_slots, id)
+        }
     }
 
     /// Dimensions of this database.
@@ -915,7 +930,7 @@ impl PirDatabase {
         // many products fit in 64 bits.
         const REDUCE_EVERY: usize = 1 << 15;
 
-        for slot in 0..2.min(shape.slots) {
+        for slot in 0..shape.group_slots {
             touched.clear();
             for pattern in 0..shape.patterns {
                 let record = self.rows[pattern * shape.slots + slot];
@@ -1013,7 +1028,7 @@ impl PirDatabase {
                     pending = 0;
                 }
             }
-            let base = shape.slot_offset(2 + level);
+            let base = shape.slot_offset(shape.group_slots + level);
             for offset in 0..UPPER_CELLS {
                 let lo = barrett_coeff_u64(params, upper_lo[offset], 0);
                 let hi = barrett_coeff_u64(params, upper_hi[offset], 1);

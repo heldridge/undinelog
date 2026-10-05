@@ -6,7 +6,7 @@ mod cluster;
 
 use cluster::{LocalServer, reader, written_cluster};
 use paper_a_optimized::core::NodeLinearization;
-use paper_a_optimized::private::{PirClient, PirDatabase, PirShape, PrivateLayout};
+use paper_a_optimized::private::{Grouping, PirClient, PirDatabase, PirShape, PrivateLayout};
 use paper_a_optimized::unauth::CodedArrayParams;
 use paper_a_optimized::{AuthParams, Fp, encode_value};
 
@@ -16,14 +16,22 @@ fn layout_of(
     leaves: usize,
     segments_per_record: usize,
 ) -> PrivateLayout {
-    PrivateLayout::new(
+    // The largest pattern that fits in one group, enlarged by the bits a
+    // test asks for, so that its subtree spans several groups.
+    let mut grouping = Grouping::one_group(segments_per_record, params.n_grid);
+    grouping.pattern_bits += EXTRA_PATTERN_BITS.with(|bits| bits.get());
+    PrivateLayout::with_grouping(
         params,
         auth,
         NodeLinearization::Preorder,
         leaves as u64,
-        segments_per_record,
+        grouping,
     )
     .expect("layout")
+}
+
+thread_local! {
+    static EXTRA_PATTERN_BITS: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
 }
 
 /// Build the database of `server` for the current log of `leaves` leaves.
@@ -127,6 +135,18 @@ fn updates_that_grow_the_database_dimensions_equal_fresh_preprocessing() {
     // More rows: at kappa = 2 a pattern is two leaves, so 4096 leaves fill
     // the 2048 rows of the smallest database.
     assert_updates_equal_fresh(2, 13, 1, &[4090, 4100]);
+}
+
+#[test]
+fn updates_of_patterns_that_span_several_groups_equal_fresh_preprocessing() {
+    for extra in [1u32, 2] {
+        EXTRA_PATTERN_BITS.with(|bits| bits.set(extra));
+        // The same dimensions, a new slot, and a new level of the tree.
+        assert_updates_equal_fresh(2, 8, 1, &[20, 21, 27, 31, 33, 64, 65]);
+        assert_updates_equal_fresh(4, 50, 1, &[40, 57, 130]);
+        assert_updates_equal_fresh(4, 11, 2, &[500, 530]);
+    }
+    EXTRA_PATTERN_BITS.with(|bits| bits.set(0));
 }
 
 #[test]

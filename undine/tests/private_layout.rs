@@ -7,7 +7,7 @@ mod cluster;
 use cluster::{LocalServer, written_cluster};
 use paper_a_optimized::core::NodeLinearization;
 use paper_a_optimized::private::layout::UPPER_ENTRY;
-use paper_a_optimized::private::{PrivateLayout, local_claims, record_entries};
+use paper_a_optimized::private::{Grouping, PrivateLayout, local_claims, record_entries};
 use paper_a_optimized::unauth::service::{UnauthRequest, UnauthResponse, UnauthService};
 use paper_a_optimized::unauth::{CodedArrayParams, build_kappa_double_params};
 use paper_a_optimized::{AuthParams, Fp};
@@ -22,15 +22,38 @@ fn assert_layout_matches_public_openings(
     leaves: usize,
     segments_per_record: usize,
 ) {
-    let layout = PrivateLayout::new(
+    assert_grouping_matches_public_openings(
+        params,
+        auth,
+        servers,
+        leaves,
+        Grouping::one_group(segments_per_record, params.n_grid),
+    );
+}
+
+/// The same check for any groups and pattern size.
+fn assert_grouping_matches_public_openings(
+    params: &CodedArrayParams,
+    auth: &AuthParams,
+    servers: &[LocalServer],
+    leaves: usize,
+    grouping: Grouping,
+) {
+    let segments_per_record = grouping.segments_per_group;
+    let layout = PrivateLayout::with_grouping(
         params,
         auth,
         NodeLinearization::Preorder,
         leaves as u64,
-        segments_per_record,
+        grouping,
     )
     .expect("layout");
     assert_eq!(layout.kappa(), params.need);
+    assert_eq!(layout.grouping().segments_per_group, segments_per_record);
+    let group_slots = layout.group_slots();
+    // A subtree of 2^(g+1) - 1 cells fills `span` groups and meets one more.
+    let subtree_cells = (1usize << (layout.group_bits() + 1)) - 1;
+    assert_eq!(group_slots, subtree_cells.div_ceil(layout.cells_per_record()) + 1);
 
     // The rows table is the row of every pattern.
     let table = layout.rows_table();
@@ -75,14 +98,17 @@ fn assert_layout_matches_public_openings(
                 let share = &reply.shares[0];
                 assert_eq!(share.registry_index(), server.label);
                 let id = row[entry.slot].expect("planned slot holds an item");
-                // A block slot names the block and the entry within it; an
+                // A group slot names the group and the entry within it; an
                 // upper slot names the node, whose entry is one field element.
-                let (record, entry_in_record) = if entry.slot < 2 {
+                let (record, entry_in_record) = if entry.slot < group_slots {
                     (id, entry.entry_in_record)
                 } else {
                     assert_eq!(entry.entry_in_record, UPPER_ENTRY);
-                    assert_eq!(layout.upper_array_index(entry.slot - 2, id), entry.array_index);
-                    let index = layout.upper_entry_index(entry.slot - 2, id);
+                    assert_eq!(
+                        layout.upper_array_index(entry.slot - group_slots, id),
+                        entry.array_index
+                    );
+                    let index = layout.upper_entry_index(entry.slot - group_slots, id);
                     (
                         index / layout.entries_per_record(),
                         index % layout.entries_per_record(),
@@ -104,8 +130,8 @@ fn assert_layout_matches_public_openings(
 
     // The patterns that read one upper node are the groups below its
     // sibling, a contiguous range.
-    for slot in 2..layout.slots() {
-        let level = slot - 2;
+    for slot in group_slots..layout.slots() {
+        let level = slot - group_slots;
         for pos in 0..layout.upper_count(level) {
             let readers = (0..layout.patterns())
                 .filter(|&pattern| layout.row(pattern)[slot] == Some(pos))
@@ -117,14 +143,61 @@ fn assert_layout_matches_public_openings(
             );
         }
     }
-    // A block sits in the slot of its parity.
+    // Group `g` sits in slot `g mod group_slots`, the groups of a pattern
+    // are consecutive, and a group lies in the records of at most two
+    // patterns.
+    let mut holders = vec![0usize; layout.records()];
     for pattern in 0..layout.patterns() {
         let row = layout.row(pattern);
-        for slot in 0..2 {
-            if let Some(block) = row[slot] {
-                assert_eq!(block % 2, slot);
-            }
+        let mut groups = (0..group_slots).filter_map(|slot| {
+            row[slot].inspect(|&group| assert_eq!(group % group_slots, slot))
+        }).collect::<Vec<_>>();
+        groups.sort_unstable();
+        assert!(!groups.is_empty());
+        assert!(groups.windows(2).all(|pair| pair[1] == pair[0] + 1), "consecutive groups");
+        for group in groups {
+            holders[group] += 1;
         }
+    }
+    assert!(holders.iter().all(|&count| count <= 2), "a group lies in at most two patterns");
+}
+
+/// Patterns whose subtree spans several groups: records of `span + 1`
+/// groups, checked against the public openings like the others.
+#[test]
+fn layout_matches_public_openings_for_patterns_of_several_groups() {
+    for &(kappa, tree_height, leaves) in &[
+        (2usize, 7usize, 37usize),
+        (2, 7, 100),
+        (4, 8, 150),
+        (2, 50, 70),
+    ] {
+        let (params, auth, servers, _values, _root) =
+            written_cluster(kappa, 3 * kappa, tree_height, leaves, 78);
+        let smallest = Grouping::one_group(1, params.n_grid).pattern_bits;
+        for extra in [1u32, 2, 3] {
+            assert_grouping_matches_public_openings(
+                &params,
+                &auth,
+                &servers[..2],
+                leaves,
+                Grouping {
+                    segments_per_group: 1,
+                    pattern_bits: smallest + extra,
+                },
+            );
+        }
+        // Groups of two segments with patterns of four groups.
+        assert_grouping_matches_public_openings(
+            &params,
+            &auth,
+            &servers[..2],
+            leaves,
+            Grouping {
+                segments_per_group: 2,
+                pattern_bits: Grouping::one_group(2, params.n_grid).pattern_bits + 2,
+            },
+        );
     }
 }
 
@@ -268,4 +341,29 @@ fn whole_tree_layout_locates_every_cell_of_an_opening() {
             }
         }
     }
+}
+
+/// The public pattern size balances the client's upload against its
+/// download, 2^floor((h + log2 kappa - 5) / 2) leaves, and is at least the
+/// pattern whose subtree fills one segment, 2^(2 log2 kappa - 1) leaves.
+#[test]
+fn public_pattern_size_balances_upload_against_download() {
+    use paper_a_optimized::private::pattern_bits;
+    // kappa = 64: patterns of 2^13 to 2^16 leaves on logs of 2^25 to 2^31.
+    assert_eq!(pattern_bits(1 << 25, 64), 13);
+    assert_eq!(pattern_bits((1 << 25) + 1, 64), 13);
+    assert_eq!(pattern_bits(1 << 27, 64), 14);
+    assert_eq!(pattern_bits(1 << 29, 64), 15);
+    assert_eq!(pattern_bits(1 << 31, 64), 16);
+    // A smaller threshold has smaller patterns that span more segments.
+    assert_eq!(pattern_bits(1 << 27, 8), 12);
+    // A large threshold or a short log: the smallest pattern.
+    assert_eq!(pattern_bits(1 << 25, 128), 13);
+    assert_eq!(pattern_bits(1 << 25, 256), 15);
+    assert_eq!(pattern_bits(1 << 15, 64), 11);
+    // The single server (kappa = 1).
+    assert_eq!(pattern_bits(1 << 25, 1), 10);
+    assert_eq!(pattern_bits(1, 1), 0);
+    let public = Grouping::public(1 << 31, 64);
+    assert_eq!((public.segments_per_group, public.pattern_bits), (1, 16));
 }

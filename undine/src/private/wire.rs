@@ -52,7 +52,7 @@ pub fn request_to_net(request: &PrivateReadRequest) -> AuthPrivateReadRequest {
     AuthPrivateReadRequest {
         leaves: request.leaves,
         kappa: request.kappa as u64,
-        segments_per_record: request.segments_per_record as u64,
+        pattern_bits: u64::from(request.pattern_bits),
         query: NetByteBlob(pack_words(&request.query)),
         pack_keys: NetByteBlob(pack_words(&request.pack_keys.words)),
     }
@@ -63,8 +63,8 @@ pub fn request_from_net(request: &AuthPrivateReadRequest) -> Result<PrivateReadR
     Ok(PrivateReadRequest {
         leaves: request.leaves,
         kappa: usize::try_from(request.kappa).map_err(|_| "kappa overflows usize".to_string())?,
-        segments_per_record: usize::try_from(request.segments_per_record)
-            .map_err(|_| "segments per record overflows usize".to_string())?,
+        pattern_bits: u32::try_from(request.pattern_bits)
+            .map_err(|_| "pattern size overflows".to_string())?,
         query: unpack_words(&request.query.0)?,
         pack_keys: PackKeys {
             words: unpack_words(&request.pack_keys.0)?,

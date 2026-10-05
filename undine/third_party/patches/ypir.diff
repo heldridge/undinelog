@@ -12,8 +12,8 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/Cargo.t
  serde_json = "1.0"
 diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/factored.rs b/ypir/src/factored.rs
 --- a/ypir/src/factored.rs	1969-12-31 19:00:00.000000000 -0500
-+++ b/ypir/src/factored.rs	2026-10-04 16:46:27.018085244 -0400
-@@ -0,0 +1,534 @@
++++ b/ypir/src/factored.rs	2026-10-05 12:28:29.910001515 -0400
+@@ -0,0 +1,532 @@
 +//! SimplePIR-variant building blocks for a database given by its columns.
 +//!
 +//! `YServer` stores the database as a matrix. The functions here run the same
@@ -186,22 +186,21 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/fac
 +
 +    let y_constants = generate_y_constants(params);
 +
-+    let combined = [&hint_0[..], &vec![0u64; db_cols]].concat();
-+    assert_eq!(combined.len(), db_cols * (params.poly_len + 1));
-+    let prepacked_lwe = prep_pack_many_lwes(params, &combined, num_rlwe_outputs);
-+
 +    let fake_pack_pub_params = generate_fake_pack_pub_params(params);
 +
-+    let mut precomp: Precomp = Vec::new();
-+    for i in 0..prepacked_lwe.len() {
-+        let tup = precompute_pack(
++    // The prepacked columns of one output are an input to its table only:
++    // they are derived per output and released, so the state holds the
++    // hint and the tables.
++    let mut precomp: Precomp = Vec::with_capacity(num_rlwe_outputs);
++    for output in 0..num_rlwe_outputs {
++        let (_, table) = packing_table_of_output(
 +            params,
-+            params.poly_len_log2,
-+            &prepacked_lwe[i],
++            &hint_0,
++            output,
 +            &fake_pack_pub_params,
 +            &y_constants,
 +        );
-+        precomp.push(tup);
++        precomp.push(table);
 +    }
 +
 +    OfflinePrecomputedValues {
@@ -210,7 +209,7 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/fac
 +        pseudorandom_query_1: vec![],
 +        y_constants,
 +        smaller_server: None,
-+        prepacked_lwe,
++        prepacked_lwe: Vec::new(),
 +        fake_pack_pub_params,
 +        precomp,
 +    }
@@ -227,7 +226,7 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/fac
 +    y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
 +) -> (
 +    Vec<PolyMatrixNTT<'a>>,
-+    (PolyMatrixNTT<'a>, Vec<PolyMatrixNTT<'a>>, Vec<Vec<usize>>),
++    (PolyMatrixNTT<'a>, Vec<crate::packing::Condensed>, Vec<Vec<usize>>),
 +) {
 +    let db_cols = simplepir_db_cols(params);
 +    assert_eq!(hint_0.len(), db_cols * params.poly_len);
@@ -492,14 +491,13 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/fac
 +                &column_offline.fake_pack_pub_params,
 +                &column_offline.y_constants,
 +            );
-+            let same = |left: &[PolyMatrixNTT], right: &[PolyMatrixNTT]| {
-+                left.len() == right.len()
-+                    && left.iter().zip(right).all(|(a, b)| a.as_slice() == b.as_slice())
-+            };
-+            assert!(same(&prepacked, &column_offline.prepacked_lwe[output]));
++            assert_eq!(prepacked.len(), params.poly_len);
 +            let expected = &column_offline.precomp[output];
 +            assert!(first.as_slice() == expected.0.as_slice());
-+            assert!(same(&rest, &expected.1));
++            assert!(
++                rest.len() == expected.1.len()
++                    && rest.iter().zip(&expected.1).all(|(a, b)| a.as_slice() == b.as_slice())
++            );
 +            assert!(indices == expected.2, "packing table of output {output}");
 +        }
 +
@@ -634,7 +632,7 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/lib
  pub mod matmul;
 diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/packing.rs b/ypir/src/packing.rs
 --- a/ypir/src/packing.rs	2025-04-01 17:18:20.000000000 -0400
-+++ b/ypir/src/packing.rs	2026-10-04 16:46:27.017962946 -0400
++++ b/ypir/src/packing.rs	2026-10-05 12:28:18.277685022 -0400
 @@ -1,4 +1,6 @@
 -use std::{arch::x86_64::*, time::Instant};
 +#[cfg(target_feature = "avx512f")]
@@ -654,7 +652,23 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/pac
  
                  // &ct_auto_1_ntt.pad_top(1) + &w_times_ginv_ct
                  let now = Instant::now();
-@@ -388,7 +393,10 @@
+@@ -278,7 +283,7 @@
+     rlwe_cts: &[PolyMatrixNTT<'a>],
+     fake_pub_params: &[PolyMatrixNTT<'a>],
+     y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
+-) -> (PolyMatrixNTT<'a>, Vec<PolyMatrixNTT<'a>>, Vec<Vec<usize>>) {
++) -> (PolyMatrixNTT<'a>, Vec<Condensed>, Vec<Vec<usize>>) {
+     assert!(fake_pub_params.len() == params.poly_len_log2);
+     assert_eq!(params.crt_count, 2);
+ 
+@@ -382,13 +387,16 @@
+                 //     &ct_auto_1_ntt.raw().as_slice()[..30]
+                 // );
+ 
+-                res.push(condense_matrix(params, cur_ginv_ct_ntt));
++                res.push(condense_compact(params, cur_ginv_ct_ntt));
+ 
+                 let pub_param = &fake_pub_params[params.poly_len_log2 - 1 - (cur_ell - 1)];
                  // let ginv_ct_ntt = ginv_ct.ntt();
                  // let w_times_ginv_ct = pub_param * &ginv_ct_ntt;
                  w_times_ginv_ct.as_mut_slice().fill(0);
@@ -665,7 +679,12 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/pac
  
                  // &ct_auto_1_ntt.pad_top(1) + &w_times_ginv_ct
                  let now = Instant::now();
-@@ -423,12 +431,43 @@
+@@ -419,16 +427,47 @@
+     pub_params: &[PolyMatrixNTT<'a>],
+     b_values: &[u64],
+     precomp_res: &PolyMatrixNTT<'a>,
+-    precomp_vals: &[PolyMatrixNTT<'a>],
++    precomp_vals: &[Condensed],
      precomp_tables: &[Vec<usize>],
      y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
  ) -> PolyMatrixNTT<'a> {
@@ -702,7 +721,7 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/pac
 +    pub_params: &[PolyMatrixNTT<'a>],
 +    b_values: &[u64],
 +    precomp_res: &PolyMatrixNTT<'a>,
-+    precomp_vals: &[PolyMatrixNTT<'a>],
++    precomp_vals: &[Condensed],
 +    precomp_tables: &[Vec<usize>],
 +    y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
 +    working_set: &mut Vec<PolyMatrixNTT<'a>>,
@@ -775,9 +794,12 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/pac
              let ct: &PolyMatrixNTT<'_> = &ct_sum_1;
              let t = (1 << cur_ell) + 1;
  
-@@ -493,15 +551,15 @@
+@@ -491,17 +549,17 @@
+             // let w_times_ginv_ct = &w * cur_ginv_ct_ntt;
+             // multiply(&mut w_times_ginv_ct, &w, &cur_ginv_ct_ntt);
              // w_times_ginv_ct.as_mut_slice().fill(0);
-             fast_multiply_no_reduce(params, &mut w_times_ginv_ct, &w, &cur_ginv_ct_ntt, 0);
+-            fast_multiply_no_reduce(params, &mut w_times_ginv_ct, &w, &cur_ginv_ct_ntt, 0);
++            fast_multiply_condensed(params, &mut w_times_ginv_ct, &w, cur_ginv_ct_ntt);
              num_muls += 1;
 -            time_2 += now.elapsed().as_micros();
 +            if let Some(now) = now { time_2 += now.elapsed().as_micros(); }
@@ -876,15 +898,106 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/pac
              for c in 0..params.crt_count {
                  for i in 0..params.poly_len {
                      let idx = c * params.poly_len + i;
-@@ -678,6 +754,7 @@
+@@ -678,6 +754,98 @@
      }
  }
  
++/// `res = a * b` without reduction, for a condensed key matrix `a` of one
++/// row (stride `2 * poly_len` words per polynomial) and a compact table
++/// matrix `b` (stride `poly_len`): the low and the high 32-bit halves are
++/// multiplied separately and summed over the gadget digits.
++#[cfg(target_feature = "avx512f")]
++pub fn fast_multiply_condensed(
++    params: &Params,
++    res: &mut PolyMatrixNTT,
++    a: &PolyMatrixNTT,
++    b: &Condensed,
++) {
++    assert_eq!(res.rows, 1);
++    assert_eq!(res.cols, 1);
++    assert_eq!(a.rows, 1);
++    assert_eq!(a.cols, b.rows);
++    assert_eq!(params.crt_count * params.poly_len, 2 * 2048);
++
++    unsafe {
++        let a_ptr = a.as_slice().as_ptr();
++        let b_ptr = b.as_slice().as_ptr();
++        let res_ptr = res.as_mut_slice().as_mut_ptr();
++        let pol_sz = params.poly_len;
++
++        for idx in (0..pol_sz).step_by(8) {
++            let mut sum_lo = _mm512_setzero_si512();
++            let mut sum_hi = _mm512_setzero_si512();
++            for k in 0..a.cols {
++                let p_x = a_ptr.add(k * 2 * pol_sz + idx);
++                let p_y = b_ptr.add(k * pol_sz + idx);
++
++                let x = _mm512_load_si512(p_x as *const _);
++                let x_lo = x;
++                let x_hi = _mm512_srli_epi64(x, 32);
++                let y = _mm512_loadu_si512(p_y as *const _);
++                let y_lo = y;
++                let y_hi = _mm512_srli_epi64(y, 32);
++
++                let product_lo = _mm512_mul_epu32(x_lo, y_lo);
++                let product_hi = _mm512_mul_epu32(x_hi, y_hi);
++
++                sum_lo = _mm512_add_epi64(sum_lo, product_lo);
++                sum_hi = _mm512_add_epi64(sum_hi, product_hi);
++            }
++
++            let p_z = res_ptr.add(idx);
++            _mm512_store_si512(p_z as *mut _, sum_lo);
++            let p_z = res_ptr.add(pol_sz + idx);
++            _mm512_store_si512(p_z as *mut _, sum_hi);
++        }
++    }
++}
++
++#[cfg(not(target_feature = "avx512f"))]
++pub fn fast_multiply_condensed(
++    params: &Params,
++    res: &mut PolyMatrixNTT,
++    a: &PolyMatrixNTT,
++    b: &Condensed,
++) {
++    assert_eq!(res.rows, 1);
++    assert_eq!(res.cols, 1);
++    assert_eq!(a.rows, 1);
++    assert_eq!(a.cols, b.rows);
++    assert_eq!(params.crt_count * params.poly_len, 2 * 2048);
++
++    #[cfg(target_arch = "x86_64")]
++    if avx2::available() {
++        unsafe { avx2::multiply_condensed(params, res, a, b) };
++        return;
++    }
++
++    let a_slc = a.as_slice();
++    let b_slc = b.as_slice();
++    let res_slc = res.as_mut_slice();
++    let pol_sz = params.poly_len;
++    let low_mask = (1u64 << 32) - 1;
++
++    for idx in 0..pol_sz {
++        let mut sum_lo = 0u64;
++        let mut sum_hi = 0u64;
++        for k in 0..a.cols {
++            let x = a_slc[k * 2 * pol_sz + idx];
++            let y = b_slc[k * pol_sz + idx];
++            sum_lo = sum_lo.wrapping_add((x & low_mask) * (y & low_mask));
++            sum_hi = sum_hi.wrapping_add((x >> 32) * (y >> 32));
++        }
++        res_slc[idx] = sum_lo;
++        res_slc[pol_sz + idx] = sum_hi;
++    }
++}
++
 +#[cfg(target_feature = "avx512f")]
  pub fn fast_multiply_no_reduce(
      params: &Params,
      res: &mut PolyMatrixNTT,
-@@ -728,6 +805,73 @@
+@@ -728,6 +896,108 @@
      }
  }
  
@@ -955,10 +1068,45 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/pac
 +    }
 +}
 +
++/// A condensed polynomial matrix of one column: the two CRT residues of
++/// every coefficient packed into one 64-bit word, so a polynomial is
++/// `poly_len` words and a matrix of `rows` rows is `rows * poly_len` words.
++/// The response-packing tables are stored in this form, half the size of
++/// a `PolyMatrixNTT` of the same shape.
++#[derive(Clone)]
++pub struct Condensed {
++    pub rows: usize,
++    pub poly_len: usize,
++    pub data: Vec<u64>,
++}
++
++impl Condensed {
++    pub fn as_slice(&self) -> &[u64] {
++        &self.data
++    }
++
++    pub fn row(&self, k: usize) -> &[u64] {
++        &self.data[k * self.poly_len..(k + 1) * self.poly_len]
++    }
++}
++
++/// Condense a one-column matrix into the compact form.
++pub fn condense_compact<'a>(params: &'a Params, a: &PolyMatrixNTT<'a>) -> Condensed {
++    assert_eq!(a.cols, 1);
++    let mut data = Vec::with_capacity(a.rows * params.poly_len);
++    for i in 0..a.rows {
++        let a_poly = a.get_poly(i, 0);
++        for z in 0..params.poly_len {
++            data.push(a_poly[z] | (a_poly[z + params.poly_len] << 32));
++        }
++    }
++    Condensed { rows: a.rows, poly_len: params.poly_len, data }
++}
++
  pub fn condense_matrix<'a>(params: &'a Params, a: &PolyMatrixNTT<'a>) -> PolyMatrixNTT<'a> {
      let mut res = PolyMatrixNTT::zero(params, a.rows, a.cols);
      for i in 0..a.rows {
-@@ -757,6 +901,7 @@
+@@ -757,6 +1027,7 @@
      res
  }
  
@@ -966,7 +1114,7 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/pac
  pub fn multiply_add_poly_avx(_params: &Params, res: &mut [u64], a: &[u64], b: &[u64]) {
      unsafe {
          let a_ptr = a.as_ptr();
-@@ -779,6 +924,21 @@
+@@ -779,6 +1050,21 @@
      }
  }
  
@@ -988,7 +1136,7 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/pac
  pub fn multiply_poly_avx(_params: &Params, res: &mut [u64], a: &[u64], b: &[u64]) {
      unsafe {
          let a_ptr = a.as_ptr();
-@@ -800,6 +960,223 @@
+@@ -800,6 +1086,252 @@
      }
  }
  
@@ -1040,6 +1188,35 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/pac
 +            for k in 0..cols {
 +                let x = _mm256_loadu_si256(a_ptr.add(k * 2 * pol_sz + idx) as *const _);
 +                let y = _mm256_loadu_si256(b_ptr.add(k * 2 * pol_sz + idx) as *const _);
++                let x_hi = _mm256_srli_epi64(x, 32);
++                let y_hi = _mm256_srli_epi64(y, 32);
++                sum_lo = _mm256_add_epi64(sum_lo, _mm256_mul_epu32(x, y));
++                sum_hi = _mm256_add_epi64(sum_hi, _mm256_mul_epu32(x_hi, y_hi));
++            }
++            _mm256_storeu_si256(res_ptr.add(idx) as *mut _, sum_lo);
++            _mm256_storeu_si256(res_ptr.add(pol_sz + idx) as *mut _, sum_hi);
++        }
++    }
++
++    /// `res = a * b` without reduction, `b` a compact table matrix.
++    #[target_feature(enable = "avx2")]
++    pub unsafe fn multiply_condensed(
++        params: &Params,
++        res: &mut PolyMatrixNTT,
++        a: &PolyMatrixNTT,
++        b: &super::Condensed,
++    ) {
++        let a_ptr = a.as_slice().as_ptr();
++        let b_ptr = b.as_slice().as_ptr();
++        let res_ptr = res.as_mut_slice().as_mut_ptr();
++        let pol_sz = params.poly_len;
++        let cols = a.cols;
++        for idx in (0..pol_sz).step_by(4) {
++            let mut sum_lo = _mm256_setzero_si256();
++            let mut sum_hi = _mm256_setzero_si256();
++            for k in 0..cols {
++                let x = _mm256_loadu_si256(a_ptr.add(k * 2 * pol_sz + idx) as *const _);
++                let y = _mm256_loadu_si256(b_ptr.add(k * pol_sz + idx) as *const _);
 +                let x_hi = _mm256_srli_epi64(x, 32);
 +                let y_hi = _mm256_srli_epi64(y, 32);
 +                sum_lo = _mm256_add_epi64(sum_lo, _mm256_mul_epu32(x, y));
@@ -1212,7 +1389,19 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/pac
  pub fn fast_add_into_no_reduce(res: &mut PolyMatrixNTT, a: &PolyMatrixNTT) {
      assert!(res.rows == a.rows);
      assert!(res.cols == a.cols);
-@@ -1016,10 +1393,11 @@
+@@ -1011,15 +1543,21 @@
+     pack_pub_params_row_1s: &[PolyMatrixNTT<'a>],
+     y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
+ ) -> Vec<PolyMatrixNTT<'a>> {
+-    assert_eq!(prep_rlwe_cts.len(), num_rlwe_outputs);
+-    assert_eq!(prep_rlwe_cts[0].len(), params.poly_len);
++    // The prepacked columns are an input to the tables, not to the packing;
++    // a caller that released them passes an empty slice.
++    if !prep_rlwe_cts.is_empty() {
++        assert_eq!(prep_rlwe_cts.len(), num_rlwe_outputs);
++        assert_eq!(prep_rlwe_cts[0].len(), params.poly_len);
++    }
++    assert_eq!(precomp.len(), num_rlwe_outputs);
      assert_eq!(b_values.len(), num_rlwe_outputs * params.poly_len);
  
      let mut res = Vec::new();
@@ -1225,7 +1414,7 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/pac
              &params,
              params.poly_len_log2,
              &pack_pub_params_row_1s,
-@@ -1028,6 +1406,7 @@
+@@ -1028,6 +1566,7 @@
              &precomp_vals,
              &precomp_tables,
              &y_constants,
@@ -1235,7 +1424,16 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/pac
          res.push(packed);
 diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/server.rs b/ypir/src/server.rs
 --- a/ypir/src/server.rs	2025-04-01 17:18:20.000000000 -0400
-+++ b/ypir/src/server.rs	2026-10-02 14:22:34.696519325 -0400
++++ b/ypir/src/server.rs	2026-10-05 12:27:36.185783437 -0400
+@@ -141,7 +141,7 @@
+     pack_pub_params
+ }
+ 
+-pub type Precomp<'a> = Vec<(PolyMatrixNTT<'a>, Vec<PolyMatrixNTT<'a>>, Vec<Vec<usize>>)>;
++pub type Precomp<'a> = Vec<(PolyMatrixNTT<'a>, Vec<crate::packing::Condensed>, Vec<Vec<usize>>)>;
+ 
+ #[derive(Clone)]
+ pub struct OfflinePrecomputedValues<'a> {
 @@ -576,7 +576,7 @@
      pub fn perform_offline_precomputation_simplepir(
          &self,

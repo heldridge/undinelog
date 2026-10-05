@@ -8,20 +8,36 @@ mod cluster;
 use cluster::written_cluster;
 use paper_a_optimized::core::NodeLinearization;
 use paper_a_optimized::private::{
-    PirClient, PirDatabase, PirError, PirShape, PrivateLayout, TableDatabase, entry_from_cells,
+    Grouping, PirClient, PirDatabase, PirError, PirShape, PrivateLayout, TableDatabase,
+    entry_from_cells,
 };
 
 fn assert_private_answers(kappa: usize, tree_height: usize, leaves: usize, segments_per_record: usize) {
+    assert_private_answers_for_patterns(kappa, tree_height, leaves, segments_per_record, 0);
+}
+
+/// The same check with patterns `extra_bits` larger than one group, so that
+/// a record holds more than two groups.
+fn assert_private_answers_for_patterns(
+    kappa: usize,
+    tree_height: usize,
+    leaves: usize,
+    segments_per_record: usize,
+    extra_bits: u32,
+) {
     let (params, auth, servers, _values, _root) =
         written_cluster(kappa, 3 * kappa, tree_height, leaves, 91);
-    let layout = PrivateLayout::new(
+    let mut grouping = Grouping::one_group(segments_per_record, params.n_grid);
+    grouping.pattern_bits += extra_bits;
+    let layout = PrivateLayout::with_grouping(
         &params,
         &auth,
         NodeLinearization::Preorder,
         leaves as u64,
-        segments_per_record,
+        grouping,
     )
     .expect("layout");
+    assert_eq!(PirShape::of(&layout).group_slots, layout.group_slots());
     let shape = PirShape::of(&layout);
     let server = &servers[1];
     let guard = server.inner.lock().expect("server lock");
@@ -102,6 +118,14 @@ fn private_answer_equals_the_table_and_decodes_public_entries() {
     assert_private_answers(2, 8, 90, 1);
     assert_private_answers(4, 8, 200, 1);
     assert_private_answers(4, 50, 150, 2);
+}
+
+#[test]
+fn private_answer_equals_the_table_for_patterns_of_several_groups() {
+    assert_private_answers_for_patterns(2, 8, 90, 1, 1);
+    assert_private_answers_for_patterns(2, 8, 200, 1, 3);
+    assert_private_answers_for_patterns(4, 50, 150, 1, 2);
+    assert_private_answers_for_patterns(4, 8, 200, 2, 1);
 }
 
 #[test]

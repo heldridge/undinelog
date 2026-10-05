@@ -67,12 +67,12 @@ PRIVATE_LOGS_GIB = (1, 4, 16, 64)
 PRIVATE_SWEEP_LOG_GIB = 4
 # The public grouping: one segment per block up to 2^25 leaves, doubling
 # with every two further levels of the active prefix.
-PRIVATE_GROUPING_BASE_BITS = 25
-PRIVATE_BLOCK_SWEEP_GIB = 64
-PRIVATE_BLOCK_SWEEP = (1, 2, 4)
+PRIVATE_PATTERN_SHIFT = 5
+PRIVATE_PATTERN_SWEEP_GIB = 64
+PRIVATE_PATTERN_SWEEP_OFFSETS = (-2, -1, 1)
 PRIVATE_HINT_SAMPLE_COLUMNS = 64
-PRIVATE_SINGLE_CELLS = 512
-PRIVATE_SINGLE_CELL_SWEEP = (256, 512, 1024)
+PRIVATE_SINGLE_GROUP_CELLS = 64
+PRIVATE_SINGLE_PATTERN_OFFSETS = (-1, 1)
 PRIVATE_SINGLE_MEASURED_GIB = (1, 4)
 PRIVATE_SINGLE_SHAPE_GIB = (16, 64)
 PRIVATE_TABLE_LOGS_GIB = (1, 4)
@@ -1392,10 +1392,24 @@ def leaves_of_gib(gib: int) -> int:
     return gib * GIB // FIELD_BYTES
 
 
-def private_grouping(leaves: int) -> int:
-    """Segments per block of the public grouping for a log of `leaves`."""
+def private_pattern_bits(leaves: int, kappa: int) -> int:
+    """Leaves per pattern of the public grouping, as a power of two: the
+    balance of the client's upload against its download,
+    floor((h + log2 kappa - 5) / 2) for the height h of the active prefix,
+    and at least the pattern whose subtree fills one segment,
+    2 log2 kappa - 1. A server that stores the whole tree is kappa = 1."""
     height = 0 if leaves <= 1 else (leaves - 1).bit_length()
-    return 1 << (max(0, height - PRIVATE_GROUPING_BASE_BITS) // 2)
+    log_kappa = kappa.bit_length() - 1
+    balance = (height + log_kappa - PRIVATE_PATTERN_SHIFT) // 2
+    return max(balance, 2 * log_kappa - 1, 0)
+
+
+def private_reply_ciphertexts(pattern_bits: int, group_cells: int, entries_per_group: int) -> int:
+    """Reply ciphertexts of a record: the groups a subtree of
+    2^(pattern_bits + 1) - 1 cells meets, and the upper entries."""
+    span = ceil_div((1 << (pattern_bits + 1)) - 1, group_cells)
+    symbols = ceil_div((span + 1) * entries_per_group * 256, 14) + 19 * 24
+    return ceil_div(symbols, 2048)
 
 
 def _private_job(
@@ -1523,21 +1537,20 @@ def _private_preprocess_cell(
 
 
 def _private_maintainer(
-    manifest: Manifest, kappa: int, gib: int, segments_per_record: int
+    manifest: Manifest, kappa: int, gib: int, pattern_bits: int
 ) -> tuple[JobSpec, dict[str, str]]:
     leaves = leaves_of_gib(gib)
     database_gib = 2 * gib / kappa
-    # Two blocks of `segments_per_record * kappa` entries plus the upper
-    # entries, in reply ciphertexts of 2048 symbols.
-    ciphertexts = -(-(2 * segments_per_record * kappa * 256 // 14 + 19 * 24) // 2048)
+    ciphertexts = private_reply_ciphertexts(pattern_bits, kappa * kappa, kappa)
     job = _private_job(
         manifest,
-        identifier=f"private-maintainer-undine-log{gib}gib-r{segments_per_record}-k{kappa}",
+        identifier=f"private-maintainer-undine-log{gib}gib-p{pattern_bits}-k{kappa}",
         role="maintainer",
         env={
             "KAPPA": kappa,
             "LEAVES": leaves,
-            "SEGMENTS_PER_RECORD": segments_per_record,
+            "SEGMENTS_PER_RECORD": 1,
+            "PATTERN_BITS": pattern_bits,
             "APPEND_LEAVES": BATCH_VALUES_4MIB,
         },
         setup=(
@@ -1591,22 +1604,27 @@ def _build_private_maintainer_table(manifest: Manifest) -> None:
         "update-packing-s",
     ]
     points = [
-        ("log", PRIVATE_KAPPA, gib, private_grouping(leaves_of_gib(gib)))
+        ("log", PRIVATE_KAPPA, gib, private_pattern_bits(leaves_of_gib(gib), PRIVATE_KAPPA))
         for gib in PRIVATE_LOGS_GIB
     ]
     points += [
-        ("kappa", kappa, PRIVATE_SWEEP_LOG_GIB, private_grouping(leaves_of_gib(PRIVATE_SWEEP_LOG_GIB)))
+        (
+            "kappa",
+            kappa,
+            PRIVATE_SWEEP_LOG_GIB,
+            private_pattern_bits(leaves_of_gib(PRIVATE_SWEEP_LOG_GIB), kappa),
+        )
         for kappa in KAPPAS
         if kappa != PRIVATE_KAPPA
     ]
+    sweep_bits = private_pattern_bits(leaves_of_gib(PRIVATE_PATTERN_SWEEP_GIB), PRIVATE_KAPPA)
     points += [
-        ("block", PRIVATE_KAPPA, PRIVATE_BLOCK_SWEEP_GIB, segments_per_record)
-        for segments_per_record in PRIVATE_BLOCK_SWEEP
-        if segments_per_record != private_grouping(leaves_of_gib(PRIVATE_BLOCK_SWEEP_GIB))
+        ("pattern", PRIVATE_KAPPA, PRIVATE_PATTERN_SWEEP_GIB, sweep_bits + offset)
+        for offset in PRIVATE_PATTERN_SWEEP_OFFSETS
     ]
-    for panel, kappa, gib, segments_per_record in points:
-        _, outputs = _private_maintainer(manifest, kappa, gib, segments_per_record)
-        row = f"{panel}:k{kappa}-log{gib}gib-r{segments_per_record}"
+    for panel, kappa, gib, pattern_bits in points:
+        _, outputs = _private_maintainer(manifest, kappa, gib, pattern_bits)
+        row = f"{panel}:k{kappa}-log{gib}gib-p{pattern_bits}"
         cells = [
             cell(table, row, "kappa", ensure_formula(manifest, "integer", kappa),
                  "integer", "Threshold."),
@@ -1626,19 +1644,22 @@ def _build_private_maintainer_table(manifest: Manifest) -> None:
 
 
 def _private_single(
-    manifest: Manifest, gib: int, cells_per_record: int
+    manifest: Manifest, gib: int, pattern_bits: int
 ) -> tuple[JobSpec, dict[str, str]]:
     env: dict[str, Any] = {
         "LEAVES": leaves_of_gib(gib),
-        "CELLS_PER_RECORD": cells_per_record,
+        "CELLS_PER_RECORD": PRIVATE_SINGLE_GROUP_CELLS,
+        "PATTERN_BITS": pattern_bits,
     }
-    if gib == PRIVATE_SINGLE_MEASURED_GIB[0] and cells_per_record == PRIVATE_SINGLE_CELLS:
+    if gib == PRIVATE_SINGLE_MEASURED_GIB[0] and pattern_bits == private_pattern_bits(
+        leaves_of_gib(gib), 1
+    ):
         env["SHAPE_LEAVES_LIST"] = ",".join(
             str(leaves_of_gib(shape)) for shape in PRIVATE_SINGLE_SHAPE_GIB
         )
     job = _private_job(
         manifest,
-        identifier=f"private-single-undine-log{gib}gib-c{cells_per_record}",
+        identifier=f"private-single-undine-log{gib}gib-p{pattern_bits}",
         role="single",
         env=env,
         setup="Build the cells of the whole tree on all cores and preprocess them.",
@@ -1656,12 +1677,17 @@ def _build_private_single_table(manifest: Manifest) -> None:
         "preprocess-core-s",
     ]
     dash = _dash(manifest)
-    points = [
-        (PRIVATE_SINGLE_MEASURED_GIB[0], cells) for cells in PRIVATE_SINGLE_CELL_SWEEP
-    ] + [(gib, PRIVATE_SINGLE_CELLS) for gib in PRIVATE_SINGLE_MEASURED_GIB[1:]]
-    for gib, cells_per_record in points:
-        _, outputs = _private_single(manifest, gib, cells_per_record)
-        row = f"measured:log{gib}gib-c{cells_per_record}"
+    first_gib = PRIVATE_SINGLE_MEASURED_GIB[0]
+    first_bits = private_pattern_bits(leaves_of_gib(first_gib), 1)
+    points = [(first_gib, first_bits)]
+    points += [(first_gib, first_bits + offset) for offset in PRIVATE_SINGLE_PATTERN_OFFSETS]
+    points += [
+        (gib, private_pattern_bits(leaves_of_gib(gib), 1))
+        for gib in PRIVATE_SINGLE_MEASURED_GIB[1:]
+    ]
+    for gib, pattern_bits in points:
+        _, outputs = _private_single(manifest, gib, pattern_bits)
+        row = f"measured:log{gib}gib-p{pattern_bits}"
         manifest.add_row(
             table,
             row,
@@ -1675,9 +1701,7 @@ def _build_private_single_table(manifest: Manifest) -> None:
                 ),
             ],
         )
-    shape_job, _ = _private_single(
-        manifest, PRIVATE_SINGLE_MEASURED_GIB[0], PRIVATE_SINGLE_CELLS
-    )
+    shape_job, _ = _private_single(manifest, first_gib, first_bits)
     for gib in PRIVATE_SINGLE_SHAPE_GIB:
         outputs = _private_outputs(
             manifest,
@@ -1685,7 +1709,7 @@ def _build_private_single_table(manifest: Manifest) -> None:
             selector(role="single-shape", leaves=leaves_of_gib(gib)),
             tag=f"shape-log{gib}gib-",
         )
-        row = f"shape:log{gib}gib-c{PRIVATE_SINGLE_CELLS}"
+        row = f"shape:log{gib}gib-p{private_pattern_bits(leaves_of_gib(gib), 1)}"
         cells = [
             cell(table, row, "log-gib", ensure_formula(manifest, "integer", gib),
                  "integer", "GiB of the log."),
@@ -1715,8 +1739,8 @@ def _build_private_table_table(manifest: Manifest) -> None:
         "table-first-pass-ms", "records-answer-ms", "table-answer-ms",
     ]
     for gib in PRIVATE_TABLE_LOGS_GIB:
-        grouping = private_grouping(leaves_of_gib(gib))
-        _, records = _private_maintainer(manifest, PRIVATE_KAPPA, gib, grouping)
+        pattern_bits = private_pattern_bits(leaves_of_gib(gib), PRIVATE_KAPPA)
+        _, records = _private_maintainer(manifest, PRIVATE_KAPPA, gib, pattern_bits)
         job = _private_job(
             manifest,
             identifier=f"private-table-undine-log{gib}gib-k{PRIVATE_KAPPA}",
@@ -1724,7 +1748,8 @@ def _build_private_table_table(manifest: Manifest) -> None:
             env={
                 "KAPPA": PRIVATE_KAPPA,
                 "LEAVES": leaves_of_gib(gib),
-                "SEGMENTS_PER_RECORD": grouping,
+                "SEGMENTS_PER_RECORD": 1,
+                "PATTERN_BITS": pattern_bits,
             },
             setup="Build the table of complete openings of one claim and preprocess it.",
             setup_seconds=60.0 * gib,
@@ -1778,7 +1803,10 @@ def _build_private_client_table(manifest: Manifest) -> None:
             env={
                 "KAPPA": kappa,
                 "LEAVES": PREFIX_BATCHES * BATCH_VALUES_4MIB,
-                "SEGMENTS_PER_RECORD": private_grouping(PREFIX_BATCHES * BATCH_VALUES_4MIB),
+                "SEGMENTS_PER_RECORD": 1,
+                "PATTERN_BITS": private_pattern_bits(
+                    PREFIX_BATCHES * BATCH_VALUES_4MIB, kappa
+                ),
             },
             setup=(
                 "Each of 3*kappa claims preprocesses its primary columns and "
@@ -2454,21 +2482,27 @@ def select_run_jobs(manifest: Manifest, mode: str) -> list[RunJob]:
     if mode == "smoke":
         small = {f"{PRIVATE_PREFIX}_LEAVES": PRIVATE_SMOKE_LEAVES}
         smallest = KAPPAS[0]
+        sweep_leaves = leaves_of_gib(PRIVATE_SWEEP_LOG_GIB)
         add(
             f"private-maintainer-undine-log{PRIVATE_SWEEP_LOG_GIB}gib"
-            f"-r{private_grouping(leaves_of_gib(PRIVATE_SWEEP_LOG_GIB))}-k{smallest}",
+            f"-p{private_pattern_bits(sweep_leaves, smallest)}-k{smallest}",
             overrides=small
             | {f"{PRIVATE_PREFIX}_APPEND_LEAVES": PRIVATE_SMOKE_APPEND_LEAVES},
         )
         add(
-            f"private-single-undine-log{first_gib}gib-c{PRIVATE_SINGLE_CELLS}",
+            f"private-single-undine-log{first_gib}gib"
+            f"-p{private_pattern_bits(leaves_of_gib(first_gib), 1)}",
             overrides=small,
         )
         add(f"private-table-undine-log{first_gib}gib-k{PRIVATE_KAPPA}", overrides=small)
         add(f"private-client-undine-k{smallest}", overrides=small)
     else:
-        add(f"private-maintainer-undine-log{first_gib}gib-r1-k{PRIVATE_KAPPA}")
-        add(f"private-single-undine-log{first_gib}gib-c{PRIVATE_SINGLE_CELLS}")
+        first_leaves = leaves_of_gib(first_gib)
+        add(
+            f"private-maintainer-undine-log{first_gib}gib"
+            f"-p{private_pattern_bits(first_leaves, PRIVATE_KAPPA)}-k{PRIVATE_KAPPA}"
+        )
+        add(f"private-single-undine-log{first_gib}gib-p{private_pattern_bits(first_leaves, 1)}")
         add(f"private-table-undine-log{first_gib}gib-k{PRIVATE_KAPPA}")
         add(f"private-client-undine-k{PRIVATE_KAPPA}")
     return selected
@@ -3049,6 +3083,21 @@ def validate_output_contract(
                 raise PipelineError(
                     f"{run_job.spec.id}: database bytes fail records times record bytes"
                 )
+            pattern_bits = int(entry["pattern_bits"])
+            span = ceil_div((1 << (pattern_bits + 1)) - 1, cells_per_record)
+            if (
+                int(entry["patterns"]) != ceil_div(leaves, 1 << pattern_bits)
+                or int(entry["group_slots"]) != span + 1
+                or int(entry["slots"])
+                != span + 1 + max(0, (leaves - 1).bit_length() - pattern_bits)
+            ):
+                raise PipelineError(
+                    f"{run_job.spec.id}: patterns and slots fail the pattern size"
+                )
+            if entry["role"] != "single-shape" and pattern_bits != int(
+                env[f"{PRIVATE_PREFIX}_PATTERN_BITS"]
+            ):
+                raise PipelineError(f"{run_job.spec.id}: pattern size echo mismatch")
             if not (
                 int(entry["patterns"]) <= int(entry["db_rows"])
                 and int(entry["record_columns"]) <= int(entry["db_cols"])
