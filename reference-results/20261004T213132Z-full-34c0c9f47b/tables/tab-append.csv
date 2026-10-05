@@ -1,0 +1,5 @@
+panel,row,segment,kappa,undine-append,undine-fragment,borg-append,borg-fragment
+,k8,64,8,160.6,2.000,261.2,2.000
+,k16,256,16,161.8,1.000,232.2,1.000
+,k32,1024,32,159.2,0.500,224.5,0.500
+,k64,4096,64,166.6,0.250,236.7,0.250

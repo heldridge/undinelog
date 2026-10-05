@@ -1,0 +1,34 @@
+{
+  "independent_samples": {
+    "output:point-helper-borg-k64:serialized-helper-response": [
+      305621.0,
+      313048.0,
+      305772.0,
+      300287.0,
+      308530.0,
+      309824.0,
+      303822.0,
+      305130.0,
+      303334.0,
+      302786.0
+    ]
+  },
+  "raw_benchmark_samples": {
+    "output:point-helper-borg-k64:serialized-helper-response": [
+      383043.0,
+      369725.0,
+      317735.0,
+      305621.0,
+      313048.0,
+      305772.0,
+      300287.0,
+      308530.0,
+      309824.0,
+      303822.0,
+      305130.0,
+      303334.0,
+      302786.0
+    ]
+  },
+  "seed": 42
+}
