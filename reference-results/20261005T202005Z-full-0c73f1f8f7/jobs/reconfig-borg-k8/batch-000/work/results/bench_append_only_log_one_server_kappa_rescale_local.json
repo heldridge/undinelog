@@ -1,0 +1,198 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 13,
+    "committed_bulk_update_batches": 3,
+    "timestamp_unix_ms": 1791237352432,
+    "git": "d8bc3e40d4f5617d83d8b405731bd472d42a7ad7",
+    "notes": "local append-only-log one-server reconfiguration: warm real one-claim-per-party append-only-log state, then time selected helper response construction and serialization plus destination-maintainer metrics for adjacent kappa changes and local segment-double; whole-cluster coordination is intentionally excluded",
+    "metrics": [
+      "helper_double",
+      "helper_halve",
+      "receiver_double",
+      "receiver_halve",
+      "segment_double"
+    ]
+  },
+  "entries": [
+    {
+      "segment_len": 64,
+      "source_s": 8,
+      "target_s": 4,
+      "n_grid": 64,
+      "source_need": 8,
+      "target_need": 16,
+      "source_shard_count": 16,
+      "bulk_updates_bytes": 4194304,
+      "bulk_updates_size": 131072,
+      "committed_bulk_update_batches": 3,
+      "live_unauth_len": 786463,
+      "segment_count": 12289,
+      "target_source_registry_index": 0,
+      "target_registry_index": 0,
+      "target_row_count": 1,
+      "helper_target_count": 15,
+      "helper_eval_scalars_total": 184335,
+      "helper_eval_raw_bytes_total": 5898720,
+      "helper_eval_one_helper_serialized_ns": {
+        "mean": 35177704,
+        "p50": 35146664,
+        "p95": 35451024,
+        "trials": 13,
+        "samples": [
+          35451024,
+          35215924,
+          35540390,
+          35146664,
+          35172721,
+          35367613,
+          35053651,
+          34882927,
+          35035494,
+          35324461,
+          35119169,
+          35097399,
+          34902717
+        ]
+      },
+      "helper_eval_all_helpers_serial_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "local_retained_child_materialize_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "local_row_hydrate_install_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "local_kappa_double_total_ns": {
+        "mean": 273199892,
+        "p50": 273168175,
+        "p95": 274096248,
+        "trials": 13,
+        "samples": [
+          273746499,
+          272360958,
+          274903981,
+          272950471,
+          274096248,
+          273382941,
+          271901405,
+          273776432,
+          273271569,
+          273168175,
+          272310377,
+          272866977,
+          272862573
+        ]
+      },
+      "segment_double_target_segment_len": 128,
+      "segment_double_target_s": 8,
+      "segment_double_target_need": 16,
+      "segment_double_target_segment_count": 6145,
+      "segment_double_helper_eval_raw_bytes_total": 0,
+      "local_segment_double_total_ns": {
+        "mean": 198841639,
+        "p50": 198380655,
+        "p95": 200066330,
+        "trials": 13,
+        "samples": [
+          198055250,
+          197849443,
+          200066330,
+          198380655,
+          199928646,
+          197795628,
+          199692797,
+          197847852,
+          200947046,
+          198324961,
+          198150975,
+          198434103,
+          199467622
+        ]
+      },
+      "kappa_halve_source_s": 4,
+      "kappa_halve_target_s": 8,
+      "kappa_halve_source_need": 16,
+      "kappa_halve_target_need": 8,
+      "kappa_halve_target_row_count": 1,
+      "kappa_halve_helper_count": 8,
+      "kappa_halve_helper_eval_raw_bytes_total": 4325728,
+      "kappa_halve_helper_eval_one_helper_serialized_ns": {
+        "mean": 40010618,
+        "p50": 39995304,
+        "p95": 40266972,
+        "trials": 13,
+        "samples": [
+          39915714,
+          40050343,
+          40060820,
+          39899772,
+          40100029,
+          39995304,
+          39840303,
+          40056559,
+          39925662,
+          39843430,
+          40266972,
+          40393958,
+          39789179
+        ]
+      },
+      "kappa_halve_helper_eval_all_helpers_serial_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "kappa_halve_primary_materialize_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "kappa_halve_row_hydrate_install_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "kappa_halve_prepared_total_ns": {
+        "mean": 622429996,
+        "p50": 620437341,
+        "p95": 626716248,
+        "trials": 13,
+        "samples": [
+          633795628,
+          623449002,
+          620437341,
+          619240863,
+          622076106,
+          626716248,
+          619764642,
+          626299519,
+          622456009,
+          619188172,
+          618010705,
+          619911643,
+          620244075
+        ]
+      }
+    }
+  ]
+}

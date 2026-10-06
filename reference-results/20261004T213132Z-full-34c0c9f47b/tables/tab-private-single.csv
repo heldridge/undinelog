@@ -1,7 +1,0 @@
-panel,row,log-gib,record-kib,database,state,request,reply-kib,client-request-ms,first-pass,answer,client-decode-ms,preprocess-core-s
-measured,measured:log1gib-c256,1,8.0,2.0,4.0,2.2,60.0,105.8,0.390,0.473,1.5,101.1
-measured,measured:log1gib-c512,1,16.0,2.0,5.7,1.3,120.0,70.6,0.370,0.504,3.1,106.0
-measured,measured:log1gib-c1024,1,32.0,2.0,8.8,0.9,228.1,52.0,0.354,0.613,5.8,117.5
-measured,measured:log4gib-c512,4,16.0,8.0,12.7,4.0,120.0,175.7,1.473,1.536,3.0,395.8
-shape,shape:log16gib-c512,16,16.0,32.0,--,14.5,120.0,--,--,--,--,--
-shape,shape:log64gib-c512,64,16.0,128.0,--,56.5,120.0,--,--,--,--,--

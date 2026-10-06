@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 13,
+    "committed_bulk_update_batches": 3,
+    "query_bulk_update_batch": 1,
+    "query_value_offset": 65536,
+    "query_value_index": 196608,
+    "timestamp_unix_ms": 1791233024686,
+    "git": "d8bc3e40d4f5617d83d8b405731bd472d42a7ad7",
+    "notes": "simulated append-only-log client point-open benchmark: warm local auth state from canonical field-entry bulk-update batches through the app codec and frontier path, split a full read reply into helper replies, then time client-side Combine+Verify with kappa replies and 0 bad helpers, and with 3*kappa replies containing kappa staggered bad helpers"
+  },
+  "entries": [
+    {
+      "Seg": 1024,
+      "encoded_cells_N": 1024,
+      "encoded_segment_bytes": 32768,
+      "kappa": 32,
+      "primary_slice_field_elements": 32,
+      "registry_helper_count": 96,
+      "bulk_updates_bytes": 4194304,
+      "inserted_values": 131072,
+      "zero_bad_helper_replies": 32,
+      "correcting_helper_replies": 96,
+      "bad_helper_replies": 32,
+      "auth_nodes_per_helper": 51,
+      "array_shares_per_helper": 20,
+      "zero_bad_array_shares": 640,
+      "correcting_array_shares": 1920,
+      "client_zero_bad_helpers_combine_verify_ns": {
+        "mean": 651843,
+        "p50": 617728,
+        "p95": 765491,
+        "trials": 13,
+        "samples": [
+          765491,
+          619769,
+          759126,
+          768283,
+          651331,
+          617728,
+          612490,
+          617423,
+          609028,
+          618279,
+          606673,
+          613249,
+          615094
+        ]
+      },
+      "client_kappa_bad_helpers_combine_verify_ns": {
+        "mean": 103159554,
+        "p50": 103323668,
+        "p95": 104023626,
+        "trials": 13,
+        "samples": [
+          103458623,
+          101699805,
+          103202963,
+          103362241,
+          102976798,
+          102466703,
+          103746862,
+          101925098,
+          103217058,
+          103636340,
+          103323668,
+          104034428,
+          104023626
+        ]
+      }
+    }
+  ]
+}

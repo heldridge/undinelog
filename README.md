@@ -10,7 +10,7 @@ layouts in one run, on one host, under one statistical protocol.
 - `borg/` is the BorgLog implementation, configured with the same segment
   size `kappa^2` and threshold `kappa`.
 
-The reference run `20261004T213132Z-full-34c0c9f47b` and all of its
+The reference run `20261005T202005Z-full-0c73f1f8f7` and all of its
 measurements are included under `reference-results/`. No paper source or
 typesetting toolchain is required. The reference run is immutable; new runs
 are written under `results/runs/`.
@@ -62,7 +62,7 @@ The reference machine had an Intel Core Ultra 7 255U, 32 GiB RAM, and 14
 logical CPUs, and ran Linux with Rust 1.98.0. The benchmark processes were
 pinned to logical CPU 2, a performance core, with the `performance` energy
 preference. Exact environment details are retained in
-[`environment.json`](reference-results/20261004T213132Z-full-34c0c9f47b/provenance/environment.json).
+[`environment.json`](reference-results/20261005T202005Z-full-0c73f1f8f7/provenance/environment.json).
 Cargo may need network access once to fetch locked dependencies.
 
 ## Reviewer Commands
@@ -107,11 +107,11 @@ Do not edit source or orchestration files between starting and resuming a run;
 the runner rejects source drift. Only one experiment process may use the
 repository at a time.
 
-The included full run took 3.91 hours of benchmark batches. Runtime depends on
+The included full run took 4.41 hours of benchmark batches. Runtime depends on
 host speed, load, and variance; the generated preflight reports a
-host-calibrated range, which was 2.3 to 25.0 hours on the reference host
+host-calibrated range, which was 2.5 to 27.8 hours on the reference host
 because adaptive series may stop at 10 repetitions or continue to 160. The
-canary took 16.5 minutes.
+canary took 16.7 minutes.
 
 ## Statistical Protocol
 
@@ -157,11 +157,11 @@ workloads and benchmark targets.
 ## Reference Results
 
 The packaged run is
-[`reference-results/20261004T213132Z-full-34c0c9f47b/`](reference-results/20261004T213132Z-full-34c0c9f47b/).
-Start with its [rendered result groups](reference-results/20261004T213132Z-full-34c0c9f47b/tables/README.md).
+[`reference-results/20261005T202005Z-full-0c73f1f8f7/`](reference-results/20261005T202005Z-full-0c73f1f8f7/).
+Start with its [rendered result groups](reference-results/20261005T202005Z-full-0c73f1f8f7/tables/README.md).
 Machine-readable values, units, samples, confidence intervals, raw benchmark
 documents, logs, environment data, and source hashes are retained alongside
-them. The run has 15,070 independent timing samples in 123 batches, and every
+them. The run has 15,530 independent timing samples in 123 batches, and every
 one of its 338 timing series met the precision target.
 
 `./artifact verify` checks the complete file-integrity manifest, both crates'
