@@ -145,10 +145,10 @@ answers over a table with one complete opening per pattern, for the claim of
 the maintainer jobs at 1 and 4 GiB. Its reply is checked to equal the
 record-based reply byte for byte.
 
-**The client** (`tab:private-client`). On a 12 MiB log, at the public
-grouping, each of `3 kappa`
-claims preprocesses its own primary columns and answers one request; `kappa`
-of them lie about one node of the path. The client's request, its decoding
+**The client** (`tab:private-client`). On a 12 MiB log at every threshold,
+and on the 1 and 4 GiB logs at threshold 64, at the public grouping, each of
+`3 kappa` claims preprocesses its own primary columns and answers one
+request; `kappa` of them lie about one node of the path. The client's request, its decoding
 plus Combine+Verify from `kappa` correct replies and from all `3 kappa`
 replies, and Combine+Verify from the public replies of the same claims are
 timed in one process.

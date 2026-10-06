@@ -232,6 +232,12 @@ impl PrivateState {
     }
 
     /// Bring every database to the current fragment of `server`.
+    ///
+    /// Every update of the log is an append, so when the log grew only the
+    /// records from the old end on and those on the path of the first new
+    /// leaf are read; when it did not, every record is compared with its
+    /// stored cells. A maintainer that rewrote leaves below the old end
+    /// builds the state again instead.
     pub fn update(&mut self, server: &AuthServer) -> Result<(), String> {
         let leaves = server.allocated_leaves();
         let layout = PrivateLayout::with_grouping(
@@ -242,8 +248,15 @@ impl PrivateState {
             self.grouping,
         )
         .map_err(|err| err.to_string())?;
+        let appended =
+            (leaves > self.leaves as u64).then(|| layout.records_changed_by_append(self.leaves as u64));
         for (registry_index, database) in &mut self.databases {
-            let _ = database.update(&server.store.unauth, &layout, *registry_index);
+            let _ = database.update(
+                &server.store.unauth,
+                &layout,
+                *registry_index,
+                appended.as_deref(),
+            );
         }
         self.leaves = leaves as usize;
         self.root = server.store.root;

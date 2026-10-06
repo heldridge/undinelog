@@ -95,11 +95,9 @@ fn assert_updates_equal_fresh(
 
         {
             let guard = server.inner.lock().expect("server lock");
-            database.update(
-                &guard.store.unauth,
-                &layout_of(&params, &auth, to, segments_per_record),
-                server.label,
-            );
+            let layout = layout_of(&params, &auth, to, segments_per_record);
+            let changed = layout.records_changed_by_append(from as u64);
+            database.update(&guard.store.unauth, &layout, server.label, Some(&changed));
         }
         let fresh = fresh_database(&params, &auth, server, to, segments_per_record);
         assert_same_database(

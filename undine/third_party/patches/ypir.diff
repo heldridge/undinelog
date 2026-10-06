@@ -12,8 +12,8 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/Cargo.t
  serde_json = "1.0"
 diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/factored.rs b/ypir/src/factored.rs
 --- a/ypir/src/factored.rs	1969-12-31 19:00:00.000000000 -0500
-+++ b/ypir/src/factored.rs	2026-10-05 12:28:29.910001515 -0400
-@@ -0,0 +1,532 @@
++++ b/ypir/src/factored.rs	2026-10-06 11:25:19.481227820 -0400
+@@ -0,0 +1,623 @@
 +//! SimplePIR-variant building blocks for a database given by its columns.
 +//!
 +//! `YServer` stores the database as a matrix. The functions here run the same
@@ -124,6 +124,22 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/fac
 +    transpose_generic(&result, cols.len(), params.poly_len)
 +}
 +
++/// [`hint_from_columns`] in column-major order: the hint of column `col`
++/// of `cols` is `result[(col - cols.start) * poly_len..][..poly_len]`.
++pub fn hint_columns_from_columns<'a, F>(
++    params: &'a Params,
++    preprocessed_query: &[PolyMatrixNTT<'a>],
++    cols: std::ops::Range<usize>,
++    fill_column: F,
++) -> Vec<u64>
++where
++    F: FnMut(usize, &mut [u16]),
++{
++    let width = cols.len();
++    let row_major = hint_from_columns(params, preprocessed_query, cols, fill_column);
++    transpose_generic(&row_major, params.poly_len, width)
++}
++
 +/// The hint of a column that is `1` on the rows `rows` and `0` elsewhere:
 +/// `poly_len` values modulo the ciphertext modulus.
 +///
@@ -215,6 +231,40 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/fac
 +    }
 +}
 +
++/// [`offline_from_hint`] from a column-major hint, `hint_cols[col * poly_len + j]`,
++/// which the caller keeps: the returned values hold the tables and no hint.
++pub fn offline_from_hint_columns<'a>(
++    params: &'a Params,
++    hint_cols: &[u64],
++) -> OfflinePrecomputedValues<'a> {
++    let db_cols = simplepir_db_cols(params);
++    let num_rlwe_outputs = db_cols / params.poly_len;
++    assert_eq!(hint_cols.len(), db_cols * params.poly_len);
++    let y_constants = generate_y_constants(params);
++    let fake_pack_pub_params = generate_fake_pack_pub_params(params);
++    let mut precomp: Precomp = Vec::with_capacity(num_rlwe_outputs);
++    for output in 0..num_rlwe_outputs {
++        let (_, table) = packing_table_of_columns(
++            params,
++            hint_cols,
++            output,
++            &fake_pack_pub_params,
++            &y_constants,
++        );
++        precomp.push(table);
++    }
++    OfflinePrecomputedValues {
++        hint_0: Vec::new(),
++        hint_1: vec![],
++        pseudorandom_query_1: vec![],
++        y_constants,
++        smaller_server: None,
++        prepacked_lwe: Vec::new(),
++        fake_pack_pub_params,
++        precomp,
++    }
++}
++
 +/// The response-packing tables of RLWE output `output`, from the hint of all
 +/// columns: the entries `prepacked_lwe[output]` and `precomp[output]` of
 +/// [`offline_from_hint`], with its `fake_pack_pub_params` and `y_constants`.
@@ -237,6 +287,47 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/fac
 +    for j in 0..params.poly_len {
 +        lwe_cts.extend(&hint_0[j * db_cols + output * params.poly_len..][..params.poly_len]);
 +    }
++    packing_table_of_block(params, lwe_cts, fake_pack_pub_params, y_constants)
++}
++
++/// [`packing_table_of_output`] from a column-major hint,
++/// `hint_cols[col * poly_len + j]`.
++pub fn packing_table_of_columns<'a>(
++    params: &'a Params,
++    hint_cols: &[u64],
++    output: usize,
++    fake_pack_pub_params: &[PolyMatrixNTT<'a>],
++    y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
++) -> (
++    Vec<PolyMatrixNTT<'a>>,
++    (PolyMatrixNTT<'a>, Vec<crate::packing::Condensed>, Vec<Vec<usize>>),
++) {
++    let db_cols = simplepir_db_cols(params);
++    let n = params.poly_len;
++    assert_eq!(hint_cols.len(), db_cols * n);
++    assert!(output < db_cols / n);
++    let mut lwe_cts = vec![0u64; n * n];
++    for c in 0..n {
++        let column = &hint_cols[(output * n + c) * n..][..n];
++        for j in 0..n {
++            lwe_cts[j * n + c] = column[j];
++        }
++    }
++    packing_table_of_block(params, lwe_cts, fake_pack_pub_params, y_constants)
++}
++
++/// The packing table of one output from the row-major block of its hint,
++/// `block[j * poly_len + c]` for the `poly_len` columns of the output.
++pub fn packing_table_of_block<'a>(
++    params: &'a Params,
++    mut lwe_cts: Vec<u64>,
++    fake_pack_pub_params: &[PolyMatrixNTT<'a>],
++    y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
++) -> (
++    Vec<PolyMatrixNTT<'a>>,
++    (PolyMatrixNTT<'a>, Vec<crate::packing::Condensed>, Vec<Vec<usize>>),
++) {
++    assert_eq!(lwe_cts.len(), params.poly_len * params.poly_len);
 +    lwe_cts.resize((params.poly_len + 1) * params.poly_len, 0);
 +    let prepacked = prep_pack_lwes(params, &lwe_cts, params.poly_len);
 +    let table = precompute_pack(

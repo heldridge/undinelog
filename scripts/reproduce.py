@@ -65,6 +65,11 @@ PRIVATE_PREFIX = "BENCH_PRIVATE_OPENING"
 PRIVATE_KAPPA = 64
 PRIVATE_LOGS_GIB = (1, 4, 16, 64)
 PRIVATE_SWEEP_LOG_GIB = 4
+# The client is measured at every threshold on the 12 MiB log and at the
+# largest threshold on these logs as well; each of its 3*kappa claims
+# builds its own columns, so the larger logs stop where a job would take
+# hours.
+PRIVATE_CLIENT_LOGS_GIB = (1, 4)
 # The public grouping: one segment per block up to 2^25 leaves, doubling
 # with every two further levels of the active prefix.
 PRIVATE_PATTERN_SHIFT = 5
@@ -199,7 +204,8 @@ TABLE_METADATA.update(
         "tab:private-client": {
             "title": "Client work for one private opening",
             "notes": (
-                "A 12 MiB log at the public grouping. Request and "
+                "A 12 MiB log at every threshold and the 1 and 4 GiB logs at "
+                "threshold 64, at the public grouping. Request and "
                 "reply are serialized KiB; the reply is one claim's. Request "
                 "is key generation, the query, and serialization in "
                 "milliseconds. Private cells decode the replies and run "
@@ -1791,28 +1797,44 @@ def _build_private_table_table(manifest: Manifest) -> None:
 def _build_private_client_table(manifest: Manifest) -> None:
     table = "tab:private-client"
     manifest.table_columns[table] = [
-        "kappa", "request-kib", "reply-kib", "client-request-ms",
+        "kappa", "log-mib", "request-kib", "reply-kib", "client-request-ms",
         "private-kappa-ms", "public-kappa-ms", "private-3kappa-ms",
         "public-3kappa-ms",
     ]
-    for kappa in KAPPAS:
+    small_log = PREFIX_BATCHES * BATCH_VALUES_4MIB
+    settings = [(kappa, small_log, f"private-client-undine-k{kappa}", f"k{kappa}") for kappa in KAPPAS]
+    settings += [
+        (
+            PRIVATE_KAPPA,
+            leaves_of_gib(gib),
+            f"private-client-undine-log{gib}gib-k{PRIVATE_KAPPA}",
+            f"log:log{gib}gib-k{PRIVATE_KAPPA}",
+        )
+        for gib in PRIVATE_CLIENT_LOGS_GIB
+    ]
+    for kappa, leaves, identifier, row in settings:
+        # Each claim walks the log once and preprocesses its columns, about
+        # 50 s of one core per GiB of log, on up to eight claims at a time;
+        # the claims of the larger logs are given the memory for eight.
+        claim_seconds = 1.0 + leaves * FIELD_BYTES / GIB * 50.0
+        env = {
+            "KAPPA": kappa,
+            "LEAVES": leaves,
+            "SEGMENTS_PER_RECORD": 1,
+            "PATTERN_BITS": private_pattern_bits(leaves, kappa),
+        }
+        if leaves > small_log:
+            env["CLIENT_SETUP_MEMORY_MIB"] = 24 * 1024
         job = _private_job(
             manifest,
-            identifier=f"private-client-undine-k{kappa}",
+            identifier=identifier,
             role="client",
-            env={
-                "KAPPA": kappa,
-                "LEAVES": PREFIX_BATCHES * BATCH_VALUES_4MIB,
-                "SEGMENTS_PER_RECORD": 1,
-                "PATTERN_BITS": private_pattern_bits(
-                    PREFIX_BATCHES * BATCH_VALUES_4MIB, kappa
-                ),
-            },
+            env=env,
             setup=(
                 "Each of 3*kappa claims preprocesses its primary columns and "
                 "answers one request."
             ),
-            setup_seconds=8.0 * kappa,
+            setup_seconds=max(8.0 * kappa, 3 * kappa * claim_seconds / 8),
             repetition_seconds=max(0.1, (kappa / 8) ** 3 * 0.004),
         )
         outputs = _private_outputs(
@@ -1835,13 +1857,14 @@ def _build_private_client_table(manifest: Manifest) -> None:
                 ),
             },
         )
-        row = f"k{kappa}"
         manifest.add_row(
             table,
             row,
             [
                 cell(table, row, "kappa", ensure_formula(manifest, "integer", kappa),
                      "integer", "Threshold."),
+                cell(table, row, "log-mib", ensure_formula(manifest, "integer", leaves * FIELD_BYTES // MIB),
+                     "integer", "MiB of the log's leaves."),
                 cell(table, row, "request-kib", outputs["request_bytes"], "kib-1",
                      "Serialized request."),
                 cell(table, row, "reply-kib", outputs["reply_bytes"], "kib-1",

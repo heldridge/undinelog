@@ -53,6 +53,34 @@ fn assert_private_answers_for_patterns(
         "hint differs from the table's"
     );
 
+    // The first pass is a linear map for any packed coefficients, including
+    // noncanonical 32-bit residues and nonzero coefficients on padded rows.
+    // Compare with the independent materialized-table kernel, which has no
+    // subtree aggregation. Existing layouts include odd pattern counts and
+    // incomplete final patterns at several group and pattern sizes.
+    let params = shape.params();
+    let synthetic_queries = [
+        vec![0; shape.db_rows()],
+        vec![u64::MAX; shape.db_rows()],
+        vec![params.moduli[0] | (params.moduli[1] << 32); shape.db_rows()],
+        (0..shape.db_rows())
+            .map(|i| {
+                (i as u64 + 1)
+                    .wrapping_mul(0x9e37_79b9_7f4a_7c15)
+                    .rotate_left((i % 64) as u32)
+            })
+            .collect(),
+    ];
+    for (case, query) in synthetic_queries.iter().enumerate() {
+        assert_eq!(
+            database.first_pass(query).expect("synthetic first pass"),
+            table.first_pass(query).expect("synthetic table first pass"),
+            "synthetic query {case}, {} patterns, {} upper slots",
+            shape.patterns,
+            shape.upper_slots(),
+        );
+    }
+
     let client = PirClient::generate(shape);
     let pack_keys = client.pack_keys();
     let mut patterns = vec![0, shape.patterns / 2, shape.patterns - 1];
@@ -115,6 +143,8 @@ fn assert_private_answers_for_patterns(
 
 #[test]
 fn private_answer_equals_the_table_and_decodes_public_entries() {
+    // One pattern has no upper slots; the upper-query scratch stays empty.
+    assert_private_answers(2, 6, 1, 1);
     assert_private_answers(2, 8, 90, 1);
     assert_private_answers(4, 8, 200, 1);
     assert_private_answers(4, 50, 150, 2);

@@ -30,7 +30,10 @@ from those commits. They contain:
   twice that size with a zero half, and `fast_multiply_condensed` reads
   that layout. `factored::offline_from_hint` derives the table of each
   output from its prepacked hint columns and releases those columns, which
-  the online packing never reads. A table is 96 MiB per response
+  the online packing never reads; `offline_from_hint_columns` does the same
+  from a hint stored column by column, transposing one block of `poly_len`
+  columns per output (`packing_table_of_columns`), and
+  `hint_columns_from_columns` computes the hint in that layout. A table is 96 MiB per response
   ciphertext instead of about 320 MiB; the responses are unchanged, byte
   for byte.
 - **Local dependency.** YPIR depends on `../spiral-rs`.

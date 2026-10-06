@@ -107,15 +107,26 @@ impl PirShape {
     /// YPIR parameters for this shape, shared by all users of the shape.
     pub fn params(&self) -> &'static Params {
         static CACHE: OnceLock<Mutex<HashMap<(usize, usize), &'static Params>>> = OnceLock::new();
-        let candidate = params_for_scenario_simplepir(self.patterns, self.row_cells() * CELL_BITS);
-        let key = (candidate.db_dim_1, candidate.instances);
+        // The key is the backend's padding of the shape, computed before any
+        // `Params` is built: building one also builds its NTT tables.
+        const POLY_LEN_LOG2: usize = 11;
+        let row_bits = self.row_cells() * CELL_BITS;
+        let key = (
+            (self.patterns.next_power_of_two().trailing_zeros() as usize)
+                .saturating_sub(POLY_LEN_LOG2),
+            (row_bits as f64 / ((1 << POLY_LEN_LOG2) * CELL_BITS) as f64).ceil() as usize,
+        );
         let mut cache = CACHE
             .get_or_init(|| Mutex::new(HashMap::new()))
             .lock()
             .expect("PIR parameter cache");
         *cache
             .entry(key)
-            .or_insert_with(|| Box::leak(Box::new(candidate)))
+            .or_insert_with(|| {
+                let candidate = params_for_scenario_simplepir(self.patterns, row_bits);
+                assert_eq!(key, (candidate.db_dim_1, candidate.instances));
+                Box::leak(Box::new(candidate))
+            })
     }
 
     /// Rows of the PIR database, including padding rows.
@@ -314,16 +325,22 @@ pub struct PirDatabase {
     /// Per level above the groups, `count x UPPER_CELLS` plaintext cells:
     /// the entry of every stored node of that level, by position.
     upper: Vec<Vec<u16>>,
-    /// `patterns x slots` ids; [`NO_RECORD`] for an empty slot. Slots 0 and 1
-    /// hold block numbers, the slots above hold positions of upper nodes
-    /// within their level.
+    /// `patterns x slots` ids; [`NO_RECORD`] for an empty slot. The first
+    /// `group_slots` slots hold group numbers; the remaining slots hold
+    /// positions of upper nodes within their level.
     rows: Vec<u32>,
+    /// The SimplePIR hint, column-major: `hint_cols[col * poly_len + i]`,
+    /// canonical modulo the ciphertext modulus. A patch of one column is a
+    /// contiguous range, and a new column is appended.
+    hint_cols: Vec<u64>,
+    /// The response-packing tables of the hint; its own hint is empty.
     offline: OfflinePrecomputedValues<'static>,
 }
 
 impl PirDatabase {
     /// Build the database of claim `registry_index` from its stored primary
-    /// columns and preprocess it.
+    /// columns and preprocess it. The columns of the hint are independent
+    /// and are computed on every available core.
     pub fn build(store: &UnauthStore, layout: &PrivateLayout, registry_index: usize) -> Self {
         let shape = PirShape::of(layout);
         let records = layout.records();
@@ -335,7 +352,8 @@ impl PirDatabase {
                 &mut cells[record * shape.record_cells..(record + 1) * shape.record_cells],
             );
         }
-        Self::from_cells(layout, cells)
+        let threads = std::thread::available_parallelism().map_or(1, |n| n.get());
+        Self::from_cells_timed(layout, cells, threads).0
     }
 
     /// Build the database from the primary-column entries of all segments,
@@ -416,10 +434,10 @@ impl PirDatabase {
         let rows = layout.rows_table();
         let upper = Self::upper_from_cells(layout, &cells);
         let start = std::time::Instant::now();
-        let hint = Self::hint(&shape, params, &cells, &upper, &rows, threads);
+        let hint_cols = Self::hint(&shape, params, &cells, &upper, &rows, threads);
         let hint_time = start.elapsed();
         let start = std::time::Instant::now();
-        let offline = factored::offline_from_hint(params, hint);
+        let offline = factored::offline_from_hint_columns(params, &hint_cols);
         let packing_time = start.elapsed();
         (
             Self {
@@ -429,6 +447,7 @@ impl PirDatabase {
                 records,
                 upper,
                 rows,
+                hint_cols,
                 offline,
             },
             PreprocessTimes {
@@ -480,7 +499,12 @@ impl PirDatabase {
         };
         let threads = threads.clamp(1, db_cols);
         if threads == 1 {
-            return factored::hint_from_columns(params, &preprocessed_query, 0..db_cols, fill_column);
+            return factored::hint_columns_from_columns(
+                params,
+                &preprocessed_query,
+                0..db_cols,
+                fill_column,
+            );
         }
         // The columns are independent: each thread takes a range of them.
         let per_thread = db_cols.div_ceil(threads);
@@ -496,7 +520,12 @@ impl PirDatabase {
                 .cloned()
                 .map(|range| {
                     scope.spawn(move || {
-                        factored::hint_from_columns(params, preprocessed_query, range, fill_column)
+                        factored::hint_columns_from_columns(
+                            params,
+                            preprocessed_query,
+                            range,
+                            fill_column,
+                        )
                     })
                 })
                 .collect::<Vec<_>>();
@@ -505,15 +534,8 @@ impl PirDatabase {
                 .map(|handle| handle.join().expect("hint worker"))
                 .collect::<Vec<_>>()
         });
-        let mut hint = vec![0u64; db_cols * params.poly_len];
-        for (range, part) in ranges.iter().zip(parts) {
-            let width = range.len();
-            for i in 0..params.poly_len {
-                hint[i * db_cols + range.start..i * db_cols + range.end]
-                    .copy_from_slice(&part[i * width..(i + 1) * width]);
-            }
-        }
-        hint
+        // The ranges are in column order, so their parts concatenate.
+        parts.concat()
     }
 
     /// Bring the database to the current fragment of the claim, for a log
@@ -525,13 +547,17 @@ impl PirDatabase {
     /// whose record in one slot changed in the same way. Each run adds its
     /// change, times the hint of its row range, to the columns of its slot.
     /// The response-packing tables are then derived from the patched hint.
+    /// With `changed`, only those records are read; it must list every
+    /// record whose cells differ, as
+    /// [`PrivateLayout::records_changed_by_append`] does after an append.
     pub fn update(
         &mut self,
         store: &UnauthStore,
         layout: &PrivateLayout,
         registry_index: usize,
+        changed: Option<&[usize]>,
     ) -> UpdateTimes {
-        self.update_records(layout, None, &mut |record, cells| {
+        self.update_records(layout, changed, &mut |record, cells| {
             entries_to_cells(&record_entries(store, layout, registry_index, record), cells)
         })
     }
@@ -612,13 +638,12 @@ impl PirDatabase {
         let old_upper = std::mem::take(&mut self.upper);
         let upper = Self::upper_from_cells(layout, &self.cells);
 
-        // The hint, moved to the new column count.
+        // New columns of the hint are appended; the stored columns keep
+        // their place.
         let old_cols = factored::simplepir_db_cols(self.params);
-        let mut hint = vec![0u64; db_cols * params.poly_len];
-        for i in 0..params.poly_len {
-            hint[i * db_cols..i * db_cols + old_cols]
-                .copy_from_slice(&self.offline.hint_0[i * old_cols..(i + 1) * old_cols]);
-        }
+        let poly_len = params.poly_len;
+        assert!(db_cols >= old_cols, "the hint lost columns");
+        self.hint_cols.resize(db_cols * poly_len, 0);
 
         let preprocessed_query = factored::pseudorandom_query(params, SEED_0);
         let old_shape = self.shape;
@@ -648,17 +673,17 @@ impl PirDatabase {
         };
         // The change of one slot is a sum over its runs: every column of the
         // slot gains its cell's change times the hint of the run's row
-        // range. The sum is taken on tiles of adjacent columns, in the two
-        // residues of the ciphertext modulus, so each tile is added to
-        // adjacent hint values.
-        const TILE: usize = 16;
-        // A residue and a reduced change are below 2^28, so this many
-        // products fit in 64 bits.
-        const REDUCE_EVERY: usize = 128;
-        let poly_len = params.poly_len;
-        let (modulus_lo, modulus_hi) = (params.moduli[0] as i64, params.moduli[1] as i64);
-        let mut sum_lo = vec![0u64; poly_len * TILE];
-        let mut sum_hi = vec![0u64; poly_len * TILE];
+        // range. A column of the hint is contiguous, so the sum of one
+        // column over the runs is a scaled vector add per run, in the two
+        // residues of the ciphertext modulus. The change of a cell is a
+        // small signed number and a residue is below 2^28, so the signed
+        // sums of this many products stay within the bound of
+        // [`Finalize`].
+        const REDUCE_EVERY: usize = 1 << 13;
+        let finalize = Finalize::of(params);
+        let mut sum_lo = vec![0i64; poly_len];
+        let mut sum_hi = vec![0i64; poly_len];
+        let hint_cols = &mut self.hint_cols;
         for slot in 0..shape.slots {
             let width = shape.slot_width(slot);
             let column_base = shape.slot_offset(slot);
@@ -699,26 +724,28 @@ impl PirDatabase {
                 });
                 runs.push((before, after, start..pattern));
             }
-            // The hint of each run's row range, in the two residues,
-            // computed when a cell of the run first differs.
-            let mut range_hints: Vec<Option<(Vec<u64>, Vec<u64>)>> = vec![None; runs.len()];
-            for tile_start in (0..width).step_by(TILE) {
-                let tile_width = TILE.min(width - tile_start);
+            if runs.is_empty() {
+                continue;
+            }
+            // The hint of each run's row range, in the two residues.
+            let range_hints = runs
+                .iter()
+                .map(|(_, _, row_range)| {
+                    let values =
+                        factored::hint_of_row_range(params, &preprocessed_query, row_range.clone());
+                    (
+                        values.iter().map(|&v| v % params.moduli[0]).collect::<Vec<u64>>(),
+                        values.iter().map(|&v| v % params.moduli[1]).collect::<Vec<u64>>(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            for offset in 0..width {
                 let mut touched = false;
                 let mut pending = 0usize;
-                for (run, (before, after, row_range)) in runs.iter().enumerate() {
-                    let mut delta_lo = [0u64; TILE];
-                    let mut delta_hi = [0u64; TILE];
-                    let mut any = false;
-                    for t in 0..tile_width {
-                        let offset = tile_start + t;
-                        let delta = after.map_or(0, |cells| cells[offset] as i64)
-                            - before.map_or(0, |cells| cells[offset] as i64);
-                        any |= delta != 0;
-                        delta_lo[t] = delta.rem_euclid(modulus_lo) as u64;
-                        delta_hi[t] = delta.rem_euclid(modulus_hi) as u64;
-                    }
-                    if !any {
+                for ((before, after, _), (range_lo, range_hi)) in runs.iter().zip(&range_hints) {
+                    let delta = after.map_or(0, |cells| cells[offset] as i64)
+                        - before.map_or(0, |cells| cells[offset] as i64);
+                    if delta == 0 {
                         continue;
                     }
                     if !touched {
@@ -726,48 +753,19 @@ impl PirDatabase {
                         sum_hi.fill(0);
                         touched = true;
                     }
-                    let (range_lo, range_hi) = range_hints[run].get_or_insert_with(|| {
-                        let values =
-                            factored::hint_of_row_range(params, &preprocessed_query, row_range.clone());
-                        (
-                            values.iter().map(|&v| v % params.moduli[0]).collect(),
-                            values.iter().map(|&v| v % params.moduli[1]).collect(),
-                        )
-                    });
-                    for i in 0..poly_len {
-                        let (lo, hi) = (range_lo[i], range_hi[i]);
-                        let row_lo = &mut sum_lo[i * TILE..(i + 1) * TILE];
-                        let row_hi = &mut sum_hi[i * TILE..(i + 1) * TILE];
-                        for t in 0..TILE {
-                            row_lo[t] += delta_lo[t] * lo;
-                            row_hi[t] += delta_hi[t] * hi;
-                        }
-                    }
+                    add_scaled_residues(&mut sum_lo, &mut sum_hi, delta, range_lo, range_hi);
                     pending += 1;
                     if pending == REDUCE_EVERY {
-                        for (lo, hi) in sum_lo.iter_mut().zip(sum_hi.iter_mut()) {
-                            *lo = barrett_coeff_u64(params, *lo, 0);
-                            *hi = barrett_coeff_u64(params, *hi, 1);
-                        }
+                        finalize.reduce_sums(&mut sum_lo, &mut sum_hi);
                         pending = 0;
                     }
                 }
                 if !touched {
                     continue;
                 }
-                for i in 0..poly_len {
-                    let base = i * db_cols + column_base + tile_start;
-                    for t in 0..tile_width {
-                        let lo = barrett_coeff_u64(params, sum_lo[i * TILE + t], 0);
-                        let hi = barrett_coeff_u64(params, sum_hi[i * TILE + t], 1);
-                        let add = barrett_u64(params, params.crt_compose_2(lo, hi));
-                        let value = &mut hint[base + t];
-                        *value += add;
-                        if *value >= params.modulus {
-                            *value -= params.modulus;
-                        }
-                    }
-                }
+                let col = column_base + offset;
+                let column = &mut hint_cols[col * poly_len..(col + 1) * poly_len];
+                finalize.add_sums_to_column(&sum_lo, &sum_hi, column);
             }
         }
 
@@ -778,7 +776,7 @@ impl PirDatabase {
         let start = std::time::Instant::now();
         self.offline.prepacked_lwe = Vec::new();
         self.offline.precomp = Vec::new();
-        self.offline = factored::offline_from_hint(params, hint);
+        self.offline = factored::offline_from_hint_columns(params, &self.hint_cols);
         let packing_time = start.elapsed();
         self.shape = shape;
         self.params = params;
@@ -818,9 +816,9 @@ impl PirDatabase {
     /// ciphertexts, each derived this way; the prepacked columns of the
     /// output are an input to the table and are released with it.
     pub fn packing_table_of_output(&self, output: usize) -> usize {
-        let (_prepacked, (first, rest, _)) = factored::packing_table_of_output(
+        let (_prepacked, (first, rest, _)) = factored::packing_table_of_columns(
             self.params,
-            &self.offline.hint_0,
+            &self.hint_cols,
             output,
             &self.offline.fake_pack_pub_params,
             &self.offline.y_constants,
@@ -830,17 +828,15 @@ impl PirDatabase {
 
     /// The stored hint of one database column: `poly_len` values.
     pub fn stored_hint_column(&self, col: usize) -> Vec<u64> {
-        let db_cols = factored::simplepir_db_cols(self.params);
-        (0..self.params.poly_len)
-            .map(|i| self.offline.hint_0[i * db_cols + col])
-            .collect()
+        let n = self.params.poly_len;
+        self.hint_cols[col * n..(col + 1) * n].to_vec()
     }
 
     /// Bytes of the preprocessing: the hint and the response-packing tables.
     pub fn preprocessed_bytes(&self) -> usize {
         let poly = |matrix: &PolyMatrixNTT<'static>| matrix.as_slice().len() * 8;
         let offline = &self.offline;
-        let hint = offline.hint_0.len() * 8;
+        let hint = self.hint_cols.len() * 8;
         let prepacked = offline
             .prepacked_lwe
             .iter()
@@ -904,9 +900,18 @@ impl PirDatabase {
             .collect()
     }
 
-    /// The SimplePIR hint of the database.
-    pub fn hint_values(&self) -> &[u64] {
-        &self.offline.hint_0
+    /// The SimplePIR hint of the database, row-major as \textsc{YPIR} lays
+    /// it out: `[i * db_cols + col]`.
+    pub fn hint_values(&self) -> Vec<u64> {
+        let n = self.params.poly_len;
+        let db_cols = factored::simplepir_db_cols(self.params);
+        let mut hint = vec![0u64; db_cols * n];
+        for col in 0..db_cols {
+            for i in 0..n {
+                hint[i * db_cols + col] = self.hint_cols[col * n + i];
+            }
+        }
+        hint
     }
 
     /// The first pass of a query: its inner product with every database
@@ -923,28 +928,28 @@ impl PirDatabase {
         let mut out = vec![0u64; factored::simplepir_db_cols(params)];
         let mut acc_lo = vec![0u64; self.records];
         let mut acc_hi = vec![0u64; self.records];
-        let mut touched: Vec<u32> = Vec::new();
-        let mut sum_lo = vec![0u64; shape.record_cells];
-        let mut sum_hi = vec![0u64; shape.record_cells];
+        let group_cells = shape.group_slots * shape.record_cells;
+        let mut sum_lo = vec![0u64; group_cells];
+        let mut sum_hi = vec![0u64; group_cells];
         // A reduced coefficient is below 2^32 and a cell below 2^16, so this
         // many products fit in 64 bits.
         const REDUCE_EVERY: usize = 1 << 15;
 
-        for slot in 0..shape.group_slots {
-            touched.clear();
-            for pattern in 0..shape.patterns {
-                let record = self.rows[pattern * shape.slots + slot];
+        // Group `g` sits in slot `g % group_slots`, so one pass over the rows
+        // sums the coefficients of every group.
+        for (pattern, row) in self.rows.chunks_exact(shape.slots).enumerate() {
+            let coefficient_lo = query[pattern] & LOW_MASK;
+            let coefficient_hi = query[pattern] >> 32;
+            for (slot, &record) in row[..shape.group_slots].iter().enumerate() {
                 if record == NO_RECORD {
                     continue;
                 }
                 let g = record as usize;
-                if acc_lo[g] == 0 && acc_hi[g] == 0 {
-                    touched.push(record);
-                }
+                debug_assert_eq!(g % shape.group_slots, slot);
                 // Coefficients are below 2^32; reduce before the sum can
                 // reach 2^64.
-                acc_lo[g] += query[pattern] & LOW_MASK;
-                acc_hi[g] += query[pattern] >> 32;
+                acc_lo[g] += coefficient_lo;
+                acc_hi[g] += coefficient_hi;
                 if acc_lo[g] >= 1 << 62 {
                     acc_lo[g] = barrett_coeff_u64(params, acc_lo[g], 0);
                 }
@@ -952,38 +957,53 @@ impl PirDatabase {
                     acc_hi[g] = barrett_coeff_u64(params, acc_hi[g], 1);
                 }
             }
-            sum_lo.fill(0);
-            sum_hi.fill(0);
-            let mut pending = 0usize;
-            // A record whose coefficients sum to zero is listed twice at
-            // most; its second visit adds zero.
-            for &record in &touched {
-                let g = record as usize;
-                let a_lo = barrett_coeff_u64(params, acc_lo[g], 0);
-                let a_hi = barrett_coeff_u64(params, acc_hi[g], 1);
-                acc_lo[g] = 0;
-                acc_hi[g] = 0;
-                add_scaled_cells(&mut sum_lo, &mut sum_hi, a_lo, a_hi, self.record_cells(g));
-                pending += 1;
-                if pending == REDUCE_EVERY {
-                    for (lo, hi) in sum_lo.iter_mut().zip(sum_hi.iter_mut()) {
-                        *lo = barrett_coeff_u64(params, *lo, 0);
-                        *hi = barrett_coeff_u64(params, *hi, 1);
-                    }
-                    pending = 0;
-                }
+        }
+        // Then the groups are read once, in storage order, each into the
+        // sum of its slot; the sums are reduced per slot.
+        let mut pending = vec![0usize; shape.group_slots];
+        for g in 0..self.records {
+            let a_lo = barrett_coeff_u64(params, acc_lo[g], 0);
+            let a_hi = barrett_coeff_u64(params, acc_hi[g], 1);
+            if a_lo == 0 && a_hi == 0 {
+                continue;
             }
-            let base = shape.slot_offset(slot);
-            for offset in 0..shape.record_cells {
-                let lo = barrett_coeff_u64(params, sum_lo[offset], 0);
-                let hi = barrett_coeff_u64(params, sum_hi[offset], 1);
-                out[base + offset] = barrett_u64(params, params.crt_compose_2(lo, hi));
+            let slot = g % shape.group_slots;
+            let base = slot * shape.record_cells;
+            let slot_lo = &mut sum_lo[base..base + shape.record_cells];
+            let slot_hi = &mut sum_hi[base..base + shape.record_cells];
+            add_scaled_cells(slot_lo, slot_hi, a_lo, a_hi, self.record_cells(g));
+            pending[slot] += 1;
+            if pending[slot] == REDUCE_EVERY {
+                for (lo, hi) in slot_lo.iter_mut().zip(slot_hi) {
+                    *lo = barrett_coeff_u64(params, *lo, 0);
+                    *hi = barrett_coeff_u64(params, *hi, 1);
+                }
+                pending[slot] = 0;
             }
         }
+        for col in 0..group_cells {
+            let lo = barrett_coeff_u64(params, sum_lo[col], 0);
+            let hi = barrett_coeff_u64(params, sum_hi[col], 1);
+            out[col] = barrett_u64(params, params.crt_compose_2(lo, hi));
+        }
 
-        // Above the groups, each stored node is multiplied once by the sum
-        // of the coefficients of the patterns below its sibling, a
-        // contiguous range.
+        // Above the groups, the coefficient of a node is the sum of the
+        // query over the patterns below its sibling: at level `j`, entry
+        // `k` of `subtree_query` is the sum over `[k 2^j, (k+1) 2^j)`, and
+        // node `pos` uses entry `pos ^ 1`. The entries are folded pairwise
+        // from one level to the next, so every coefficient is read once.
+        let mut subtree_query = if shape.upper_slots() == 0 {
+            Vec::new()
+        } else {
+            query[..shape.patterns]
+                .iter()
+                .map(|&coefficient| {
+                    let lo = barrett_coeff_u64(params, coefficient & LOW_MASK, 0);
+                    let hi = barrett_coeff_u64(params, coefficient >> 32, 1);
+                    lo | (hi << 32)
+                })
+                .collect::<Vec<_>>()
+        };
         let mut upper_lo = [0u64; UPPER_CELLS];
         let mut upper_hi = [0u64; UPPER_CELLS];
         for level in 0..shape.upper_slots() {
@@ -991,23 +1011,12 @@ impl PirDatabase {
             upper_hi.fill(0);
             let mut pending = 0usize;
             let count = self.upper[level].len() / UPPER_CELLS;
+            debug_assert_eq!(subtree_query.len(), count);
             for pos in 0..count {
-                let start = ((pos ^ 1) << level).min(shape.patterns);
-                let end = (((pos ^ 1) + 1) << level).min(shape.patterns);
-                let mut lo = 0u64;
-                let mut hi = 0u64;
-                for &coefficient in &query[start..end] {
-                    lo += coefficient & LOW_MASK;
-                    hi += coefficient >> 32;
-                    if lo >= 1 << 62 {
-                        lo = barrett_coeff_u64(params, lo, 0);
-                    }
-                    if hi >= 1 << 62 {
-                        hi = barrett_coeff_u64(params, hi, 1);
-                    }
-                }
-                let a_lo = barrett_coeff_u64(params, lo, 0);
-                let a_hi = barrett_coeff_u64(params, hi, 1);
+                // An odd final subtree has no stored right sibling.
+                let coefficient = subtree_query.get(pos ^ 1).copied().unwrap_or(0);
+                let a_lo = coefficient & LOW_MASK;
+                let a_hi = coefficient >> 32;
                 if a_lo == 0 && a_hi == 0 {
                     continue;
                 }
@@ -1034,6 +1043,9 @@ impl PirDatabase {
                 let hi = barrett_coeff_u64(params, upper_hi[offset], 1);
                 out[base + offset] = barrett_u64(params, params.crt_compose_2(lo, hi));
             }
+            if level + 1 < shape.upper_slots() {
+                fold_query_pairs(params, &mut subtree_query);
+            }
         }
         Ok(out)
     }
@@ -1052,24 +1064,256 @@ impl PirDatabase {
     }
 }
 
+/// Replace canonical packed CRT coefficients by their pairwise sums.
+/// Each residue is below its modulus, so a sum is below twice the modulus
+/// and one subtraction suffices. For an odd length the last pair adds zero.
+fn fold_query_pairs(params: &Params, query: &mut Vec<u64>) {
+    let pairs = query.len().div_ceil(2);
+    for pair in 0..pairs {
+        let left = query[2 * pair];
+        let right = query.get(2 * pair + 1).copied().unwrap_or(0);
+        let mut lo = (left & LOW_MASK) + (right & LOW_MASK);
+        let mut hi = (left >> 32) + (right >> 32);
+        if lo >= params.moduli[0] {
+            lo -= params.moduli[0];
+        }
+        if hi >= params.moduli[1] {
+            hi -= params.moduli[1];
+        }
+        query[pair] = lo | (hi << 32);
+    }
+    query.truncate(pairs);
+}
+
 /// `sum_lo[k] += a_lo * cells[k]` and `sum_hi[k] += a_hi * cells[k]`: the
 /// product of one stored item with a coefficient in its two residues. The
 /// coefficients are below `2^32`, so the products fit the lanes of the AVX2
 /// kernel, which is used when the host has it.
 fn add_scaled_cells(sum_lo: &mut [u64], sum_hi: &mut [u64], a_lo: u64, a_hi: u64, cells: &[u16]) {
     #[cfg(target_arch = "x86_64")]
-    {
-        use std::sync::OnceLock;
-        static AVX2: OnceLock<bool> = OnceLock::new();
-        if *AVX2.get_or_init(|| is_x86_feature_detected!("avx2")) {
-            // SAFETY: the host supports AVX2.
-            unsafe { add_scaled_cells_avx2(sum_lo, sum_hi, a_lo, a_hi, cells) };
-            return;
-        }
+    if has_avx2() {
+        // SAFETY: the host supports AVX2.
+        unsafe { add_scaled_cells_avx2(sum_lo, sum_hi, a_lo, a_hi, cells) };
+        return;
     }
     for ((lo, hi), &cell) in sum_lo.iter_mut().zip(sum_hi.iter_mut()).zip(cells) {
         *lo += a_lo * cell as u64;
         *hi += a_hi * cell as u64;
+    }
+}
+
+/// Whether this host runs the AVX2 kernels.
+#[cfg(target_arch = "x86_64")]
+fn has_avx2() -> bool {
+    use std::sync::OnceLock;
+    static AVX2: OnceLock<bool> = OnceLock::new();
+    *AVX2.get_or_init(|| is_x86_feature_detected!("avx2"))
+}
+
+/// The arithmetic that turns the signed sums of a patched column into its
+/// new hint values: reduction modulo each prime, Garner's composition, and
+/// the addition modulo the ciphertext modulus, in integer operations whose
+/// operands stay below `2^32` so that the AVX2 kernel computes them
+/// exactly.
+///
+/// A sum is a signed number of magnitude below `2^57`; `bias = q << 30` is
+/// a multiple of the prime that makes it non-negative and below `2^59`.
+/// For `x < 2^59` and `2^27 < q < 2^28`, `t = ((x >> 27) * m) >> 32` with
+/// `m = floor(2^59 / q)` is at most `x / q` and above `x / q - 3`, so
+/// `x - t * q` is below `3q` and two conditional subtractions reduce it.
+#[derive(Clone, Copy)]
+struct Finalize {
+    q0: u64,
+    q1: u64,
+    m0: u64,
+    m1: u64,
+    bias0: i64,
+    bias1: i64,
+    /// `q0^-1 mod q1`, the constant of Garner's composition
+    /// `lo + q0 * ((hi - lo) * inverse mod q1)`.
+    inverse: u64,
+    modulus: u64,
+}
+
+impl Finalize {
+    fn of(params: &Params) -> Self {
+        let (q0, q1) = (params.moduli[0], params.moduli[1]);
+        for q in [q0, q1] {
+            assert!(q > 1 << 27 && q < 1 << 28, "a prime of 28 bits");
+        }
+        assert!(q0 < 2 * q1, "a residue of q0 reduces modulo q1 by one subtraction");
+        // `mod0_inv_mod1` is `q0 * (q0^-1 mod q1)`.
+        let inverse = params.mod0_inv_mod1 / q0;
+        assert_eq!((inverse * q0) % q1, 1, "the inverse of q0 modulo q1");
+        Self {
+            q0,
+            q1,
+            m0: (1u64 << 59) / q0,
+            m1: (1u64 << 59) / q1,
+            bias0: (q0 << 30) as i64,
+            bias1: (q1 << 30) as i64,
+            inverse,
+            modulus: params.modulus,
+        }
+    }
+
+    /// `x mod q` for `x < 2^59`.
+    #[inline]
+    fn reduce(x: u64, q: u64, m: u64) -> u64 {
+        let t = ((x >> 27) * m) >> 32;
+        let mut r = x - t * q;
+        if r >= 2 * q {
+            r -= 2 * q;
+        }
+        if r >= q {
+            r -= q;
+        }
+        r
+    }
+
+    /// The value below the ciphertext modulus with the given residues.
+    #[inline]
+    fn compose(&self, lo: u64, hi: u64) -> u64 {
+        let lo1 = if lo >= self.q1 { lo - self.q1 } else { lo };
+        let diff = if hi >= lo1 { hi - lo1 } else { hi + self.q1 - lo1 };
+        lo + self.q0 * Self::reduce(diff * self.inverse, self.q1, self.m1)
+    }
+
+    /// Reduce the sums in place to the residues they stand for.
+    fn reduce_sums(&self, sum_lo: &mut [i64], sum_hi: &mut [i64]) {
+        for (lo, hi) in sum_lo.iter_mut().zip(sum_hi.iter_mut()) {
+            *lo = Self::reduce((*lo + self.bias0) as u64, self.q0, self.m0) as i64;
+            *hi = Self::reduce((*hi + self.bias1) as u64, self.q1, self.m1) as i64;
+        }
+    }
+
+    /// `column[k] = (column[k] + value) mod modulus`, where `value` is the
+    /// number below the modulus with the residues of `sum_lo[k]` and
+    /// `sum_hi[k]`.
+    fn add_sums_to_column(&self, sum_lo: &[i64], sum_hi: &[i64], column: &mut [u64]) {
+        #[cfg(target_arch = "x86_64")]
+        if has_avx2() {
+            // SAFETY: the host supports AVX2.
+            unsafe { self.add_sums_to_column_avx2(sum_lo, sum_hi, column) };
+            return;
+        }
+        self.add_sums_to_column_scalar(sum_lo, sum_hi, column);
+    }
+
+    fn add_sums_to_column_scalar(&self, sum_lo: &[i64], sum_hi: &[i64], column: &mut [u64]) {
+        for ((value, &lo), &hi) in column.iter_mut().zip(sum_lo).zip(sum_hi) {
+            let lo = Self::reduce((lo + self.bias0) as u64, self.q0, self.m0);
+            let hi = Self::reduce((hi + self.bias1) as u64, self.q1, self.m1);
+            *value += self.compose(lo, hi);
+            if *value >= self.modulus {
+                *value -= self.modulus;
+            }
+        }
+    }
+
+    #[cfg(target_arch = "x86_64")]
+    #[target_feature(enable = "avx2")]
+    unsafe fn add_sums_to_column_avx2(&self, sum_lo: &[i64], sum_hi: &[i64], column: &mut [u64]) {
+        use std::arch::x86_64::*;
+        let n = column.len();
+        let mut k = 0;
+        // SAFETY: every access stays within the slices, four lanes at a time.
+        unsafe {
+            let splat = |v: u64| _mm256_set1_epi64x(v as i64);
+            let (q0, q1) = (splat(self.q0), splat(self.q1));
+            let (m0, m1) = (splat(self.m0), splat(self.m1));
+            let (bias0, bias1) = (splat(self.bias0 as u64), splat(self.bias1 as u64));
+            let (q0_less, q1_less) = (splat(self.q0 - 1), splat(self.q1 - 1));
+            let (q0_twice, q1_twice) = (splat(2 * self.q0), splat(2 * self.q1));
+            let (q0_twice_less, q1_twice_less) = (splat(2 * self.q0 - 1), splat(2 * self.q1 - 1));
+            let inverse = splat(self.inverse);
+            let modulus = splat(self.modulus);
+            let modulus_less = splat(self.modulus - 1);
+            let zero = _mm256_setzero_si256();
+            // `x mod q` for lanes `x < 2^59`, as in [`Finalize::reduce`].
+            let reduce = |x: __m256i, q, q_less, q_twice, q_twice_less, m| {
+                let t = _mm256_srli_epi64(_mm256_mul_epu32(_mm256_srli_epi64(x, 27), m), 32);
+                let r = _mm256_sub_epi64(x, _mm256_mul_epu32(t, q));
+                let r = _mm256_sub_epi64(r, _mm256_and_si256(_mm256_cmpgt_epi64(r, q_twice_less), q_twice));
+                _mm256_sub_epi64(r, _mm256_and_si256(_mm256_cmpgt_epi64(r, q_less), q))
+            };
+            while k + 4 <= n {
+                let lo = _mm256_add_epi64(_mm256_loadu_si256(sum_lo.as_ptr().add(k) as *const _), bias0);
+                let hi = _mm256_add_epi64(_mm256_loadu_si256(sum_hi.as_ptr().add(k) as *const _), bias1);
+                let lo = reduce(lo, q0, q0_less, q0_twice, q0_twice_less, m0);
+                let hi = reduce(hi, q1, q1_less, q1_twice, q1_twice_less, m1);
+                // Garner: lo + q0 * ((hi - lo) * inverse mod q1).
+                let lo1 = _mm256_sub_epi64(lo, _mm256_and_si256(_mm256_cmpgt_epi64(lo, q1_less), q1));
+                let diff = _mm256_sub_epi64(hi, lo1);
+                let diff = _mm256_add_epi64(diff, _mm256_and_si256(_mm256_cmpgt_epi64(zero, diff), q1));
+                let t = reduce(_mm256_mul_epu32(diff, inverse), q1, q1_less, q1_twice, q1_twice_less, m1);
+                let add = _mm256_add_epi64(lo, _mm256_mul_epu32(q0, t));
+                let ptr = column.as_mut_ptr().add(k) as *mut __m256i;
+                let value = _mm256_add_epi64(_mm256_loadu_si256(ptr), add);
+                let value = _mm256_sub_epi64(
+                    value,
+                    _mm256_and_si256(_mm256_cmpgt_epi64(value, modulus_less), modulus),
+                );
+                _mm256_storeu_si256(ptr, value);
+                k += 4;
+            }
+        }
+        self.add_sums_to_column_scalar(&sum_lo[k..], &sum_hi[k..], &mut column[k..]);
+    }
+}
+
+/// `sum_lo[k] += delta * src_lo[k]` and `sum_hi[k] += delta * src_hi[k]`:
+/// the product of one run's change with the hint of its rows, in the two
+/// residues. The change is a signed difference of two symbols, so it fits
+/// a 32-bit lane, and a residue is below `2^28`.
+fn add_scaled_residues(sum_lo: &mut [i64], sum_hi: &mut [i64], delta: i64, src_lo: &[u64], src_hi: &[u64]) {
+    debug_assert!(delta.unsigned_abs() < 1 << 16, "a difference of symbols");
+    #[cfg(target_arch = "x86_64")]
+    if has_avx2() {
+        // SAFETY: the host supports AVX2.
+        unsafe { add_scaled_residues_avx2(sum_lo, sum_hi, delta, src_lo, src_hi) };
+        return;
+    }
+    for (((lo, hi), &x), &y) in sum_lo.iter_mut().zip(sum_hi.iter_mut()).zip(src_lo).zip(src_hi) {
+        *lo += delta * x as i64;
+        *hi += delta * y as i64;
+    }
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn add_scaled_residues_avx2(
+    sum_lo: &mut [i64],
+    sum_hi: &mut [i64],
+    delta: i64,
+    src_lo: &[u64],
+    src_hi: &[u64],
+) {
+    use std::arch::x86_64::*;
+    let n = src_lo.len();
+    let lo_ptr = sum_lo.as_mut_ptr();
+    let hi_ptr = sum_hi.as_mut_ptr();
+    let x_ptr = src_lo.as_ptr();
+    let y_ptr = src_hi.as_ptr();
+    let mut k = 0;
+    // SAFETY: every access stays within the slices, four lanes at a time.
+    // The multiply takes the low 32 bits of each lane as signed numbers:
+    // the change, and a residue below 2^28.
+    unsafe {
+        let delta_v = _mm256_set1_epi64x(delta);
+        while k + 4 <= n {
+            let x = _mm256_loadu_si256(x_ptr.add(k) as *const _);
+            let y = _mm256_loadu_si256(y_ptr.add(k) as *const _);
+            let lo = _mm256_loadu_si256(lo_ptr.add(k) as *const _);
+            let hi = _mm256_loadu_si256(hi_ptr.add(k) as *const _);
+            _mm256_storeu_si256(lo_ptr.add(k) as *mut _, _mm256_add_epi64(lo, _mm256_mul_epi32(delta_v, x)));
+            _mm256_storeu_si256(hi_ptr.add(k) as *mut _, _mm256_add_epi64(hi, _mm256_mul_epi32(delta_v, y)));
+            k += 4;
+        }
+    }
+    for i in k..n {
+        sum_lo[i] += delta * src_lo[i] as i64;
+        sum_hi[i] += delta * src_hi[i] as i64;
     }
 }
 
@@ -1253,6 +1497,189 @@ impl TableDatabase {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The finalize of a patched column equals Barrett reduction and the
+    /// backend's CRT composition, on both kernels and at the bounds of the
+    /// sums.
+    #[test]
+    fn finalize_matches_barrett_and_crt() {
+        let shape = PirShape {
+            patterns: 1,
+            slots: 1,
+            group_slots: 1,
+            record_cells: 1,
+        };
+        let params = shape.params();
+        let finalize = Finalize::of(params);
+        let (q0, q1) = (params.moduli[0], params.moduli[1]);
+        let mut rng = 0x9e37_79b9_7f4a_7c15u64;
+        let mut next = || {
+            rng ^= rng << 13;
+            rng ^= rng >> 7;
+            rng ^= rng << 17;
+            rng
+        };
+        let n = 4 * 1000 + 3;
+        let bound = 1i64 << 57;
+        let mut sum_lo = (0..n).map(|_| (next() % (2 * bound as u64)) as i64 - bound).collect::<Vec<_>>();
+        let mut sum_hi = (0..n).map(|_| (next() % (2 * bound as u64)) as i64 - bound).collect::<Vec<_>>();
+        let edges: [i64; 8] = [0, 1, -1, bound - 1, 1 - bound, q0 as i64, -(q1 as i64), (q0 * q1) as i64];
+        for (i, &edge) in edges.iter().enumerate() {
+            sum_lo[i] = edge;
+            sum_hi[edges.len() - 1 - i] = edge;
+        }
+        let column = (0..n).map(|_| next() % params.modulus).collect::<Vec<_>>();
+        let expected = column
+            .iter()
+            .zip(&sum_lo)
+            .zip(&sum_hi)
+            .map(|((&value, &lo), &hi)| {
+                let lo = lo.rem_euclid(q0 as i64) as u64;
+                let hi = hi.rem_euclid(q1 as i64) as u64;
+                let add = barrett_u64(params, params.crt_compose_2(lo, hi));
+                (value + add) % params.modulus
+            })
+            .collect::<Vec<_>>();
+        let mut scalar = column.clone();
+        finalize.add_sums_to_column_scalar(&sum_lo, &sum_hi, &mut scalar);
+        assert_eq!(scalar, expected, "scalar finalize");
+        let mut both = column.clone();
+        finalize.add_sums_to_column(&sum_lo, &sum_hi, &mut both);
+        assert_eq!(both, expected, "finalize on this host");
+        finalize.reduce_sums(&mut sum_lo, &mut sum_hi);
+        for (&lo, &hi) in sum_lo.iter().zip(&sum_hi) {
+            assert!(0 <= lo && (lo as u64) < q0);
+            assert!(0 <= hi && (hi as u64) < q1);
+        }
+        let mut reduced = column.clone();
+        finalize.add_sums_to_column(&sum_lo, &sum_hi, &mut reduced);
+        assert_eq!(reduced, expected, "finalize after an intermediate reduction");
+    }
+
+    #[test]
+    fn cached_parameters_match_backend_at_padding_boundaries() {
+        // Both dimensions change at a multiple of 2048; the row dimension
+        // also rounds up to a power of two. Compare all fields, not just
+        // the dimensions used as the cache key.
+        for patterns in [1, 2047, 2048, 2049, 4095, 4096, 4097, 8192, 8193] {
+            for record_cells in [1, 2047, 2048, 2049, 4095, 4096, 4097] {
+                let shape = PirShape {
+                    patterns,
+                    slots: 1,
+                    group_slots: 1,
+                    record_cells,
+                };
+                let expected =
+                    params_for_scenario_simplepir(patterns, record_cells * CELL_BITS);
+                let actual = shape.params();
+                assert!(actual == &expected, "patterns={patterns}, cells={record_cells}");
+                assert!(std::ptr::eq(actual, shape.params()));
+
+                // Shapes that differ only in padding share the allocation.
+                let padded = PirShape {
+                    patterns: factored::simplepir_db_rows(actual),
+                    record_cells: factored::simplepir_db_cols(actual),
+                    ..shape
+                };
+                assert!(std::ptr::eq(actual, padded.params()));
+            }
+        }
+    }
+
+    #[test]
+    fn pair_folding_matches_independent_range_sums() {
+        let params = params_for_scenario_simplepir(2048, 2048 * CELL_BITS);
+        for len in [1, 2, 3, 7, 8, 9, 45, 1025] {
+            let original = (0..len)
+                .map(|i| {
+                    // Include values near both moduli, zero residues, and
+                    // different values in each half of the packed word.
+                    let lo = (params.moduli[0] - 1) * (i as u64 % 5) % params.moduli[0];
+                    let hi = (params.moduli[1] - 1) * (i as u64 % 7) % params.moduli[1];
+                    lo | (hi << 32)
+                })
+                .collect::<Vec<_>>();
+            let mut folded = original.clone();
+            let mut width = 1;
+            while folded.len() > 1 {
+                fold_query_pairs(&params, &mut folded);
+                width *= 2;
+                for (sum, block) in folded.iter().zip(original.chunks(width)) {
+                    let lo = block.iter().map(|v| (v & LOW_MASK) as u128).sum::<u128>()
+                        % params.moduli[0] as u128;
+                    let hi = block.iter().map(|v| (v >> 32) as u128).sum::<u128>()
+                        % params.moduli[1] as u128;
+                    assert_eq!(*sum, lo as u64 | ((hi as u64) << 32));
+                }
+                assert_eq!(folded.len(), original.len().div_ceil(width));
+            }
+        }
+    }
+
+    #[test]
+    fn first_pass_reduces_group_slots_independently() {
+        // Cross two 2^15-product reduction boundaries in slot 0 and one
+        // in slot 1. Five cells exercise the AVX2 block and scalar tail.
+        // Preprocessing is deliberately absent: first_pass never reads it.
+        let shape = PirShape {
+            patterns: (1 << 16) + 1,
+            slots: 2,
+            group_slots: 2,
+            record_cells: 5,
+        };
+        let params = shape.params();
+        let records = 2 * shape.patterns;
+        let cells = (0..records * shape.record_cells)
+            .map(|i| u16::MAX - (i % 31) as u16)
+            .collect::<Vec<_>>();
+        let rows = (0..shape.patterns)
+            .flat_map(|pattern| {
+                [
+                    (2 * pattern) as u32,
+                    if pattern % 3 == 0 { NO_RECORD } else { (2 * pattern + 1) as u32 },
+                ]
+            })
+            .collect::<Vec<_>>();
+        let database = PirDatabase {
+            shape,
+            params,
+            cells,
+            records,
+            upper: Vec::new(),
+            rows,
+            hint_cols: Vec::new(),
+            offline: OfflinePrecomputedValues {
+                hint_0: Vec::new(),
+                hint_1: Vec::new(),
+                pseudorandom_query_1: Vec::new(),
+                y_constants: (Vec::new(), Vec::new()),
+                smaller_server: None,
+                prepacked_lwe: Vec::new(),
+                fake_pack_pub_params: Vec::new(),
+                precomp: Vec::new(),
+            },
+        };
+        // Maximal noncanonical query residues and full u16 cells test the
+        // documented arithmetic bounds, beyond the ordinary 14-bit cells.
+        let query = vec![u64::MAX; factored::simplepir_db_rows(params)];
+        let actual = database.first_pass(&query).expect("first pass");
+        let mut expected = vec![0u64; actual.len()];
+        for slot in 0..shape.group_slots {
+            for offset in 0..shape.record_cells {
+                let sum = database.rows.chunks_exact(shape.slots)
+                    .filter_map(|row| (row[slot] != NO_RECORD).then_some(row[slot] as usize))
+                    .map(|record| {
+                        u32::MAX as u128 * database.record_cells(record)[offset] as u128
+                    })
+                    .sum::<u128>();
+                let lo = (sum % params.moduli[0] as u128) as u64;
+                let hi = (sum % params.moduli[1] as u128) as u64;
+                expected[shape.slot_offset(slot) + offset] =
+                    barrett_u64(params, params.crt_compose_2(lo, hi));
+            }
+        }
+        assert_eq!(actual, expected);
+    }
 
     #[test]
     fn entries_written_one_by_one_give_the_cells_of_a_record() {
