@@ -91,7 +91,7 @@ For unattended execution:
 nohup ./artifact full > artifact-run.log 2>&1 &
 ```
 
-Before starting the 66-job run, the command validates the manifest, runs the
+Before starting the 68-job run, the command validates the manifest, runs the
 pipeline unit tests and a smoke experiment, proves interruption/resume
 behavior, and executes a publication-sized canary. Gates are cached by source
 snapshot, so successful work is not repeated.
