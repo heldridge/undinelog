@@ -1,0 +1,72 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 23,
+    "committed_bulk_update_batches": 3,
+    "query_bulk_update_batch": 1,
+    "query_value_offset": 65536,
+    "query_value_index": 196608,
+    "timestamp_unix_ms": 1791332739375,
+    "git": "feaefab35b4eacf233eca3b2b975ac25365d76cc",
+    "notes": "local append-only-log per-server point-open benchmark: warm one claim-bound server through real bulk updates appends, then time one authenticated leaf-open request on that single server via the core handler and/or the read-only RPC adapter including response serialization",
+    "metrics": [
+      "serialized"
+    ]
+  },
+  "entries": [
+    {
+      "Seg": 1024,
+      "encoded_cells_N": 1024,
+      "encoded_segment_bytes": 32768,
+      "kappa": 32,
+      "primary_slice_field_elements": 32,
+      "RowsPerClaim": 1,
+      "auxiliary_field_elements_per_claim": 32,
+      "helper_count": 32,
+      "local_claims": 1,
+      "bulk_updates_bytes": 4194304,
+      "inserted_values": 131072,
+      "auth_nodes_returned": 51,
+      "array_shares_returned": 20,
+      "serialized_response_bytes": 1251,
+      "helper_open_share_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "helper_open_share_serialized_ns": {
+        "mean": 7995,
+        "p50": 7926,
+        "p95": 8507,
+        "trials": 23,
+        "samples": [
+          9350,
+          8700,
+          8507,
+          8264,
+          8073,
+          7991,
+          7926,
+          8051,
+          7739,
+          8195,
+          8084,
+          7949,
+          7590,
+          7845,
+          7642,
+          7722,
+          7761,
+          7624,
+          7857,
+          8030,
+          7641,
+          7690,
+          7672
+        ]
+      }
+    }
+  ]
+}

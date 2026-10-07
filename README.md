@@ -10,7 +10,7 @@ layouts in one run, on one host, under one statistical protocol.
 - `borg/` is the BorgLog implementation, configured with the same segment
   size `kappa^2` and threshold `kappa`.
 
-The reference run `20261005T202005Z-full-0c73f1f8f7` and all of its
+The reference run `20261007T000217Z-full-3db345efc0` and all of its
 measurements are included under `reference-results/`. No paper source or
 typesetting toolchain is required. The reference run is immutable; new runs
 are written under `results/runs/`.
@@ -62,7 +62,7 @@ The reference machine had an Intel Core Ultra 7 255U, 32 GiB RAM, and 14
 logical CPUs, and ran Linux with Rust 1.98.0. The benchmark processes were
 pinned to logical CPU 2, a performance core, with the `performance` energy
 preference. Exact environment details are retained in
-[`environment.json`](reference-results/20261005T202005Z-full-0c73f1f8f7/provenance/environment.json).
+[`environment.json`](reference-results/20261007T000217Z-full-3db345efc0/provenance/environment.json).
 Cargo may need network access once to fetch locked dependencies.
 
 ## Reviewer Commands
@@ -91,7 +91,7 @@ For unattended execution:
 nohup ./artifact full > artifact-run.log 2>&1 &
 ```
 
-Before starting the 68-job run, the command validates the manifest, runs the
+Before starting the 70-job run, the command validates the manifest, runs the
 pipeline unit tests and a smoke experiment, proves interruption/resume
 behavior, and executes a publication-sized canary. Gates are cached by source
 snapshot, so successful work is not repeated.
@@ -107,7 +107,7 @@ Do not edit source or orchestration files between starting and resuming a run;
 the runner rejects source drift. Only one experiment process may use the
 repository at a time.
 
-The included full run took 4.41 hours of benchmark batches. Runtime depends on
+The included full run took 6.24 hours of benchmark batches. Runtime depends on
 host speed, load, and variance; the generated preflight reports a
 host-calibrated range, which was 2.5 to 27.8 hours on the reference host
 because adaptive series may stop at 10 repetitions or continue to 160. The
@@ -125,7 +125,7 @@ Direct benchmarks discard three warmup repetitions per process. Append
 benchmarks discard one complete warmup sequence, and one independent append
 sample is a complete 64-batch sequence. Deterministic quantities must agree
 across observations. A full run is publication-ready only when every consumed
-measurement exists and all 338 timing series satisfy the stopping rule.
+measurement exists and all 348 timing series satisfy the stopping rule.
 
 Jobs of the two layouts use the same benchmark, the same workload variables,
 the same CPU, and the same protocol. They alternate in the schedule.
@@ -157,12 +157,12 @@ workloads and benchmark targets.
 ## Reference Results
 
 The packaged run is
-[`reference-results/20261005T202005Z-full-0c73f1f8f7/`](reference-results/20261005T202005Z-full-0c73f1f8f7/).
-Start with its [rendered result groups](reference-results/20261005T202005Z-full-0c73f1f8f7/tables/README.md).
+[`reference-results/20261007T000217Z-full-3db345efc0/`](reference-results/20261007T000217Z-full-3db345efc0/).
+Start with its [rendered result groups](reference-results/20261007T000217Z-full-3db345efc0/tables/README.md).
 Machine-readable values, units, samples, confidence intervals, raw benchmark
 documents, logs, environment data, and source hashes are retained alongside
-them. The run has 15,530 independent timing samples in 123 batches, and every
-one of its 338 timing series met the precision target.
+them. The run has 12,110 independent timing samples in 110 batches, and every
+one of its 348 timing series met the precision target.
 
 `./artifact verify` checks the complete file-integrity manifest, both crates'
 source hashes, job and measurement semantics, checkpoint completion, every raw
@@ -180,7 +180,7 @@ A reproduction succeeds when:
 1. `./artifact test`, `./artifact smoke`, and `./artifact resume-canary` exit
    with status 0.
 2. `./artifact full` exits with status 0.
-3. `./artifact validate RUN_ID` reports 68 jobs, 691 result cells, 338 timing
+3. `./artifact validate RUN_ID` reports 70 jobs, 713 result cells, 348 timing
    series, and `publishable: true`.
 4. The completed run's `summary.json` lists no missing or unstable
    measurements.

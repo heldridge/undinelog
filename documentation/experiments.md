@@ -10,10 +10,10 @@ deduplicated.
 The complete manifest contains:
 
 - 9 result groups;
-- 691 exact result cells;
-- 338 timing series;
-- 68 deduplicated benchmark jobs: 22 per layout for the paired groups, 4
-  for the UndineLog on-the-fly openings, and 20 for the private openings.
+- 713 exact result cells;
+- 348 timing series;
+- 70 deduplicated benchmark jobs: 22 per layout for the paired groups, 4
+  for the UndineLog on-the-fly openings, and 22 for the private openings.
 
 Manifest validation rejects uncovered cells, measurements without consumers,
 duplicate job semantics, incompatible units, unexpected timing fields, and

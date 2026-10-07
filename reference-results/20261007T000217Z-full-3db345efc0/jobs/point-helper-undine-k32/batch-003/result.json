@@ -1,0 +1,92 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 43,
+    "committed_bulk_update_batches": 3,
+    "query_bulk_update_batch": 1,
+    "query_value_offset": 65536,
+    "query_value_index": 196608,
+    "timestamp_unix_ms": 1791332740594,
+    "git": "feaefab35b4eacf233eca3b2b975ac25365d76cc",
+    "notes": "local append-only-log per-server point-open benchmark: warm one claim-bound server through real bulk updates appends, then time one authenticated leaf-open request on that single server via the core handler and/or the read-only RPC adapter including response serialization",
+    "metrics": [
+      "serialized"
+    ]
+  },
+  "entries": [
+    {
+      "Seg": 1024,
+      "encoded_cells_N": 1024,
+      "encoded_segment_bytes": 32768,
+      "kappa": 32,
+      "primary_slice_field_elements": 32,
+      "RowsPerClaim": 1,
+      "auxiliary_field_elements_per_claim": 32,
+      "helper_count": 32,
+      "local_claims": 1,
+      "bulk_updates_bytes": 4194304,
+      "inserted_values": 131072,
+      "auth_nodes_returned": 51,
+      "array_shares_returned": 20,
+      "serialized_response_bytes": 1251,
+      "helper_open_share_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "helper_open_share_serialized_ns": {
+        "mean": 9398,
+        "p50": 9267,
+        "p95": 10155,
+        "trials": 43,
+        "samples": [
+          10284,
+          9750,
+          10725,
+          9640,
+          14204,
+          8976,
+          9867,
+          9661,
+          9773,
+          9267,
+          9645,
+          9192,
+          9045,
+          8919,
+          9352,
+          8595,
+          9491,
+          9921,
+          9748,
+          9096,
+          8781,
+          9148,
+          9716,
+          9393,
+          9293,
+          9719,
+          8752,
+          9221,
+          8562,
+          9330,
+          8773,
+          8202,
+          10061,
+          8907,
+          8419,
+          8394,
+          10155,
+          8826,
+          8801,
+          9642,
+          8748,
+          9120,
+          9026
+        ]
+      }
+    }
+  ]
+}

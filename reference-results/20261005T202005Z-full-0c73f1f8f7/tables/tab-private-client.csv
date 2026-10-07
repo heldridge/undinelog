@@ -1,5 +1,0 @@
-panel,row,kappa,request-kib,reply-kib,client-request-ms,private-kappa-ms,public-kappa-ms,private-3kappa-ms,public-3kappa-ms
-,k8,8,476.0,12.0,36.0,2.883,0.248,9.051,1.252
-,k16,16,476.0,12.0,38.5,5.658,0.372,26.456,10.908
-,k32,32,476.0,12.0,37.6,10.840,0.679,105.220,74.952
-,k64,64,476.0,24.0,36.7,40.090,1.708,666.375,550.396

@@ -1,0 +1,88 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 13,
+    "role": "table",
+    "kappa": 64,
+    "leaves": 33554432,
+    "tree_height": 50,
+    "segments_per_record": 1,
+    "cells_per_record": 64,
+    "append_leaves": 1024,
+    "hint_sample_columns": 64,
+    "pir_path": "avx2",
+    "setup_threads": 14,
+    "setup_cpus": "0-13",
+    "timed_cpus": "2",
+    "setup_seconds": 13.270935700999999,
+    "peak_rss_bytes": 1620828160,
+    "timestamp_unix_ms": 1791342249976,
+    "git": "feaefab35b4eacf233eca3b2b975ac25365d76cc",
+    "notes": "private openings of one position: one server's first pass and answer to a serialized request, the client's request and decoding, the hint of a sample of database columns, the response-packing tables, and the preprocessing update after appends; or one client's Combine and Verify from private and from public replies"
+  },
+  "entries": [
+    {
+      "role": "table",
+      "kappa": 64,
+      "segments_per_record": 1,
+      "leaves": 33554432,
+      "log_bytes": 1073741824,
+      "record_bytes": 2048,
+      "records": 16385,
+      "patterns": 4096,
+      "pattern_bits": 13,
+      "slots": 17,
+      "group_slots": 5,
+      "db_rows": 4096,
+      "db_cols": 6144,
+      "record_columns": 6083,
+      "outputs": 3,
+      "database_bytes": 33556480,
+      "request_bytes": 501776,
+      "reply_bytes": 36877,
+      "table_bytes": 142606336,
+      "server_first_pass_ns": {
+        "mean": 12930787,
+        "p50": 12136833,
+        "p95": 17613240,
+        "trials": 13,
+        "samples": [
+          11486615,
+          11946989,
+          11999161,
+          12193870,
+          12154189,
+          12208963,
+          12032294,
+          12905831,
+          11661755,
+          11897370,
+          12136833,
+          17613240,
+          17863133
+        ]
+      },
+      "server_answer_ns": {
+        "mean": 62306585,
+        "p50": 62777116,
+        "p95": 66544683,
+        "trials": 13,
+        "samples": [
+          62777116,
+          61056539,
+          62909378,
+          64630963,
+          59944877,
+          59530041,
+          65539933,
+          58634711,
+          64515339,
+          58718739,
+          58615048,
+          66568243,
+          66544683
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,198 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 13,
+    "committed_bulk_update_batches": 3,
+    "timestamp_unix_ms": 1791336491097,
+    "git": "feaefab35b4eacf233eca3b2b975ac25365d76cc",
+    "notes": "local append-only-log one-server reconfiguration: warm real one-claim-per-party append-only-log state, then time selected helper response construction and serialization plus destination-maintainer metrics for adjacent kappa changes and local segment-double; whole-cluster coordination is intentionally excluded",
+    "metrics": [
+      "helper_double",
+      "helper_halve",
+      "receiver_double",
+      "receiver_halve",
+      "segment_double"
+    ]
+  },
+  "entries": [
+    {
+      "segment_len": 256,
+      "source_s": 16,
+      "target_s": 8,
+      "n_grid": 256,
+      "source_need": 16,
+      "target_need": 32,
+      "source_shard_count": 32,
+      "bulk_updates_bytes": 4194304,
+      "bulk_updates_size": 131072,
+      "committed_bulk_update_batches": 3,
+      "live_unauth_len": 786463,
+      "segment_count": 3073,
+      "target_source_registry_index": 0,
+      "target_registry_index": 0,
+      "target_row_count": 1,
+      "helper_target_count": 31,
+      "helper_eval_scalars_total": 95263,
+      "helper_eval_raw_bytes_total": 3048416,
+      "helper_eval_one_helper_serialized_ns": {
+        "mean": 11123144,
+        "p50": 11109346,
+        "p95": 11233369,
+        "trials": 13,
+        "samples": [
+          11189409,
+          11119443,
+          11109346,
+          11233369,
+          11134697,
+          11161814,
+          11025486,
+          11371919,
+          11092413,
+          11007731,
+          11096678,
+          10971574,
+          11086998
+        ]
+      },
+      "helper_eval_all_helpers_serial_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "local_retained_child_materialize_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "local_row_hydrate_install_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "local_kappa_double_total_ns": {
+        "mean": 210830785,
+        "p50": 210045818,
+        "p95": 212528593,
+        "trials": 13,
+        "samples": [
+          212528593,
+          209293112,
+          210045818,
+          210523638,
+          210770064,
+          219098011,
+          209122881,
+          209875771,
+          210179028,
+          210714026,
+          209914097,
+          209202027,
+          209533151
+        ]
+      },
+      "segment_double_target_segment_len": 512,
+      "segment_double_target_s": 16,
+      "segment_double_target_need": 32,
+      "segment_double_target_segment_count": 1537,
+      "segment_double_helper_eval_raw_bytes_total": 0,
+      "local_segment_double_total_ns": {
+        "mean": 110342268,
+        "p50": 109422627,
+        "p95": 113808278,
+        "trials": 13,
+        "samples": [
+          109422627,
+          109353447,
+          109227635,
+          109592711,
+          109229734,
+          109460628,
+          109592231,
+          109213891,
+          109229761,
+          113808278,
+          109416533,
+          109680902,
+          117221110
+        ]
+      },
+      "kappa_halve_source_s": 8,
+      "kappa_halve_target_s": 16,
+      "kappa_halve_source_need": 32,
+      "kappa_halve_target_need": 16,
+      "kappa_halve_target_row_count": 1,
+      "kappa_halve_helper_count": 16,
+      "kappa_halve_helper_eval_raw_bytes_total": 2261728,
+      "kappa_halve_helper_eval_one_helper_serialized_ns": {
+        "mean": 13343549,
+        "p50": 13330404,
+        "p95": 13421272,
+        "trials": 13,
+        "samples": [
+          13364438,
+          13337798,
+          13258686,
+          13421272,
+          13330404,
+          13303251,
+          13529083,
+          13276386,
+          13320383,
+          13318342,
+          13351816,
+          13384458,
+          13269820
+        ]
+      },
+      "kappa_halve_helper_eval_all_helpers_serial_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "kappa_halve_primary_materialize_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "kappa_halve_row_hydrate_install_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "kappa_halve_prepared_total_ns": {
+        "mean": 73139668,
+        "p50": 73167078,
+        "p95": 73530218,
+        "trials": 13,
+        "samples": [
+          73438400,
+          73167078,
+          72464694,
+          73137580,
+          73262691,
+          73488402,
+          73787804,
+          72701509,
+          72818266,
+          72805898,
+          73530218,
+          72790034,
+          73423112
+        ]
+      }
+    }
+  ]
+}

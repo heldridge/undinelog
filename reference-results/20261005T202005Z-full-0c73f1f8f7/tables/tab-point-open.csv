@@ -1,5 +1,0 @@
-panel,row,segment,kappa,undine-helper,undine-response,undine-client,undine-client-correcting,borg-helper,borg-response,borg-client,borg-client-correcting
-,k8,64,8,9.5,1251,0.224,1.173,174.7,1251,0.272,1.399
-,k16,256,16,8.4,1251,0.318,10.054,194.1,1251,0.369,10.378
-,k32,1024,32,10.8,1251,0.646,102.861,239.2,1251,0.652,103.433
-,k64,4096,64,7.7,1251,1.638,769.371,312.1,1251,1.673,770.366

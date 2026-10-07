@@ -1,0 +1,148 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 13,
+    "committed_bulk_update_batches": 3,
+    "timestamp_unix_ms": 1791336156932,
+    "git": "feaefab35b4eacf233eca3b2b975ac25365d76cc",
+    "notes": "local append-only-log one-server reconfiguration: warm real one-claim-per-party append-only-log state, then time the destination maintainer's local four-segment stitch (kappa-double), one helper's partial-stitch response construction and serialization, and the destination maintainer's undo of the stitch (kappa-halve) from prepared helper responses or from diagonal source state; whole-cluster coordination is intentionally excluded",
+    "metrics": [
+      "helper_halve",
+      "receiver_double",
+      "receiver_halve",
+      "receiver_halve_diagonal"
+    ]
+  },
+  "entries": [
+    {
+      "kappa": 32,
+      "target_kappa": 64,
+      "segment_len": 1024,
+      "target_segment_len": 4096,
+      "source_need": 32,
+      "target_need": 64,
+      "source_shard_count": 65,
+      "bulk_updates_bytes": 4194304,
+      "bulk_updates_size": 131072,
+      "committed_bulk_update_batches": 3,
+      "live_unauth_len": 786463,
+      "segment_count": 769,
+      "target_segment_count": 193,
+      "receiver_registry_index": 0,
+      "receiver_source_state_bytes": 1574912,
+      "receiver_target_state_bytes": 790528,
+      "kappa_double_helper_count": 0,
+      "kappa_double_helper_eval_raw_bytes_total": 0,
+      "local_kappa_double_total_ns": {
+        "mean": 937205,
+        "p50": 927301,
+        "p95": 963706,
+        "trials": 13,
+        "samples": [
+          1024622,
+          963706,
+          942253,
+          946319,
+          927301,
+          920682,
+          941200,
+          916191,
+          940055,
+          911654,
+          916809,
+          911244,
+          921631
+        ]
+      },
+      "kappa_halve_helper_count": 64,
+      "kappa_halve_helper_eval_scalars_total": 24704,
+      "kappa_halve_helper_eval_raw_bytes_total": 790528,
+      "kappa_halve_helper_eval_one_helper_serialized_bytes": 13126,
+      "kappa_halve_helper_eval_one_helper_serialized_ns": {
+        "mean": 458447,
+        "p50": 455110,
+        "p95": 464935,
+        "trials": 13,
+        "samples": [
+          488750,
+          464935,
+          460687,
+          458731,
+          456192,
+          453592,
+          456162,
+          454427,
+          455110,
+          453565,
+          455103,
+          450621,
+          451938
+        ]
+      },
+      "kappa_halve_helper_eval_all_helpers_serial_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "kappa_halve_decode_source_half_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "kappa_halve_unstitch_install_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "kappa_halve_prepared_total_ns": {
+        "mean": 33464454,
+        "p50": 33373372,
+        "p95": 33772565,
+        "trials": 13,
+        "samples": [
+          33399773,
+          33544092,
+          33295099,
+          33322869,
+          33662296,
+          33647739,
+          33300501,
+          33373372,
+          33208180,
+          33234559,
+          33132940,
+          33772565,
+          34143919
+        ]
+      },
+      "kappa_halve_diagonal_source_raw_bytes_total": 790528,
+      "kappa_halve_diagonal_unstitch_install_ns": {
+        "mean": 1225034,
+        "p50": 1219420,
+        "p95": 1251974,
+        "trials": 13,
+        "samples": [
+          1277727,
+          1251974,
+          1247267,
+          1235514,
+          1234942,
+          1223733,
+          1219420,
+          1215031,
+          1209372,
+          1211010,
+          1204515,
+          1198173,
+          1196768
+        ]
+      }
+    }
+  ]
+}

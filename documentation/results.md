@@ -3,11 +3,11 @@
 ## Included Run
 
 The immutable reference is
-[`20261005T202005Z-full-0c73f1f8f7`](../reference-results/20261005T202005Z-full-0c73f1f8f7/).
-It completed all 68 jobs and 338 timing series and is marked
-publication-ready. The run contains 15,530 independent timing samples and 123
+[`20261007T000217Z-full-3db345efc0`](../reference-results/20261007T000217Z-full-3db345efc0/).
+It completed all 70 jobs and 348 timing series and is marked
+publication-ready. The run contains 12,110 independent timing samples and 110
 raw batch records. Its
-[audit report](../reference-results/20261005T202005Z-full-0c73f1f8f7/audit-report.md)
+[audit report](../reference-results/20261007T000217Z-full-3db345efc0/audit-report.md)
 lists the shared measurements and the deliberately omitted work.
 
 ## Runs
