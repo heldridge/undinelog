@@ -13,6 +13,7 @@
 //! - [`bulk`]: the primary columns of a large log, built in a stream.
 
 pub mod bulk;
+pub mod keeper;
 pub mod layout;
 pub mod opening;
 pub mod pir;
@@ -24,8 +25,10 @@ pub use bulk::{
     build_tree_cells, bulk_leaf_value,
 };
 pub use layout::{Grouping, LayoutError, PlannedEntry, PrivateLayout, pattern_bits};
+pub use keeper::PrivateKeeper;
 pub use opening::{
-    PrivateOpening, PrivateReadReply, PrivateReadRequest, PrivateReadResponse, PrivateState,
+    PlannedUpdate, PrivateOpening, PrivateReadReply, PrivateReadRequest, PrivateReadResponse,
+    PrivateState, release_at,
 };
 pub use pir::{
     PackKeys, PirClient, PirDatabase, PirError, PirShape, PreprocessTimes, TableDatabase,

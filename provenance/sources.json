@@ -329,7 +329,7 @@
         "tests/bench_compile.rs references only retained benchmark sources.",
         "third_party/ holds the PIR backend sources of the same commit: YPIR and spiral-rs with the patches recorded in third_party/patches/."
       ],
-      "commit": "92666637f93dc0bd263b9e26759aff06c29d9cb0",
+      "commit": "1cc6941661562a8ac9ddcbd056c745fd7c50391f",
       "files": {
         "undine/Cargo.lock": {
           "bytes": 30683,
@@ -392,8 +392,8 @@
           "sha256": "ed53b45d82c2d306dde529817264c1a6b1b66bbc04c90d4826e18882375865cd"
         },
         "undine/apps/appendOnlyLog/src/server.rs": {
-          "bytes": 9714,
-          "sha256": "2ac3a23d83e059c0faf55d0dc92d1a1c9948aa7395567a86c41632c6efef8d05"
+          "bytes": 10327,
+          "sha256": "d53da04a0027ea7330e16f56b0027f27de6d67580bd95c15ad557b3ffb4141dc"
         },
         "undine/apps/appendOnlyLog/tests/cli_correcting_read.rs": {
           "bytes": 16439,
@@ -428,8 +428,8 @@
           "sha256": "faec1c3860c521a7d882621313b935af000fde11d279076b220bbf843c0faf30"
         },
         "undine/benches/bench_private_opening_local.rs": {
-          "bytes": 53041,
-          "sha256": "5dee7eab9a0f24e05ebb96b94dbfe4c1751139b69250415c67dcd627d71dcee7"
+          "bytes": 57155,
+          "sha256": "7a16061eb92ceb25ab87586e21db9bdf3afb464ba73296cb0e279626decfecb8"
         },
         "undine/benches/support/append_only_log_repair.rs": {
           "bytes": 45006,
@@ -516,8 +516,8 @@
           "sha256": "cf1b8b06310a0ee0ae30f96eb672353db4e31ecdefcea2bafd7ccbb6fb207ebe"
         },
         "undine/src/bin/server_common/mod.rs": {
-          "bytes": 17582,
-          "sha256": "1c86d91bb9e539f788885f5811637eb64ea760dc6e7d70f694e6ff2dcffe146b"
+          "bytes": 18027,
+          "sha256": "9a74048d2f019005b19f208c8952b4a6a6d13eecec2e868910c5fecdd3f41822"
         },
         "undine/src/coded_array/axis.rs": {
           "bytes": 18780,
@@ -615,21 +615,25 @@
           "bytes": 23106,
           "sha256": "6577c69d2d6f5d89d913045ed3a43cfc9c696bb258f2b950a86b17a1d9b8260e"
         },
+        "undine/src/private/keeper.rs": {
+          "bytes": 2932,
+          "sha256": "0b7e039aec31cb6c5603125fc39717b25d0ce36586eca67054548ce939f56055"
+        },
         "undine/src/private/layout.rs": {
           "bytes": 25696,
           "sha256": "bbefe125db75c8f73ef79805c96047ff5214bbc012a7997b428dc5303591e8bf"
         },
         "undine/src/private/mod.rs": {
-          "bytes": 1431,
-          "sha256": "734b9e48492882cf317d42ebdbca29a3059e3e915ad86b511d55acfea90496d1"
+          "bytes": 1509,
+          "sha256": "1e2d40071447576bc37bb7003e0b7621790c45e3c8ec808f989af44abc6beb82"
         },
         "undine/src/private/opening.rs": {
-          "bytes": 13315,
-          "sha256": "76fc5bb0761dc15aee5204633c554bcc6ddcd73ae6e9edb76a634fe7b0646973"
+          "bytes": 16952,
+          "sha256": "b4c07b2c3847a36d1ea28675eab0d72d1e0421fbfa4185a927c8f15d9a2b72e2"
         },
         "undine/src/private/pir.rs": {
-          "bytes": 69162,
-          "sha256": "32459c841e3aed9a498a2c97e7e7c64d4d7194635ddbd776d1f9612e256669a7"
+          "bytes": 71748,
+          "sha256": "a4ddb162d582e7e23925aa3b77f287c416bd07d575f44fc882206a87fa7622cd"
         },
         "undine/src/private/records.rs": {
           "bytes": 1412,
@@ -680,8 +684,8 @@
           "sha256": "a206c30c3097ada8a574d6369278456a4bdd402a25cf6455d9567f80e8f4a8fe"
         },
         "undine/third_party/patches/ypir.diff": {
-          "bytes": 61004,
-          "sha256": "33218882ad5516e71986e94cbe8c38de00e53a22782bcb074ffdb3a256a01421"
+          "bytes": 62148,
+          "sha256": "317919eac26d0516ce2fa7ed38c1c0f9f51d84e484f35acaff6e1c565b6b47fd"
         },
         "undine/third_party/spiral-rs/.cargo/config.toml": {
           "bytes": 55,
@@ -808,8 +812,8 @@
           "sha256": "b3f980b132d942a7b9f8303b54e369c29433cd83ab5de15888e61759ffc196f6"
         },
         "undine/third_party/ypir/src/factored.rs": {
-          "bytes": 24811,
-          "sha256": "aba3f9341d09cb5abf30b2f18fd4c7dc6bc26640c6f707262903564279bc9d68"
+          "bytes": 25930,
+          "sha256": "2a58ace7a86c2f72dde3ead013a3454fa377f59b5bd44db4e44a7435f942cbcc"
         },
         "undine/third_party/ypir/src/kernel.rs": {
           "bytes": 8271,

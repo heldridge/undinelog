@@ -73,6 +73,13 @@ PRIVATE_SWEEP_LOG_GIB = 4
 # builds its own columns, so the larger logs stop where a job would take
 # hours.
 PRIVATE_CLIENT_LOGS_GIB = (1, 4)
+# The client at a threshold above the sweep's, on the 12 MiB log: Combine
+# over 3 kappa replies at the threshold of the largest maintainer job.
+PRIVATE_CLIENT_LARGE_KAPPAS = (256,)
+# The release time of a scheduled private opening, after the deadline for
+# replies:
+# past the slowest decoding of its threshold.
+PRIVATE_CLIENT_RELEASE_MS = {8: 500, 16: 500, 32: 1000, 64: 2000, 256: 75000}
 # The public grouping: one segment per block up to 2^25 leaves, doubling
 # with every two further levels of the active prefix.
 PRIVATE_PATTERN_SHIFT = 5
@@ -1805,11 +1812,15 @@ def _build_private_client_table(manifest: Manifest) -> None:
     table = "tab:private-client"
     manifest.table_columns[table] = [
         "kappa", "log-mib", "request-kib", "reply-kib", "client-request-ms",
-        "private-kappa-ms", "public-kappa-ms", "private-3kappa-ms",
-        "public-3kappa-ms",
+        "private-kappa-ms", "public-kappa-ms", "private-3kappa-honest-ms",
+        "public-3kappa-honest-ms", "private-3kappa-ms", "public-3kappa-ms",
+        "release", "released-honest-ms", "released-lying-ms",
     ]
     small_log = PREFIX_BATCHES * BATCH_VALUES_4MIB
-    settings = [(kappa, small_log, f"private-client-undine-k{kappa}", f"k{kappa}") for kappa in KAPPAS]
+    settings = [
+        (kappa, small_log, f"private-client-undine-k{kappa}", f"k{kappa}")
+        for kappa in KAPPAS + PRIVATE_CLIENT_LARGE_KAPPAS
+    ]
     settings += [
         (
             PRIVATE_KAPPA,
@@ -1829,6 +1840,7 @@ def _build_private_client_table(manifest: Manifest) -> None:
             "LEAVES": leaves,
             "SEGMENTS_PER_RECORD": 1,
             "PATTERN_BITS": private_pattern_bits(leaves, kappa),
+            "CLIENT_RELEASE_MS": PRIVATE_CLIENT_RELEASE_MS[kappa],
         }
         if leaves > small_log:
             env["CLIENT_SETUP_MEMORY_MIB"] = 24 * 1024
@@ -1852,15 +1864,33 @@ def _build_private_client_table(manifest: Manifest) -> None:
                 "request_bytes": PRIVATE_SIZE_FIELDS["request_bytes"],
                 "reply_bytes": PRIVATE_SIZE_FIELDS["reply_bytes"],
             },
+            counts={
+                "release_ms": ("", "Milliseconds after the deadline for replies at which a scheduled opening returns."),
+            },
             timings={
                 "client_request_ns": PRIVATE_SERVER_TIMINGS["client_request_ns"],
                 "client_private_zero_bad_ns": "Decoding kappa replies, then Combine+Verify.",
+                "client_private_honest_ns": (
+                    "Decoding 3*kappa honest replies, then Combine with error "
+                    "correction and Verify."
+                ),
                 "client_private_kappa_bad_ns": (
                     "Decoding 3*kappa replies with kappa lying, then Combine+Verify."
                 ),
                 "client_public_zero_bad_ns": "Combine+Verify from kappa public replies.",
+                "client_public_honest_ns": (
+                    "Combine with error correction and Verify from 3*kappa honest "
+                    "public replies."
+                ),
                 "client_public_kappa_bad_ns": (
                     "Combine+Verify from 3*kappa public replies with kappa lying."
+                ),
+                "client_released_honest_ns": (
+                    "The private opening from 3*kappa honest replies, returned at "
+                    "the release time fixed in advance."
+                ),
+                "client_released_lying_ns": (
+                    "The same with kappa lying replies."
                 ),
             },
         )
@@ -1882,10 +1912,20 @@ def _build_private_client_table(manifest: Manifest) -> None:
                      "milliseconds-3", "Private opening from kappa replies."),
                 cell(table, row, "public-kappa-ms", outputs["client_public_zero_bad_ns"],
                      "milliseconds-3", "Public opening from kappa replies."),
+                cell(table, row, "private-3kappa-honest-ms", outputs["client_private_honest_ns"],
+                     "milliseconds-3", "Private opening from 3*kappa honest replies, correcting."),
+                cell(table, row, "public-3kappa-honest-ms", outputs["client_public_honest_ns"],
+                     "milliseconds-3", "Public opening from 3*kappa honest replies, correcting."),
                 cell(table, row, "private-3kappa-ms", outputs["client_private_kappa_bad_ns"],
                      "milliseconds-3", "Private opening from 3*kappa replies, kappa lying."),
                 cell(table, row, "public-3kappa-ms", outputs["client_public_kappa_bad_ns"],
                      "milliseconds-3", "Public opening from 3*kappa replies, kappa lying."),
+                cell(table, row, "release", outputs["release_ms"], "integer",
+                     "Release time of a scheduled opening, ms after the deadline for replies."),
+                cell(table, row, "released-honest-ms", outputs["client_released_honest_ns"],
+                     "milliseconds-3", "Scheduled private opening, honest replies."),
+                cell(table, row, "released-lying-ms", outputs["client_released_lying_ns"],
+                     "milliseconds-3", "Scheduled private opening, kappa lying."),
             ],
         )
 

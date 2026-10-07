@@ -12,8 +12,8 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/Cargo.t
  serde_json = "1.0"
 diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/factored.rs b/ypir/src/factored.rs
 --- a/ypir/src/factored.rs	1969-12-31 19:00:00.000000000 -0500
-+++ b/ypir/src/factored.rs	2026-10-06 11:25:19.481227820 -0400
-@@ -0,0 +1,623 @@
++++ b/ypir/src/factored.rs	2026-10-07 16:59:44.753739157 -0400
+@@ -0,0 +1,648 @@
 +//! SimplePIR-variant building blocks for a database given by its columns.
 +//!
 +//! `YServer` stores the database as a matrix. The functions here run the same
@@ -237,22 +237,47 @@ diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/fac
 +    params: &'a Params,
 +    hint_cols: &[u64],
 +) -> OfflinePrecomputedValues<'a> {
++    offline_from_hint_columns_on(params, hint_cols, 1)
++}
++
++/// [`offline_from_hint_columns`] with the tables of the outputs derived on
++/// `threads` threads; each thread holds the table of one output at a time.
++pub fn offline_from_hint_columns_on<'a>(
++    params: &'a Params,
++    hint_cols: &[u64],
++    threads: usize,
++) -> OfflinePrecomputedValues<'a> {
 +    let db_cols = simplepir_db_cols(params);
 +    let num_rlwe_outputs = db_cols / params.poly_len;
 +    assert_eq!(hint_cols.len(), db_cols * params.poly_len);
 +    let y_constants = generate_y_constants(params);
 +    let fake_pack_pub_params = generate_fake_pack_pub_params(params);
-+    let mut precomp: Precomp = Vec::with_capacity(num_rlwe_outputs);
-+    for output in 0..num_rlwe_outputs {
-+        let (_, table) = packing_table_of_columns(
-+            params,
-+            hint_cols,
-+            output,
-+            &fake_pack_pub_params,
-+            &y_constants,
-+        );
-+        precomp.push(table);
-+    }
++    let table_of = |output: usize| {
++        packing_table_of_columns(params, hint_cols, output, &fake_pack_pub_params, &y_constants).1
++    };
++    let threads = threads.clamp(1, num_rlwe_outputs.max(1));
++    let precomp: Precomp = if threads == 1 {
++        (0..num_rlwe_outputs).map(table_of).collect()
++    } else {
++        // The outputs are independent; each thread takes every `threads`-th.
++        let table_of = &table_of;
++        std::thread::scope(|scope| {
++            let handles = (0..threads)
++                .map(|k| {
++                    scope.spawn(move || {
++                        (k..num_rlwe_outputs).step_by(threads).map(table_of).collect::<Vec<_>>()
++                    })
++                })
++                .collect::<Vec<_>>();
++            let mut parts = handles
++                .into_iter()
++                .map(|h| h.join().expect("table worker").into_iter())
++                .collect::<Vec<_>>();
++            (0..num_rlwe_outputs)
++                .map(|output| parts[output % threads].next().expect("one table per output"))
++                .collect()
++        })
++    };
 +    OfflinePrecomputedValues {
 +        hint_0: Vec::new(),
 +        hint_1: vec![],

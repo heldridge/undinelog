@@ -7,7 +7,9 @@ mod cluster;
 use cluster::{LocalServer, reader, written_cluster};
 use paper_a_optimized::auth::client::ClientError;
 use paper_a_optimized::core::NodeLinearization;
-use paper_a_optimized::private::PrivateOpening;
+use paper_a_optimized::private::{Grouping, PrivateKeeper, PrivateOpening, PrivateState};
+use paper_a_optimized::{Fp, encode_value};
+use std::sync::{Arc, RwLock};
 
 fn corrupt(servers: &[LocalServer], labels: &[usize]) -> Vec<LocalServer> {
     servers
@@ -168,5 +170,85 @@ fn servers_answer_only_their_current_log() {
             client.read_private(index).expect("private opening"),
             values[index as usize]
         );
+    }
+}
+
+/// After an append the keeper updates a server's private state off the
+/// lock and installs it; the installed state answers the longer log as a
+/// fresh one does.
+#[test]
+fn the_keeper_updates_the_state_off_the_lock() {
+    let kappa = 2usize;
+    let leaves = 20usize;
+    let (params, auth, servers, values, _root) = written_cluster(kappa, 3 * kappa, 6, leaves, 105);
+    let mut client = reader(&params, &auth, leaves, &servers);
+    assert_eq!(client.read_private(3).expect("private opening"), values[3]);
+
+    let appended = (0..7u64)
+        .map(|k| encode_value(Fp::from(900 + k)))
+        .collect::<Vec<_>>();
+    assert_eq!(client.append_leaves(&appended).expect("append"), leaves as u64);
+    let longer = (leaves + appended.len()) as u64;
+
+    // One server as the binaries hold it, with the state of the old log.
+    let shared = Arc::new(RwLock::new(servers[1].inner.lock().expect("server lock").clone()));
+    let grouping = Grouping::public(longer, kappa);
+    {
+        let server = shared.read().expect("server lock");
+        let state = server.private_state().expect("prepared state");
+        assert_eq!(state.updates(), 0);
+        assert!(!state.is_current(&server, grouping));
+    }
+    let keeper = PrivateKeeper::new(Arc::clone(&shared));
+    keeper.after_batch();
+    keeper.wait();
+
+    let mut server = shared.write().expect("server lock");
+    let state = server.private_state().expect("installed state");
+    assert_eq!(state.updates(), 1);
+    assert_eq!(state.leaves(), longer);
+    assert!(state.is_current(&server, grouping));
+    let fresh = PrivateState::build(&server, grouping).expect("fresh state");
+    for index in [3u64, longer - 1] {
+        let opening = PrivateOpening::for_log(&params, &auth, NodeLinearization::Preorder, longer, index)
+            .expect("opening");
+        let request = opening.request();
+        let updated = opening.decode(&server.handle_private_read(&request).expect("reply"));
+        let expected = opening.decode(&fresh.answer(&request).expect("fresh reply"));
+        assert_eq!(updated.nodes.len(), expected.nodes.len());
+        for (a, b) in updated.nodes.iter().zip(&expected.nodes) {
+            assert_eq!(a.shares.len(), b.shares.len());
+            for (x, y) in a.shares.iter().zip(&b.shares) {
+                assert_eq!(x.registry_index(), y.registry_index());
+                assert!(x.value() == y.value(), "share of leaf {index} after the keeper's update");
+            }
+        }
+    }
+    // A second call finds the state current and does nothing.
+    drop(server);
+    keeper.after_batch();
+    keeper.wait();
+    assert_eq!(shared.read().expect("server lock").private_state().expect("state").updates(), 1);
+}
+
+/// The demo's shape: a tree of height 3 with 4 leaves at threshold 8,
+/// where the public pattern of 2^5 leaves is cut to the tree. The client
+/// and the server agree on it.
+#[test]
+fn a_pattern_larger_than_the_tree_is_the_tree() {
+    let (params, auth, servers, values, _root) = written_cluster(8, 32, 3, 4, 7);
+    let opening = PrivateOpening::for_log(&params, &auth, NodeLinearization::Preorder, 4, 0)
+        .expect("opening");
+    let request = opening.request();
+    assert_eq!(request.pattern_bits, 3);
+    servers[0]
+        .inner
+        .lock()
+        .expect("server lock")
+        .handle_private_read(&request)
+        .expect("the server accepts the request");
+    let mut client = reader(&params, &auth, 4, &servers);
+    for index in 0..4u64 {
+        assert_eq!(client.read_private(index).expect("private opening"), values[index as usize]);
     }
 }

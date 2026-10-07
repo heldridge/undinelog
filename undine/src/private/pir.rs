@@ -316,6 +316,7 @@ pub struct UpdateTimes {
 }
 
 /// The records of one claim as a PIR database, with its preprocessing.
+#[derive(Clone)]
 pub struct PirDatabase {
     shape: PirShape,
     params: &'static Params,
@@ -335,12 +336,15 @@ pub struct PirDatabase {
     hint_cols: Vec<u64>,
     /// The response-packing tables of the hint; its own hint is empty.
     offline: OfflinePrecomputedValues<'static>,
+    /// Threads that derive the packing tables of an update.
+    table_threads: usize,
 }
 
 impl PirDatabase {
     /// Build the database of claim `registry_index` from its stored primary
-    /// columns and preprocess it. The columns of the hint are independent
-    /// and are computed on every available core.
+    /// columns and preprocess it. The columns of the hint and the tables of
+    /// the reply ciphertexts are independent and are computed on every
+    /// available core, now and at every update.
     pub fn build(store: &UnauthStore, layout: &PrivateLayout, registry_index: usize) -> Self {
         let shape = PirShape::of(layout);
         let records = layout.records();
@@ -352,8 +356,16 @@ impl PirDatabase {
                 &mut cells[record * shape.record_cells..(record + 1) * shape.record_cells],
             );
         }
-        let threads = std::thread::available_parallelism().map_or(1, |n| n.get());
-        Self::from_cells_timed(layout, cells, threads).0
+        // One thread per block of columns of a reply ciphertext at most: a
+        // small database gains nothing from more, and every thread's
+        // allocator keeps what the preprocessing freed.
+        let outputs = factored::simplepir_db_cols(shape.params()) / shape.params().poly_len;
+        let threads = std::thread::available_parallelism()
+            .map_or(1, |n| n.get())
+            .clamp(1, outputs.max(1));
+        let (mut database, _) = Self::from_cells_timed(layout, cells, threads);
+        database.set_table_threads(threads);
+        database
     }
 
     /// Build the database from the primary-column entries of all segments,
@@ -420,8 +432,14 @@ impl PirDatabase {
             .collect()
     }
 
-    /// [`Self::from_cells`] with the hint computed on `threads` threads,
-    /// returning the time of the two preprocessing steps.
+    /// Derive the packing tables of later updates on `threads` threads,
+    /// one output per thread at a time.
+    pub fn set_table_threads(&mut self, threads: usize) {
+        self.table_threads = threads.max(1);
+    }
+
+    /// [`Self::from_cells`] with the hint and the tables computed on
+    /// `threads` threads, returning the time of the two preprocessing steps.
     pub fn from_cells_timed(
         layout: &PrivateLayout,
         cells: Vec<u16>,
@@ -437,7 +455,7 @@ impl PirDatabase {
         let hint_cols = Self::hint(&shape, params, &cells, &upper, &rows, threads);
         let hint_time = start.elapsed();
         let start = std::time::Instant::now();
-        let offline = factored::offline_from_hint_columns(params, &hint_cols);
+        let offline = factored::offline_from_hint_columns_on(params, &hint_cols, threads);
         let packing_time = start.elapsed();
         (
             Self {
@@ -449,6 +467,7 @@ impl PirDatabase {
                 rows,
                 hint_cols,
                 offline,
+                table_threads: 1,
             },
             PreprocessTimes {
                 hint: hint_time,
@@ -581,6 +600,45 @@ impl PirDatabase {
             padded[end - start..].fill(crate::field::fp_zero());
             entries_to_cells(&padded, cells);
         })
+    }
+
+    /// [`Self::update`] from the cells of the changed records read in
+    /// advance: `cells` holds `record_cells` symbols for each record of
+    /// `changed`, in order. This is the update a maintainer runs off its
+    /// lock, on a clone of the database, while it keeps answering.
+    pub fn update_from_cells(
+        &mut self,
+        layout: &PrivateLayout,
+        changed: &[usize],
+        cells: &[u16],
+    ) -> UpdateTimes {
+        let record_cells = self.shape.record_cells;
+        assert_eq!(cells.len(), changed.len() * record_cells, "one record's cells per changed record");
+        let position: HashMap<usize, usize> =
+            changed.iter().enumerate().map(|(k, &record)| (record, k)).collect();
+        self.update_records(layout, Some(changed), &mut |record, out| {
+            let k = position[&record];
+            out.copy_from_slice(&cells[k * record_cells..(k + 1) * record_cells]);
+        })
+    }
+
+    /// The cells of the records `changed` as stored for claim
+    /// `registry_index`, in order, for [`Self::update_from_cells`].
+    pub fn cells_of_records(
+        store: &UnauthStore,
+        layout: &PrivateLayout,
+        registry_index: usize,
+        changed: &[usize],
+    ) -> Vec<u16> {
+        let record_cells = PirShape::of(layout).record_cells;
+        let mut cells = vec![0u16; changed.len() * record_cells];
+        for (k, &record) in changed.iter().enumerate() {
+            entries_to_cells(
+                &record_entries(store, layout, registry_index, record),
+                &mut cells[k * record_cells..(k + 1) * record_cells],
+            );
+        }
+        cells
     }
 
     /// The update, with the cells of a record supplied by `cells_of`. When
@@ -776,7 +834,7 @@ impl PirDatabase {
         let start = std::time::Instant::now();
         self.offline.prepacked_lwe = Vec::new();
         self.offline.precomp = Vec::new();
-        self.offline = factored::offline_from_hint_columns(params, &self.hint_cols);
+        self.offline = factored::offline_from_hint_columns_on(params, &self.hint_cols, self.table_threads);
         let packing_time = start.elapsed();
         self.shape = shape;
         self.params = params;
@@ -1663,6 +1721,7 @@ mod tests {
                 fake_pack_pub_params: Vec::new(),
                 precomp: Vec::new(),
             },
+            table_threads: 1,
         };
         // Maximal noncanonical query residues and full u16 cells test the
         // documented arithmetic bounds, beyond the ordinary 14-bit cells.

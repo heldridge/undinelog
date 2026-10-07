@@ -170,8 +170,42 @@ impl PrivateOpening {
     }
 }
 
+/// Run `work` and return its result at `release`, not before. The protocol
+/// of a private opening fixes the time of the client's next action in
+/// advance, so that it does not depend on the replies; a client that acts
+/// on an opening as soon as it is decoded would let a maintainer time a
+/// lie, since correcting replies takes longer than checking them. The
+/// release must lie past the slowest decoding: a result that is ready
+/// only after it is returned then.
+pub fn release_at<T>(release: std::time::Instant, work: impl FnOnce() -> T) -> T {
+    let result = work();
+    if let Some(remaining) = release.checked_duration_since(std::time::Instant::now()) {
+        std::thread::sleep(remaining);
+    }
+    result
+}
+
+/// What [`PrivateState::apply_update`] needs: the layout of the new log
+/// length, the records whose cells changed, and those cells per database,
+/// read from the server by [`PrivateState::plan_update`].
+pub struct PlannedUpdate {
+    leaves: u64,
+    root: Value256,
+    layout: PrivateLayout,
+    changed: Vec<usize>,
+    cells: Vec<Vec<u16>>,
+}
+
+impl PlannedUpdate {
+    /// The anchor the update leads to.
+    pub fn anchor(&self) -> (u64, Value256) {
+        (self.leaves, self.root)
+    }
+}
+
 /// A maintainer's preprocessed state for private openings: one PIR database
 /// per claim, for one log length and one grouping.
+#[derive(Clone)]
 pub struct PrivateState {
     leaves: usize,
     root: Value256,
@@ -264,6 +298,53 @@ impl PrivateState {
         Ok(())
     }
 
+    /// What an update to the current fragment of `server` needs, read under
+    /// the server's lock: the layout of the new length and, per database,
+    /// the records that changed with their cells. The update itself,
+    /// [`Self::apply_update`], then runs without the server. The records
+    /// are those of an append when the log grew, and every record when it
+    /// did not.
+    pub fn plan_update(&self, server: &AuthServer) -> Result<PlannedUpdate, String> {
+        let leaves = server.allocated_leaves();
+        let layout = PrivateLayout::with_grouping(
+            &server.params,
+            &server.auth,
+            server.node_linearization,
+            leaves,
+            self.grouping,
+        )
+        .map_err(|err| err.to_string())?;
+        let changed = if leaves > self.leaves as u64 {
+            layout.records_changed_by_append(self.leaves as u64)
+        } else {
+            (0..layout.records()).collect()
+        };
+        let cells = self
+            .databases
+            .iter()
+            .map(|(registry_index, _)| {
+                PirDatabase::cells_of_records(&server.store.unauth, &layout, *registry_index, &changed)
+            })
+            .collect();
+        Ok(PlannedUpdate {
+            leaves,
+            root: server.store.root,
+            layout,
+            changed,
+            cells,
+        })
+    }
+
+    /// Bring every database to the fragment that `plan` describes.
+    pub fn apply_update(&mut self, plan: &PlannedUpdate) {
+        for ((_, database), cells) in self.databases.iter_mut().zip(&plan.cells) {
+            let _ = database.update_from_cells(&plan.layout, &plan.changed, cells);
+        }
+        self.leaves = plan.leaves as usize;
+        self.root = plan.root;
+        self.updates += 1;
+    }
+
     /// Whether this state was built from the current fragment of `server`
     /// with the given grouping.
     pub fn is_current(&self, server: &AuthServer, grouping: Grouping) -> bool {
@@ -321,6 +402,17 @@ impl AuthServer {
         self.private_state.as_deref()
     }
 
+    /// Install a state prepared elsewhere, if it is the state of this
+    /// server's current fragment; returns whether it was.
+    pub fn install_private_state(&mut self, state: PrivateState) -> bool {
+        let grouping = Grouping::public(self.allocated_leaves(), self.params.need);
+        if !state.is_current(self, grouping) {
+            return false;
+        }
+        self.private_state = Some(Arc::new(state));
+        true
+    }
+
     /// Answer a private opening at the stored threshold, the current log
     /// length, and the public grouping of that length.
     pub fn handle_private_read(
@@ -341,12 +433,14 @@ impl AuthServer {
             ));
         }
         // The public grouping changes with the log length, so a state of
-        // an earlier grouping is built again here.
+        // an earlier grouping is built again here. A pattern is at most the
+        // tree, as the layout has it, so the request names that size.
         let grouping = Grouping::public(request.leaves, self.params.need);
-        if request.pattern_bits != grouping.pattern_bits {
+        let pattern_bits = grouping.pattern_bits.min(self.auth.tree_height as u32);
+        if request.pattern_bits != pattern_bits {
             return Err(format!(
                 "private openings of a log of {} leaves at threshold {} use patterns of 2^{} leaves",
-                request.leaves, self.params.need, grouping.pattern_bits
+                request.leaves, self.params.need, pattern_bits
             ));
         }
         self.prepare_private(grouping)?;

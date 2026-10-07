@@ -386,6 +386,10 @@ pub fn run(response_fault: ResponseFault) {
             });
             let server = Arc::new(RwLock::new(server));
             let response_fault = response_fault.clone();
+            // After a batch the private state is updated off the lock, while
+            // the server keeps answering from the old one.
+            #[cfg(feature = "private")]
+            let keeper = paper_a_optimized::private::PrivateKeeper::new(Arc::clone(&server));
             net::serve(&listen, move |msg| {
                 let response = if net::auth::is_read_only_message(&msg) {
                     let server = server.read().expect("server lock");
@@ -396,42 +400,20 @@ pub fn run(response_fault: ResponseFault) {
                     net::unauth::handle_auth_mode_read_only_message(&server, msg)
                         .expect("read-only auth-mode unauth message")
                 } else {
-                    let mut server = server.write().expect("server lock");
-                    match msg {
-                        net::Message::AuthRead { .. }
-                        | net::Message::AuthReadSubtree { .. }
-                        | net::Message::AuthReadSubtreeUpperPath { .. }
-                        | net::Message::AuthWrite { .. }
-                        | net::Message::AuthWriteBatch { .. }
-                        | net::Message::AuthWriteFreshSubtree { .. }
-                        | net::Message::AuthExtend { .. }
-                        | net::Message::AuthGetLen
-                        | net::Message::AuthReadPrivate { .. }
-                        | net::Message::UnauthMultiRead { .. } => {
-                            net::auth::handle_message(&mut *server, msg)
-                        }
-                        net::Message::UnauthRead { .. }
-                        | net::Message::UnauthReadBlock { .. }
-                        | net::Message::UnauthReadSegmentRaw { .. }
-                        | net::Message::UnauthReadRowsAtZ { .. }
-                        | net::Message::UnauthReadRowsBatchAtZ { .. }
-                        | net::Message::UnauthReadRowsMatrix { .. }
-                        | net::Message::UnauthOptimizedRead { .. }
-                        | net::Message::UnauthRepairShard { .. }
-                        | net::Message::UnauthRepairShardBatch { .. }
-                        | net::Message::UnauthEvalShardsAtRowLabels { .. }
-                        | net::Message::UnauthEvalShardsAtRowLabelsMatrix { .. }
-                        | net::Message::UnauthApplyDeltas { .. }
-                        | net::Message::UnauthApplyBlockDeltas { .. }
-                        | net::Message::UnauthExtend { .. }
-                        | net::Message::UnauthKappaDouble
-                        | net::Message::UnauthKappaHalve { .. }
-                        | net::Message::UnauthEvalPartialStitches { .. }
-                        | net::Message::UnauthRetainClaims { .. }
-                        | net::Message::UnauthGetLen => {
-                            net::unauth::handle_message(&mut *server, msg)
-                        }
+                    let is_batch = matches!(
+                        msg,
+                        net::Message::AuthWrite { .. }
+                            | net::Message::AuthWriteBatch { .. }
+                            | net::Message::AuthWriteFreshSubtree { .. }
+                    );
+                    let response = handle_auth_locked(&server, msg);
+                    #[cfg(feature = "private")]
+                    if is_batch {
+                        keeper.after_batch();
                     }
+                    #[cfg(not(feature = "private"))]
+                    let _ = is_batch;
+                    response
                 };
                 response_fault.maybe_apply(response)
             })
@@ -441,5 +423,41 @@ pub fn run(response_fault: ResponseFault) {
             eprintln!("unknown mode {other}");
             std::process::exit(1);
         }
+    }
+}
+
+/// Handle a message that changes the auth server, under its write lock.
+fn handle_auth_locked(server: &RwLock<AuthServer>, msg: net::Message) -> net::Response {
+    let mut server = server.write().expect("server lock");
+    match msg {
+        net::Message::AuthRead { .. }
+        | net::Message::AuthReadSubtree { .. }
+        | net::Message::AuthReadSubtreeUpperPath { .. }
+        | net::Message::AuthWrite { .. }
+        | net::Message::AuthWriteBatch { .. }
+        | net::Message::AuthWriteFreshSubtree { .. }
+        | net::Message::AuthExtend { .. }
+        | net::Message::AuthGetLen
+        | net::Message::AuthReadPrivate { .. }
+        | net::Message::UnauthMultiRead { .. } => net::auth::handle_message(&mut *server, msg),
+        net::Message::UnauthRead { .. }
+        | net::Message::UnauthReadBlock { .. }
+        | net::Message::UnauthReadSegmentRaw { .. }
+        | net::Message::UnauthReadRowsAtZ { .. }
+        | net::Message::UnauthReadRowsBatchAtZ { .. }
+        | net::Message::UnauthReadRowsMatrix { .. }
+        | net::Message::UnauthOptimizedRead { .. }
+        | net::Message::UnauthRepairShard { .. }
+        | net::Message::UnauthRepairShardBatch { .. }
+        | net::Message::UnauthEvalShardsAtRowLabels { .. }
+        | net::Message::UnauthEvalShardsAtRowLabelsMatrix { .. }
+        | net::Message::UnauthApplyDeltas { .. }
+        | net::Message::UnauthApplyBlockDeltas { .. }
+        | net::Message::UnauthExtend { .. }
+        | net::Message::UnauthKappaDouble
+        | net::Message::UnauthKappaHalve { .. }
+        | net::Message::UnauthEvalPartialStitches { .. }
+        | net::Message::UnauthRetainClaims { .. }
+        | net::Message::UnauthGetLen => net::unauth::handle_message(&mut *server, msg),
     }
 }
