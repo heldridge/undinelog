@@ -3,6 +3,7 @@
 /results/runs/
 /results/gates/
 /artifact-run.log
+/artifact-jobs.log
 __pycache__/
 *.pyc
 *.swp
