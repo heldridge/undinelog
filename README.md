@@ -73,6 +73,7 @@ Cargo may need network access once to fetch locked dependencies.
 | Run a quick experiment | `./artifact smoke` |
 | Test interruption/resume | `./artifact resume-canary` |
 | Start full reproduction | `./artifact full` |
+| Run selected jobs with the full run's sampling | `./artifact jobs JOB...` |
 | Resume a run | `./artifact resume RUN_ID` |
 | Validate a new completed run | `./artifact validate RUN_ID` |
 | Package a full run as the reference | `./artifact package RUN_ID` |
@@ -112,6 +113,13 @@ host speed, load, and variance; the generated preflight reports a
 host-calibrated range, which was 2.5 to 27.8 hours on the reference host
 because adaptive series may stop at 10 repetitions or continue to 160. The
 canary took 16.7 minutes.
+
+While the manifest is being extended, `./artifact jobs JOB...` runs the named
+jobs alone after the same preflight gates, with the sampling and the
+stopping rule of a full run. Its run directory has the mode `jobs`, lists
+only its own missing or unstable measurements, and is never publishable or
+packaged; the paper's renderer can overlay such a run on the reference run
+until the next full run replaces both.
 
 ## Statistical Protocol
 

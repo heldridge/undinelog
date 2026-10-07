@@ -63,7 +63,10 @@ GIB = 1024 * MIB
 PRIVATE_BENCHMARK = "bench_private_opening_local"
 PRIVATE_PREFIX = "BENCH_PRIVATE_OPENING"
 PRIVATE_KAPPA = 64
-PRIVATE_LOGS_GIB = (1, 4, 16, 64)
+PRIVATE_LOGS_GIB = (1, 4, 16, 64, 256)
+# The largest log measured, at the threshold whose fragment fits the
+# memory of the reference host: (GiB, kappa).
+PRIVATE_LARGE_POINTS = ((1024, 256),)
 PRIVATE_SWEEP_LOG_GIB = 4
 # The client is measured at every threshold on the 12 MiB log and at the
 # largest threshold on these logs as well; each of its 3*kappa claims
@@ -79,7 +82,7 @@ PRIVATE_HINT_SAMPLE_COLUMNS = 64
 PRIVATE_SINGLE_GROUP_CELLS = 64
 PRIVATE_SINGLE_PATTERN_OFFSETS = (-1, 1)
 PRIVATE_SINGLE_MEASURED_GIB = (1, 4)
-PRIVATE_SINGLE_SHAPE_GIB = (16, 64)
+PRIVATE_SINGLE_SHAPE_GIB = (16, 64, 256, 1024)
 PRIVATE_TABLE_LOGS_GIB = (1, 4)
 PRIVATE_SMOKE_LEAVES = 32768
 PRIVATE_SMOKE_APPEND_LEAVES = 1024
@@ -1628,6 +1631,10 @@ def _build_private_maintainer_table(manifest: Manifest) -> None:
         ("pattern", PRIVATE_KAPPA, PRIVATE_PATTERN_SWEEP_GIB, sweep_bits + offset)
         for offset in PRIVATE_PATTERN_SWEEP_OFFSETS
     ]
+    points += [
+        ("large", kappa, gib, private_pattern_bits(leaves_of_gib(gib), kappa))
+        for gib, kappa in PRIVATE_LARGE_POINTS
+    ]
     for panel, kappa, gib, pattern_bits in points:
         _, outputs = _private_maintainer(manifest, kappa, gib, pattern_bits)
         row = f"{panel}:k{kappa}-log{gib}gib-p{pattern_bits}"
@@ -2155,7 +2162,7 @@ def summarize_samples(
 
 
 def benchmark_warmup_repetitions(run_job: RunJob, mode: str) -> int:
-    if mode != "full":
+    if mode not in ADAPTIVE_MODES:
         return 0
     modes = {
         measurement.sample_mode
@@ -2385,11 +2392,23 @@ def _measurements_with_tag(
     return tuple(selected)
 
 
-def select_run_jobs(manifest: Manifest, mode: str) -> list[RunJob]:
+def select_run_jobs(
+    manifest: Manifest, mode: str, job_ids: Sequence[str] | None = None
+) -> list[RunJob]:
     if mode == "full":
         return [
             RunJob(job, tuple(manifest.measurements_for_job(job.id)))
             for job in manifest.jobs.values()
+        ]
+    if mode == "jobs":
+        if not job_ids:
+            raise PipelineError("a jobs run names at least one job")
+        unknown = [job_id for job_id in job_ids if job_id not in manifest.jobs]
+        if unknown:
+            raise PipelineError(f"unknown jobs: {', '.join(unknown)}")
+        return [
+            RunJob(manifest.jobs[job_id], tuple(manifest.measurements_for_job(job_id)))
+            for job_id in dict.fromkeys(job_ids)
         ]
     if mode not in {"smoke", "canary"}:
         raise ValueError(f"unsupported execution mode: {mode}")
@@ -2529,6 +2548,12 @@ def select_run_jobs(manifest: Manifest, mode: str) -> list[RunJob]:
         add(f"private-table-undine-log{first_gib}gib-k{PRIVATE_KAPPA}")
         add(f"private-client-undine-k{PRIVATE_KAPPA}")
     return selected
+
+
+# The modes that sample adaptively to the precision target: the full run,
+# and a run of selected jobs, which measures them the same way but is never
+# publishable on its own.
+ADAPTIVE_MODES = frozenset({"full", "jobs"})
 
 
 def run_id_for(mode: str, snapshot_id: str) -> str:
@@ -3143,14 +3168,14 @@ def validate_output_contract(
 
 
 def expected_repetitions_for_mode(mode: str) -> int:
-    return DEFAULT_MIN_REPETITIONS if mode == "full" else 1
+    return DEFAULT_MIN_REPETITIONS if mode in ADAPTIVE_MODES else 1
 
 
 def job_complete(job_state: Mapping[str, Any], mode: str) -> bool:
     timing = job_state.get("samples", {})
     if not timing:
         return False
-    if mode != "full":
+    if mode not in ADAPTIVE_MODES:
         return all(len(values) >= 1 for values in timing.values())
     if not all(len(values) >= DEFAULT_MIN_REPETITIONS for values in timing.values()):
         return False
@@ -3161,7 +3186,7 @@ def job_complete(job_state: Mapping[str, Any], mode: str) -> bool:
 
 
 def batch_repetitions(job_state: Mapping[str, Any], mode: str) -> int:
-    if mode != "full":
+    if mode not in ADAPTIVE_MODES:
         return 1
     lengths = [len(values) for values in job_state["samples"].values()]
     current = min(lengths, default=0)
@@ -3833,12 +3858,21 @@ def write_summary_outputs(
         for record in records
         if record["kind"] == "timing"
         and not record["summary"]["stable"]
-        and state["mode"] == "full"
+        and state["mode"] in ADAPTIVE_MODES
     ]
+    # A run of selected jobs lists only their measurements as missing; the
+    # rest of the manifest is not its business.
+    selected_measurements = {
+        measurement.id
+        for job_id in state["selected_jobs"]
+        for measurement in manifest.measurements_for_job(job_id)
+    }
     missing = [
         identifier
         for identifier, spec in manifest.measurements.items()
-        if spec.kind != "formula" and identifier not in resolved
+        if spec.kind != "formula"
+        and identifier not in resolved
+        and (state["mode"] != "jobs" or identifier in selected_measurements)
     ]
     summary = {
         "run_id": state["run_id"],
@@ -3863,6 +3897,8 @@ def write_summary_outputs(
         "missing_full_manifest_measurements": missing,
         "unstable_measurements": unstable,
         "publishable": state["mode"] == "full" and not missing and not unstable,
+        "partial": state["mode"] == "jobs",
+        "selected_jobs": list(state["selected_jobs"]),
     }
     atomic_write_json(run_dir / "summary.json", summary)
     with (run_dir / "summary.tsv").open("w", newline="") as handle:
@@ -4547,6 +4583,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="run one publication-sized point per benchmark family",
     )
     modes.add_argument("--full", action="store_true", help="run the complete adaptive manifest")
+    modes.add_argument(
+        "--jobs",
+        metavar="JOB[,JOB...]",
+        help=(
+            "run the named jobs of the manifest with the adaptive sampling of "
+            "a full run; the run is partial and never publishable"
+        ),
+    )
     modes.add_argument("--resume", metavar="RUN_ID", help="resume an interrupted run")
     parser.add_argument(
         "--timeout-seconds",
@@ -4683,7 +4727,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 ),
             )
         else:
-            mode = "full"
+            mode = "jobs" if args.jobs else "full"
             require_gates(
                 snapshot["snapshot_id"],
                 (
@@ -4696,7 +4740,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "preflight",
                 ),
             )
-        run_jobs = select_run_jobs(manifest, mode)
+        job_ids = [job_id.strip() for job_id in args.jobs.split(",")] if args.jobs else None
+        run_jobs = select_run_jobs(manifest, mode, job_ids)
         run_dir, state = initialize_run(
             manifest, mode, run_jobs, snapshot, benchmark_cpu
         )
@@ -4733,6 +4778,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         mark_run_completed(run_dir, state)
         if mode == "full" and not outputs["summary"]["publishable"]:
             print(f"Full run completed with flagged results: {run_dir}")
+            return 2
+        if mode == "jobs" and outputs["summary"]["unstable_measurements"]:
+            print(f"Jobs run completed with flagged results: {run_dir}")
             return 2
         print(f"{mode.capitalize()} run completed: {run_dir}")
         if mode == "canary":

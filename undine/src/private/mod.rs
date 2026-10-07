@@ -29,6 +29,6 @@ pub use opening::{
 };
 pub use pir::{
     PackKeys, PirClient, PirDatabase, PirError, PirShape, PreprocessTimes, TableDatabase,
-    UpdateTimes, entry_from_cells,
+    UpdateTimes, entries_to_cells, entry_from_cells,
 };
 pub use records::{local_claims, record_entries};

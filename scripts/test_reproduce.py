@@ -120,7 +120,8 @@ class ManifestTests(unittest.TestCase):
                 "maintainer": len(MODULE.PRIVATE_LOGS_GIB)
                 + len(MODULE.KAPPAS)
                 - 1
-                + len(MODULE.PRIVATE_PATTERN_SWEEP_OFFSETS),
+                + len(MODULE.PRIVATE_PATTERN_SWEEP_OFFSETS)
+                + len(MODULE.PRIVATE_LARGE_POINTS),
                 "single": 1
                 + len(MODULE.PRIVATE_SINGLE_PATTERN_OFFSETS)
                 + len(MODULE.PRIVATE_SINGLE_MEASURED_GIB)
@@ -186,9 +187,27 @@ class ManifestTests(unittest.TestCase):
                 MODULE.stored_elements_per_segment("borg", kappa * kappa, kappa),
             )
 
+    def test_jobs_mode_selects_named_jobs_with_full_sampling(self) -> None:
+        names = ["private-client-undine-k8", "append-4mib-borg-k16", "private-client-undine-k8"]
+        selected = MODULE.select_run_jobs(self.manifest, "jobs", names)
+        self.assertEqual([run_job.spec.id for run_job in selected], names[:2])
+        for run_job in selected:
+            self.assertEqual(
+                run_job.measurements,
+                tuple(self.manifest.measurements_for_job(run_job.spec.id)),
+            )
+        self.assertEqual(
+            MODULE.expected_repetitions_for_mode("jobs"),
+            MODULE.expected_repetitions_for_mode("full"),
+        )
+        with self.assertRaises(MODULE.PipelineError):
+            MODULE.select_run_jobs(self.manifest, "jobs", ["no-such-job"])
+        with self.assertRaises(MODULE.PipelineError):
+            MODULE.select_run_jobs(self.manifest, "jobs", [])
+
     def test_exact_full_job_count_is_stable(self) -> None:
-        self.assertEqual(len(self.manifest.jobs), 70)
-        self.assertEqual(len(self.manifest.cells), 713)
+        self.assertEqual(len(self.manifest.jobs), 72)
+        self.assertEqual(len(self.manifest.cells), 763)
 
     def test_every_table_cell_satisfies_its_unit_contract(self) -> None:
         for cell in self.manifest.cells.values():

@@ -143,6 +143,14 @@ def command_full(args: argparse.Namespace) -> None:
     run(reproduce_args("--full", cpu=args.cpu))
 
 
+def command_jobs(args: argparse.Namespace) -> None:
+    ensure_canary(args.cpu)
+    command = [sys.executable, str(REPRODUCE), "--jobs", ",".join(args.jobs)]
+    if args.cpu is not None:
+        command.extend(["--cpu", str(args.cpu)])
+    run(command, expected=(0, 2))
+
+
 def command_resume(args: argparse.Namespace) -> None:
     run(resume_args(args.run_id, cpu=args.cpu))
 
@@ -208,6 +216,17 @@ def parse_args() -> argparse.Namespace:
     )
     add_cpu_option(full)
     full.set_defaults(handler=command_full)
+
+    jobs = commands.add_parser(
+        "jobs",
+        help=(
+            "run preflight gates and the named jobs with the full run's "
+            "sampling; the run is partial and is not packaged"
+        ),
+    )
+    jobs.add_argument("jobs", nargs="+", metavar="JOB")
+    add_cpu_option(jobs)
+    jobs.set_defaults(handler=command_jobs)
 
     resume = commands.add_parser("resume", help="resume an interrupted run")
     resume.add_argument("run_id")

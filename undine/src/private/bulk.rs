@@ -114,6 +114,10 @@ struct Walk<'a> {
     auth: &'a AuthParams,
     leaves: u64,
     seed: u64,
+    /// The leaves before this index are allocated and unwritten: their
+    /// cells are zero and the labels above them are the defaults, so a
+    /// subtree of such leaves is written without hashing.
+    default_leaves: u64,
 }
 
 impl Walk<'_> {
@@ -135,6 +139,33 @@ impl Walk<'_> {
         (1u64 << (self.height() - level + 1)) - 1
     }
 
+    /// Whether every leaf below the node at `(level, pos)` is an unwritten
+    /// one of the default prefix.
+    fn is_default(&self, level: u32, pos: u64) -> bool {
+        let shift = self.height() - level;
+        shift < 64 && ((pos + 1) as u128) << shift <= self.default_leaves as u128
+    }
+
+    /// The cell of a node of the default prefix: zero for a leaf, the
+    /// default label for an inner node.
+    fn default_cell(&self, level: u32) -> Fp {
+        if level == self.height() {
+            fp_zero()
+        } else {
+            decode_value(default_hash(&self.auth.defaults, level as usize))
+        }
+    }
+
+    /// Pass every node of the subtree rooted at `(level, array_index)` of
+    /// the default prefix to `cell`.
+    fn default_subtree(&self, level: u32, array_index: u64, cell: &mut dyn FnMut(u64, Fp)) {
+        cell(array_index, self.default_cell(level));
+        if level < self.height() {
+            self.default_subtree(level + 1, array_index + 1, cell);
+            self.default_subtree(level + 1, array_index + 1 + self.subtree_nodes(level + 1), cell);
+        }
+    }
+
     /// Label of the subtree rooted at `(level, pos)`, whose root sits at
     /// `array_index`; every active node of the subtree is passed to `cell`.
     fn subtree(
@@ -145,6 +176,10 @@ impl Walk<'_> {
         cell: &mut dyn FnMut(u64, Fp),
     ) -> Value256 {
         if !self.is_active(level, pos) {
+            return default_hash(&self.auth.defaults, level as usize);
+        }
+        if self.is_default(level, pos) {
+            self.default_subtree(level, array_index, cell);
             return default_hash(&self.auth.defaults, level as usize);
         }
         if level == self.height() {
@@ -269,6 +304,7 @@ pub struct BulkLog<'a> {
     seed: u64,
     registry_index: usize,
     chunk_bits: u32,
+    default_leaves: u64,
     leaves: u64,
     chunk_labels: Vec<Value256>,
     entries: Vec<Fp>,
@@ -288,6 +324,38 @@ impl<'a> BulkLog<'a> {
         threads: usize,
         chunk_bits: u32,
     ) -> Self {
+        Self::build_with_default_prefix(
+            params,
+            auth,
+            node_linearization,
+            leaves,
+            0,
+            seed,
+            registry_index,
+            threads,
+            chunk_bits,
+        )
+    }
+
+    /// [`Self::build`] for a log whose first `default_leaves` leaves are
+    /// allocated and unwritten: their cells are zero and the labels above
+    /// them are the defaults, as after an allocation without writes. The
+    /// leaves from `default_leaves` on have the seeded values. The columns
+    /// equal those of a maintainer that allocated the log and wrote those
+    /// leaves, and a subtree of the default prefix is written without
+    /// hashing.
+    #[allow(clippy::too_many_arguments)]
+    pub fn build_with_default_prefix(
+        params: &'a CodedArrayParams,
+        auth: &'a AuthParams,
+        node_linearization: NodeLinearization,
+        leaves: u64,
+        default_leaves: u64,
+        seed: u64,
+        registry_index: usize,
+        threads: usize,
+        chunk_bits: u32,
+    ) -> Self {
         let height = auth.tree_height as u32;
         assert!(height < 64, "tree too tall");
         let mut log = Self {
@@ -297,6 +365,7 @@ impl<'a> BulkLog<'a> {
             seed,
             registry_index,
             chunk_bits: chunk_bits.min(height),
+            default_leaves,
             leaves: 0,
             chunk_labels: Vec::new(),
             entries: Vec::new(),
@@ -331,6 +400,7 @@ impl<'a> BulkLog<'a> {
             auth: self.auth,
             leaves,
             seed: self.seed,
+            default_leaves: self.default_leaves,
         }
     }
 
@@ -493,7 +563,7 @@ pub fn build_tree_cells(
     let cells_per_record = layout.cells_per_record() as u64;
     let records = layout.records();
     let mut cells = vec![0u16; records * record_cells];
-    let walk = Walk { auth, leaves, seed };
+    let walk = Walk { auth, leaves, seed, default_leaves: 0 };
     let chunk_bits = CHUNK_BITS.min(height);
     let chunk_level = height - chunk_bits;
     let chunks = leaves.div_ceil(1u64 << chunk_bits) as usize;

@@ -10,7 +10,7 @@ use paper_a_optimized::private::{
     PirDatabase, PrivateLayout, build_primary_columns, build_primary_columns_in_chunks,
     bulk_leaf_value, record_entries,
 };
-use paper_a_optimized::private::bulk::CHUNK_BITS;
+use paper_a_optimized::private::bulk::{BulkLog, CHUNK_BITS};
 use paper_a_optimized::{AuthParams, Fp};
 
 const SEED: u64 = 0x5eed;
@@ -88,6 +88,72 @@ fn bulk_columns_equal_the_append_path() {
         // three threads.
         assert_bulk_equals_append_path(kappa, tree_height, leaves, 1, CHUNK_BITS);
         assert_bulk_equals_append_path(kappa, tree_height, leaves, 3, 3);
+    }
+}
+
+/// A log whose first `default_leaves` leaves are allocated and unwritten,
+/// the rest written: the bulk columns of a default prefix equal the
+/// append path's.
+fn assert_default_prefix_equals_append_path(
+    kappa: usize,
+    tree_height: usize,
+    leaves: usize,
+    default_leaves: usize,
+    chunk_bits: u32,
+) {
+    let params = build_params(kappa, 3 * kappa, 121);
+    let auth = AuthParams::new(tree_height);
+    let servers = build_servers(&params, &auth, leaves);
+    let mut client = reader(&params, &auth, leaves, &servers);
+    let updates = (default_leaves as u64..leaves as u64)
+        .map(|index| (index, bulk_leaf_value(SEED, index)))
+        .collect::<Vec<_>>();
+    if !updates.is_empty() {
+        client.write_batch(&updates).expect("write the written leaves");
+    }
+
+    let server = &servers[1];
+    let guard = server.inner.lock().expect("server lock");
+    let root = guard.store.root;
+    let store = &guard.store.unauth;
+    let layout = PrivateLayout::new(&params, &auth, NodeLinearization::Preorder, leaves as u64, 1)
+        .expect("layout");
+    let stored = (0..store.segments())
+        .flat_map(|segment| record_entries(store, &layout, server.label, segment))
+        .collect::<Vec<Fp>>();
+
+    let bulk = BulkLog::build_with_default_prefix(
+        &params,
+        &auth,
+        NodeLinearization::Preorder,
+        leaves as u64,
+        default_leaves as u64,
+        SEED,
+        server.label,
+        3,
+        chunk_bits,
+    );
+    let context = format!(
+        "kappa {kappa}, height {tree_height}, {leaves} leaves, {default_leaves} default, chunks of 2^{chunk_bits}"
+    );
+    assert_eq!(bulk.root(), root, "{context}: root");
+    assert_eq!(bulk.segments(), store.segments(), "{context}: segments");
+    assert!(bulk.entries() == stored, "{context}: primary columns differ");
+}
+
+#[test]
+fn default_prefix_columns_equal_the_append_path() {
+    for &(kappa, tree_height, leaves, default_leaves) in &[
+        (2usize, 6usize, 37usize, 37usize),
+        (2, 6, 37, 20),
+        (2, 6, 64, 1),
+        (4, 9, 300, 256),
+        (4, 9, 300, 300),
+        (2, 50, 33, 33),
+        (4, 50, 257, 100),
+    ] {
+        assert_default_prefix_equals_append_path(kappa, tree_height, leaves, default_leaves, CHUNK_BITS);
+        assert_default_prefix_equals_append_path(kappa, tree_height, leaves, default_leaves, 3);
     }
 }
 

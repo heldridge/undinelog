@@ -7,7 +7,11 @@
 //!   times the client's request, the maintainer's first pass and complete
 //!   answer, the client's decoding of the reply, the hint of a sample of
 //!   database columns, and the preprocessing update after each of a sequence
-//!   of appends.
+//!   of appends. With `DEFAULT_PREFIX=1` the leaves of the initial log are
+//!   allocated and unwritten, as after an allocation, so the columns are
+//!   built without hashing; the appended leaves are written. The PIR work
+//!   does not depend on the cell values, so the times are those of a
+//!   written log of the same length.
 //! - `single`: a server that stores the whole tree in records of
 //!   `CELLS_PER_RECORD` cells. Same request, answer, decoding, and hint
 //!   sample; it also reports the database shape at the log lengths of
@@ -41,13 +45,13 @@ use paper_a_optimized::private::wire::{
 use paper_a_optimized::private::{
     BulkLog, PackKeys, PirClient, PirDatabase, PirError, PirShape, PlannedEntry, PrivateLayout,
     PrivateOpening, PrivateReadResponse, TableDatabase, build_primary_columns,
-    build_tree_cells, bulk_leaf_value, entry_from_cells, pattern_bits, Grouping,
+    build_tree_cells, bulk_leaf_value, entries_to_cells, entry_from_cells, pattern_bits, Grouping,
 };
 use paper_a_optimized::unauth::error_correcting_share_target;
 use paper_a_optimized::merkle::{default_hash, leaf_key, parent, recompute_root, sibling};
 use paper_a_optimized::{
     AuthParams, CodedArrayConfig, CodedArrayParams, Fp, ShardShare, Value256, build_coded_params,
-    build_shard_registry_deterministic, decode_value, encode_value, fp_one,
+    build_shard_registry_deterministic, decode_value, encode_value, fp_one, fp_zero,
 };
 use serde::Serialize;
 use std::fs;
@@ -710,11 +714,13 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     };
 
     // Setup: the primary columns of the seeded log and their preprocessing.
-    let mut bulk = BulkLog::build(
+    let default_leaves = if parse_usize_env("DEFAULT_PREFIX", 0) == 1 { common.leaves } else { 0 };
+    let mut bulk = BulkLog::build_with_default_prefix(
         &params,
         &auth,
         ORDER,
         common.leaves,
+        default_leaves,
         BENCH_SEED,
         registry_index,
         cpus.setup_threads,
@@ -773,16 +779,24 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     // the hint of the sample columns, and openings across the log.
     let final_layout = layout_at(leaves);
     {
-        let fresh = PirDatabase::cells_from_entries(&final_layout, bulk.entries());
+        // Record by record, so that the fresh cells are never held whole
+        // next to the database's.
         let record_cells = database.shape().record_cells;
+        let per_record = final_layout.entries_per_record();
+        let entries = bulk.entries();
+        let mut padded = vec![fp_zero(); per_record];
+        let mut fresh = vec![0u16; record_cells];
         for record in 0..final_layout.records() {
-            assert!(
-                database.record_cells(record)
-                    == &fresh[record * record_cells..(record + 1) * record_cells],
-                "block {record} after the updates"
-            );
+            let start = (record * per_record).min(entries.len());
+            let end = ((record + 1) * per_record).min(entries.len());
+            padded[..end - start].copy_from_slice(&entries[start..end]);
+            padded[end - start..].fill(fp_zero());
+            entries_to_cells(&padded, &mut fresh);
+            assert!(database.record_cells(record) == fresh.as_slice(), "block {record} after the updates");
         }
-        let fresh_upper = PirDatabase::upper_from_cells(&final_layout, &fresh);
+        // The records equal the fresh ones, so the upper nodes read from
+        // them are the fresh upper nodes.
+        let fresh_upper = PirDatabase::upper_from_cells(&final_layout, database.cells());
         for (level, cells) in fresh_upper.iter().enumerate() {
             for pos in 0..final_layout.upper_count(level) {
                 assert!(

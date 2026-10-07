@@ -373,6 +373,18 @@ def verify_run(run_dir: pathlib.Path, *, reference: bool) -> dict[str, Any]:
                 f"precision target missed: {record['id']}",
             )
         require(summary.get("publishable") is True, "full run is not publishable")
+    if checkpoint.get("mode") == "jobs":
+        # A run of selected jobs meets the precision target of a full run
+        # for the jobs it ran, and is never publishable.
+        require(
+            not summary.get("missing_full_manifest_measurements"),
+            "summary has missing measurements of its jobs",
+        )
+        require(
+            not summary.get("unstable_measurements"),
+            "summary has unstable timings",
+        )
+        require(summary.get("publishable") is False, "jobs run claims to be publishable")
 
     batch_artifacts = verify_batch_artifacts(run_dir, checkpoint)
     raw_samples, raw_batches = verify_raw_sample_export(run_dir, summary)

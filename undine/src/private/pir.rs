@@ -888,6 +888,11 @@ impl PirDatabase {
     }
 
     /// The plaintext cells of one record.
+    /// The cells of every record, record by record.
+    pub fn cells(&self) -> &[u16] {
+        &self.cells
+    }
+
     pub fn record_cells(&self, record: usize) -> &[u16] {
         &self.cells[record * self.shape.record_cells..(record + 1) * self.shape.record_cells]
     }
