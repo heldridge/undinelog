@@ -129,7 +129,7 @@ class ManifestTests(unittest.TestCase):
                 "table": len(MODULE.PRIVATE_TABLE_LOGS_GIB),
                 "client": len(MODULE.KAPPAS)
                 + len(MODULE.PRIVATE_CLIENT_LARGE_KAPPAS)
-                + len(MODULE.PRIVATE_CLIENT_LOGS_GIB),
+                + len(MODULE.PRIVATE_CLIENT_LARGE_LOGS_GIB),
             },
         )
 
@@ -208,8 +208,8 @@ class ManifestTests(unittest.TestCase):
             MODULE.select_run_jobs(self.manifest, "jobs", [])
 
     def test_exact_full_job_count_is_stable(self) -> None:
-        self.assertEqual(len(self.manifest.jobs), 73)
-        self.assertEqual(len(self.manifest.cells), 786)
+        self.assertEqual(len(self.manifest.jobs), 72)
+        self.assertEqual(len(self.manifest.cells), 775)
 
     def test_every_table_cell_satisfies_its_unit_contract(self) -> None:
         for cell in self.manifest.cells.values():

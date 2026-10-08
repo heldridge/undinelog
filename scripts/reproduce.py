@@ -68,14 +68,19 @@ PRIVATE_LOGS_GIB = (1, 4, 16, 64, 256)
 # memory of the reference host: (GiB, kappa).
 PRIVATE_LARGE_POINTS = ((1024, 256),)
 PRIVATE_SWEEP_LOG_GIB = 4
-# The client is measured at every threshold on the 12 MiB log and at the
-# largest threshold on these logs as well; each of its 3*kappa claims
-# builds its own columns, so the larger logs stop where a job would take
-# hours.
-PRIVATE_CLIENT_LOGS_GIB = (1, 4)
-# The client at a threshold above the sweep's, on the 12 MiB log: Combine
-# over 3 kappa replies at the threshold of the largest maintainer job.
+# The client is measured at every threshold on this log, and at the largest
+# threshold on the larger logs as well. The client's work does not depend
+# on the stored values or on how a reply was formed, so its 3*kappa claims
+# hold the columns of a log of unwritten leaves, built without hashing in a
+# few walks of the tree on all cores, and reply with the selected row
+# encrypted under the client's key.
+PRIVATE_CLIENT_LOG_GIB = 4
+PRIVATE_CLIENT_LARGE_LOGS_GIB = (8,)
+# The client at a threshold above the sweep's: Combine over 3 kappa replies
+# at the threshold of the largest maintainer job.
 PRIVATE_CLIENT_LARGE_KAPPAS = (256,)
+# Seconds of the client job's setup per GiB of log, on all cores.
+CLIENT_SETUP_SECONDS_PER_GIB = 45.0
 # The public grouping: one segment per block up to 2^25 leaves, doubling
 # with every two further levels of the active prefix.
 PRIVATE_PATTERN_SHIFT = 5
@@ -1811,9 +1816,8 @@ def _build_private_client_table(manifest: Manifest) -> None:
         "private-kappa-ms", "public-kappa-ms", "private-3kappa-honest-ms",
         "public-3kappa-honest-ms", "private-3kappa-ms", "public-3kappa-ms",
     ]
-    small_log = PREFIX_BATCHES * BATCH_VALUES_4MIB
     settings = [
-        (kappa, small_log, f"private-client-undine-k{kappa}", f"k{kappa}")
+        (kappa, leaves_of_gib(PRIVATE_CLIENT_LOG_GIB), f"private-client-undine-k{kappa}", f"k{kappa}")
         for kappa in KAPPAS + PRIVATE_CLIENT_LARGE_KAPPAS
     ]
     settings += [
@@ -1823,31 +1827,29 @@ def _build_private_client_table(manifest: Manifest) -> None:
             f"private-client-undine-log{gib}gib-k{PRIVATE_KAPPA}",
             f"log:log{gib}gib-k{PRIVATE_KAPPA}",
         )
-        for gib in PRIVATE_CLIENT_LOGS_GIB
+        for gib in PRIVATE_CLIENT_LARGE_LOGS_GIB
     ]
     for kappa, leaves, identifier, row in settings:
-        # Each claim walks the log once and preprocesses its columns, about
-        # 50 s of one core per GiB of log, on up to eight claims at a time;
-        # the claims of the larger logs are given the memory for eight.
-        claim_seconds = 1.0 + leaves * FIELD_BYTES / GIB * 50.0
+        # The walks of the tree that build the claims' columns, on all
+        # cores, with 24 GiB of memory for the columns.
+        setup_seconds = 10.0 + leaves * FIELD_BYTES / GIB * CLIENT_SETUP_SECONDS_PER_GIB
         env = {
             "KAPPA": kappa,
             "LEAVES": leaves,
             "SEGMENTS_PER_RECORD": 1,
             "PATTERN_BITS": private_pattern_bits(leaves, kappa),
+            "CLIENT_SETUP_MEMORY_MIB": 24 * 1024,
         }
-        if leaves > small_log:
-            env["CLIENT_SETUP_MEMORY_MIB"] = 24 * 1024
         job = _private_job(
             manifest,
             identifier=identifier,
             role="client",
             env=env,
             setup=(
-                "Each of 3*kappa claims preprocesses its primary columns and "
-                "answers one request."
+                "The columns of the unwritten log for 3*kappa claims, and each "
+                "claim's reply to one request."
             ),
-            setup_seconds=max(8.0 * kappa, 3 * kappa * claim_seconds / 8),
+            setup_seconds=setup_seconds,
             repetition_seconds=max(0.1, (kappa / 8) ** 3 * 0.004),
         )
         outputs = _private_outputs(

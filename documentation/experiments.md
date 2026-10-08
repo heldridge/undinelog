@@ -148,11 +148,16 @@ answers over a table with one complete opening per pattern, for the claim of
 the maintainer jobs at 1 and 4 GiB. Its reply is checked to equal the
 record-based reply byte for byte.
 
-**The client** (`tab:private-client`). On a 12 MiB log at every threshold
-and at threshold 256, and on the 1 and 4 GiB logs at threshold 64, at the
-public grouping, each of `3 kappa` claims preprocesses its own primary
-columns and answers one request honestly, and the first `kappa` of them
-answer a second time with a lie about one node of the path. The client's
+**The client** (`tab:private-client`). On the 4 GiB log at every threshold
+and at threshold 256, and on the 8 GiB log at threshold 64, at the public
+grouping, each of `3 kappa` claims answers one request honestly, and the
+first `kappa` of them answer a second time with a lie about one node of the
+path. The client's work does not depend on the stored values or on how a
+reply was formed, so the setup skips what the client never sees: the claims
+hold the columns of a log of allocated, unwritten leaves, built without
+hashing the tree, and a claim's reply is the row the query selects encrypted
+under the client's key in the server's response format, in place of the
+server's preprocessing and answer; the opened leaf is unwritten. The client's
 request, its decoding plus Combine+Verify from `kappa` correct replies, from
 the `3 kappa` honest replies, and from the same registry with the `kappa`
 lying replies, and Combine+Verify from the public replies of the same three

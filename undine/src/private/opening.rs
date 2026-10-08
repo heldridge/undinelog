@@ -130,6 +130,14 @@ impl PrivateOpening {
         }
     }
 
+    /// The ciphertexts of a reply that decodes to `slots`, the cells of each
+    /// slot of the row this opening selects, encrypted under this opening's
+    /// key ([`PirClient::encrypt_slots`]); for benchmarks of the client.
+    #[cfg(feature = "bench")]
+    pub fn encrypt_slots(&self, slots: &[Vec<u64>]) -> Vec<Vec<u8>> {
+        self.client.encrypt_slots(slots)
+    }
+
     /// Decode a maintainer's reply into the shares of a public opening of
     /// the same leaf. A reply of one claim that does not decode contributes
     /// no share.

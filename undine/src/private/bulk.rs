@@ -61,18 +61,20 @@ pub struct BulkColumns {
     pub root: Value256,
 }
 
-/// Adds the contribution of cells to the column entries of one claim.
+/// Adds the contribution of cells to the column entries of one or more
+/// claims, one buffer of `kappa` entries per segment for each claim.
 struct ColumnEncoder<'a> {
     params: &'a CodedArrayParams,
-    column_identifier: Fp,
+    column_identifiers: Vec<Fp>,
     /// Z-axis and W-axis index of each logical offset of a segment.
     axes_of_offset: Vec<(u16, u16)>,
-    /// Z-axis Lagrange basis at the column identifier, by Z-scale index.
+    /// Z-axis Lagrange basis at every column identifier, by Z-scale index:
+    /// `kappa` values per claim, claim-major.
     basis_by_scale: HashMap<usize, Vec<Fp>>,
 }
 
 impl<'a> ColumnEncoder<'a> {
-    fn new(params: &'a CodedArrayParams, registry_index: usize) -> Self {
+    fn new(params: &'a CodedArrayParams, registry_indices: &[usize]) -> Self {
         let axes_of_offset = (0..params.n_grid)
             .map(|offset| {
                 let grid = params.logical_grid_index(offset);
@@ -84,28 +86,37 @@ impl<'a> ColumnEncoder<'a> {
             .collect();
         Self {
             params,
-            column_identifier: params.shard_registry[registry_index].z,
+            column_identifiers: registry_indices
+                .iter()
+                .map(|&registry_index| params.shard_registry[registry_index].z)
+                .collect(),
             axes_of_offset,
             basis_by_scale: HashMap::new(),
         }
     }
 
-    /// Add the cell at `array_index` with content `value` to `entries`,
-    /// which starts at segment `first_segment`.
-    fn add_cell(&mut self, entries: &mut [Fp], first_segment: usize, array_index: u64, value: Fp) {
+    /// Add the cell at `array_index` with content `value` to `entries`, one
+    /// buffer per claim starting at segment `first_segment`.
+    fn add_cell(&mut self, entries: &mut [Vec<Fp>], first_segment: usize, array_index: u64, value: Fp) {
         let kappa = self.params.need;
         let segment = (array_index / self.params.n_grid as u64) as usize;
         let offset = (array_index % self.params.n_grid as u64) as usize;
         let (z, w) = self.axes_of_offset[offset];
         let (z_scale, _) = segment_axis_indices(segment);
         let params = self.params;
-        let column_identifier = self.column_identifier;
+        let column_identifiers = &self.column_identifiers;
         let basis = self.basis_by_scale.entry(z_scale).or_insert_with(|| {
-            let mut basis = vec![fp_zero(); kappa];
-            params.z_basis_at(&params.segment_axes(segment), column_identifier, &mut basis);
+            let axes = params.segment_axes(segment);
+            let mut basis = vec![fp_zero(); kappa * column_identifiers.len()];
+            for (claim, column_identifier) in column_identifiers.iter().enumerate() {
+                params.z_basis_at(&axes, *column_identifier, &mut basis[claim * kappa..][..kappa]);
+            }
             basis
         });
-        entries[(segment - first_segment) * kappa + w as usize] += basis[z as usize] * value;
+        let entry = (segment - first_segment) * kappa + w as usize;
+        for (block, basis) in entries.iter_mut().zip(basis.chunks_exact(kappa)) {
+            block[entry] += basis[z as usize] * value;
+        }
     }
 }
 
@@ -284,30 +295,27 @@ pub fn build_primary_columns_in_chunks(
         threads,
         chunk_bits,
     );
-    BulkColumns {
-        segments: log.segments(),
-        root: log.root,
-        entries: log.entries,
-    }
+    log.into_columns()
 }
 
-/// The primary columns of one claim for a seeded log that can grow.
+/// The primary columns of one or more claims for a seeded log that can grow.
 ///
 /// [`BulkLog::extend`] appends leaves: it replaces the contributions of the
 /// labels above the worker tasks and of the cells after the last node, and
 /// walks only the tasks that hold appended leaves. The result equals a build
-/// at the longer length.
+/// at the longer length. The tree is walked once for all the claims, each
+/// with its own buffer of entries.
 pub struct BulkLog<'a> {
     params: &'a CodedArrayParams,
     auth: &'a AuthParams,
     node_linearization: NodeLinearization,
     seed: u64,
-    registry_index: usize,
+    registry_indices: Vec<usize>,
     chunk_bits: u32,
     default_leaves: u64,
     leaves: u64,
     chunk_labels: Vec<Value256>,
-    entries: Vec<Fp>,
+    entries: Vec<Vec<Fp>>,
     root: Value256,
 }
 
@@ -356,19 +364,48 @@ impl<'a> BulkLog<'a> {
         threads: usize,
         chunk_bits: u32,
     ) -> Self {
+        Self::build_for_claims(
+            params,
+            auth,
+            node_linearization,
+            leaves,
+            default_leaves,
+            seed,
+            &[registry_index],
+            threads,
+            chunk_bits,
+        )
+    }
+
+    /// [`Self::build_with_default_prefix`] for the claims `registry_indices`
+    /// at once: one walk of the tree adds every cell to the columns of every
+    /// claim. Each claim's columns equal those of its own build.
+    #[allow(clippy::too_many_arguments)]
+    pub fn build_for_claims(
+        params: &'a CodedArrayParams,
+        auth: &'a AuthParams,
+        node_linearization: NodeLinearization,
+        leaves: u64,
+        default_leaves: u64,
+        seed: u64,
+        registry_indices: &[usize],
+        threads: usize,
+        chunk_bits: u32,
+    ) -> Self {
         let height = auth.tree_height as u32;
         assert!(height < 64, "tree too tall");
+        assert!(!registry_indices.is_empty(), "no claim");
         let mut log = Self {
             params,
             auth,
             node_linearization,
             seed,
-            registry_index,
+            registry_indices: registry_indices.to_vec(),
             chunk_bits: chunk_bits.min(height),
             default_leaves,
             leaves: 0,
             chunk_labels: Vec::new(),
-            entries: Vec::new(),
+            entries: vec![Vec::new(); registry_indices.len()],
             root: default_hash(&auth.defaults, 0),
         };
         log.extend(leaves, threads);
@@ -380,19 +417,48 @@ impl<'a> BulkLog<'a> {
         self.leaves
     }
 
-    /// Number of segments of the columns.
-    pub fn segments(&self) -> usize {
-        self.entries.len() / self.params.need
+    /// Number of claims whose columns the log holds.
+    pub fn claims(&self) -> usize {
+        self.registry_indices.len()
     }
 
-    /// The primary-column entries, `kappa` per segment.
+    /// Number of segments of the columns.
+    pub fn segments(&self) -> usize {
+        self.entries[0].len() / self.params.need
+    }
+
+    /// The primary-column entries of the claim at `claim` among the log's
+    /// claims, `kappa` per segment.
+    pub fn claim_entries(&self, claim: usize) -> &[Fp] {
+        &self.entries[claim]
+    }
+
+    /// The primary-column entries of a log built for one claim.
     pub fn entries(&self) -> &[Fp] {
-        &self.entries
+        assert_eq!(self.claims(), 1, "the log holds several claims");
+        &self.entries[0]
     }
 
     /// Root of the Merkle tree.
     pub fn root(&self) -> Value256 {
         self.root
+    }
+
+    /// The columns of a log built for one claim, their count, and the root,
+    /// without the state of the builder.
+    pub fn into_columns(self) -> BulkColumns {
+        assert_eq!(self.claims(), 1, "the log holds several claims");
+        self.into_claim_columns().remove(0)
+    }
+
+    /// The columns of every claim, in the order of the build.
+    pub fn into_claim_columns(self) -> Vec<BulkColumns> {
+        let segments = self.segments();
+        let root = self.root;
+        self.entries
+            .into_iter()
+            .map(|entries| BulkColumns { segments, root, entries })
+            .collect()
     }
 
     fn walk(&self, leaves: u64) -> Walk<'a> {
@@ -414,7 +480,7 @@ impl<'a> BulkLog<'a> {
         let cursor = mapping::cursor(self.node_linearization, height as u16, leaves);
         let segments = cursor.div_ceil(n_grid);
         let walk = self.walk(leaves);
-        let mut encoder = ColumnEncoder::new(self.params, self.registry_index);
+        let mut encoder = ColumnEncoder::new(self.params, &self.registry_indices);
         let entries = &mut self.entries;
         let chunk_labels = &self.chunk_labels;
         let mut cell = |index: u64, value: Fp| {
@@ -445,12 +511,13 @@ impl<'a> BulkLog<'a> {
         let chunk_level = height - self.chunk_bits;
         let kappa = self.params.need;
         let n_grid = self.params.n_grid as u64;
-        let total_segments = self.entries.len() / kappa;
+        let claims = self.claims();
+        let total_segments = self.segments();
         let walk = self.walk(leaves);
         let params = self.params;
-        let registry_index = self.registry_index;
+        let registry_indices = &self.registry_indices;
         let next_chunk = AtomicUsize::new(chunks.start);
-        let (sender, receiver) = mpsc::channel::<(usize, Value256, usize, Vec<Fp>)>();
+        let (sender, receiver) = mpsc::channel::<(usize, Value256, usize, Vec<Vec<Fp>>)>();
         let entries = &mut self.entries;
         let chunk_labels = &mut self.chunk_labels;
         std::thread::scope(|scope| {
@@ -460,7 +527,7 @@ impl<'a> BulkLog<'a> {
                 let next_chunk = &next_chunk;
                 let chunks = chunks.clone();
                 scope.spawn(move || {
-                    let mut encoder = ColumnEncoder::new(params, registry_index);
+                    let mut encoder = ColumnEncoder::new(params, registry_indices);
                     loop {
                         let chunk = next_chunk.fetch_add(1, Ordering::Relaxed);
                         if chunk >= chunks.end {
@@ -477,7 +544,7 @@ impl<'a> BulkLog<'a> {
                             .min(total_segments - 1)
                             - first_segment
                             + 1;
-                        let mut local = vec![fp_zero(); local_segments * kappa];
+                        let mut local = vec![vec![fp_zero(); local_segments * kappa]; claims];
                         let label = walk.subtree(
                             chunk_level,
                             chunk as u64,
@@ -494,16 +561,18 @@ impl<'a> BulkLog<'a> {
             }
             drop(sender);
             // The two ends of a task may share a segment with its
-            // neighbours, so the entries are added here.
+            // neighbours, so the entries are added here, claim by claim.
             for (chunk, label, first_segment, local) in receiver {
                 if !negate {
                     chunk_labels[chunk] = label;
                 }
-                for (entry, value) in entries[first_segment * kappa..].iter_mut().zip(local) {
-                    if negate {
-                        *entry -= value;
-                    } else {
-                        *entry += value;
+                for (entries, local) in entries.iter_mut().zip(local) {
+                    for (entry, value) in entries[first_segment * kappa..].iter_mut().zip(local) {
+                        if negate {
+                            *entry -= value;
+                        } else {
+                            *entry += value;
+                        }
                     }
                 }
             }
@@ -535,7 +604,9 @@ impl<'a> BulkLog<'a> {
 
         let cursor = mapping::cursor(self.node_linearization, height as u16, new_leaves);
         let segments = cursor.div_ceil(n_grid) as usize;
-        self.entries.resize(segments * kappa, fp_zero());
+        for entries in &mut self.entries {
+            entries.resize(segments * kappa, fp_zero());
+        }
         self.chunk_labels.resize(new_chunks, [0u8; 32]);
         self.leaves = new_leaves;
         self.apply_chunks(new_leaves, first_changed..new_chunks, false, threads);

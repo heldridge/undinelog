@@ -261,6 +261,43 @@ fn an_extended_bulk_log_equals_a_build_at_the_longer_length() {
 }
 
 #[test]
+fn a_log_built_for_several_claims_equals_each_claim_s_own_build() {
+    let params = build_params(4, 12, 125);
+    let auth = AuthParams::new(50);
+    let order = NodeLinearization::Preorder;
+    let claims = [7usize, 0, 11, 3];
+    for &(leaves, default_leaves) in &[(300u64, 0u64), (300, 300), (257, 100)] {
+        let mut together = BulkLog::build_for_claims(
+            &params, &auth, order, leaves, default_leaves, SEED, &claims, 3, 5,
+        );
+        let longer = leaves + 40;
+        for extended in [leaves, longer] {
+            together.extend(extended, 2);
+            for (position, &claim) in claims.iter().enumerate() {
+                let alone = BulkLog::build_with_default_prefix(
+                    &params, &auth, order, extended, default_leaves, SEED, claim, 1, 9,
+                );
+                assert_eq!(together.root(), alone.root(), "{extended} leaves");
+                assert!(
+                    together.claim_entries(position) == alone.entries(),
+                    "{extended} leaves, claim {claim}: columns differ"
+                );
+            }
+        }
+        let columns = together.into_claim_columns();
+        assert_eq!(columns.len(), claims.len());
+        for (position, &claim) in claims.iter().enumerate() {
+            let alone = BulkLog::build_with_default_prefix(
+                &params, &auth, order, longer, default_leaves, SEED, claim, 1, 9,
+            );
+            assert_eq!(columns[position].segments, alone.segments());
+            assert_eq!(columns[position].root, alone.root());
+            assert!(columns[position].entries == alone.entries(), "into_claim_columns");
+        }
+    }
+}
+
+#[test]
 fn an_update_from_the_changed_records_equals_a_fresh_database() {
     let params = build_params(4, 12, 124);
     let auth = AuthParams::new(50);

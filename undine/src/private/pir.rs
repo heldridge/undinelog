@@ -1458,6 +1458,44 @@ impl PirClient {
             .to_vec()
     }
 
+    /// A response that decodes to `slots`, the cells of each slot of a row,
+    /// encrypted directly under the secret key in the format the server's
+    /// packing produces: fresh RLWE ciphertexts, one per instance, switched
+    /// to the response moduli. For benchmarks of the client alone: its
+    /// decoding runs the same operations on these as on a server's response,
+    /// and the server's preprocessing and answer are skipped.
+    #[cfg(feature = "bench")]
+    pub fn encrypt_slots(&self, slots: &[Vec<u64>]) -> Vec<Vec<u8>> {
+        use rand::SeedableRng;
+        use spiral_rs::poly::PolyMatrixRaw;
+        use ypir::modulus_switch::ModulusSwitch;
+        let params = self.params;
+        let mut cells = vec![0u64; params.instances * params.poly_len];
+        for (slot, values) in slots.iter().enumerate() {
+            let offset = self.shape.slot_offset(slot);
+            cells[offset..offset + values.len()].copy_from_slice(values);
+        }
+        let (q1, q2) = (params.get_q_prime_1(), params.get_q_prime_2());
+        let mut rng = rand_chacha::ChaCha20Rng::from_entropy();
+        let mut rng_pub = rand_chacha::ChaCha20Rng::from_entropy();
+        cells
+            .chunks_exact(params.poly_len)
+            .map(|coefficients| {
+                let mut plaintext = PolyMatrixRaw::zero(params, 1, 1);
+                for (place, &cell) in plaintext.data.as_mut_slice().iter_mut().zip(coefficients) {
+                    // The decoder rescales from the ciphertext modulus to the
+                    // plaintext modulus and rounds.
+                    *place = ((cell as u128 * params.modulus as u128 + params.pt_modulus as u128 / 2)
+                        / params.pt_modulus as u128) as u64;
+                }
+                self.client
+                    .encrypt_matrix_reg(&plaintext.ntt(), &mut rng, &mut rng_pub)
+                    .raw()
+                    .switch(q1, q2)
+            })
+            .collect()
+    }
+
     /// Decrypt a response into the cells of each slot of the selected row.
     pub fn decode(&self, response: &[Vec<u8>]) -> Result<Vec<Vec<u64>>, PirError> {
         let params = self.params;

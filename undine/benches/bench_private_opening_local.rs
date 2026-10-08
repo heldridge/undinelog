@@ -38,7 +38,7 @@ use paper_a_optimized::net::wire::{
     decode_binary, encode_binary,
 };
 use paper_a_optimized::private::bulk::CHUNK_BITS;
-use paper_a_optimized::private::pir::UPPER_CELLS;
+use paper_a_optimized::private::pir::{bytes_from_cells, bytes_to_cells, UPPER_CELLS};
 use paper_a_optimized::private::wire::{
     WORD_BYTES, pack_words, request_to_net, response_from_net, unpack_words,
 };
@@ -1149,77 +1149,138 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         .expect("opening");
     let layout = opening.layout().clone();
     let plan = layout.opening_plan(index);
-    let request = opening.request();
     let fields = shape_fields(&layout, kappa, claims - 1);
 
-    // Each claim preprocesses its own database and answers the request,
-    // honestly; the first `kappa` claims answer a second time with a lie
-    // about one node of the path each, so that the same registry is timed
-    // with and without lies.
-    let per_claim_mib = fields.outputs as usize * 440 + 64;
-    let workers = cpus
-        .setup_threads
-        .min((memory_mib / per_claim_mib).max(1))
-        .min(claims);
-    let jobs = claims + kappa;
-    let next = AtomicUsize::new(0);
-    let collected: Mutex<Vec<Option<(Vec<u8>, AuthReadResponse, Value256)>>> =
-        Mutex::new(vec![None; jobs]);
-    std::thread::scope(|scope| {
-        for _ in 0..workers {
-            scope.spawn(|| {
-                loop {
-                    let job = next.fetch_add(1, Ordering::Relaxed);
-                    if job >= jobs {
-                        break;
+    // Each claim answers the request honestly, and the first `kappa` claims
+    // answer a second time with a lie about one node of the path each, so
+    // that the same registry is timed with and without lies. The client's
+    // work does not depend on the stored values or on how a reply was
+    // formed, so the claims hold the columns of a log of allocated, unwritten
+    // leaves, which the bulk builder writes without hashing the tree for as
+    // many claims per walk as two thirds of the memory hold, and a claim's
+    // reply is the row the query selects encrypted under the client's key,
+    // in place of the server's preprocessing and answer.
+    let column_mib = (fields.database_bytes as usize >> 20).max(1);
+    let claims_per_walk = (memory_mib * 2 / 3 / column_mib).clamp(1, claims);
+    let workers = cpus.setup_threads.clamp(1, claims);
+    let shape = PirShape::of(&layout);
+    let pattern = layout.pattern_of(index);
+    let row = layout.row(pattern);
+    let per_record = layout.entries_per_record();
+    let honest: Mutex<Vec<Option<(Vec<u8>, AuthReadResponse, Value256)>>> =
+        Mutex::new(vec![None; claims]);
+    let lying: Mutex<Vec<Option<(Vec<u8>, AuthReadResponse, Value256)>>> =
+        Mutex::new(vec![None; kappa]);
+    // The cells of one record of `entries`, as the database holds them.
+    let record_cells = |entries: &[Fp], record: usize| -> Vec<u16> {
+        let start = (record * per_record).min(entries.len());
+        let end = ((record + 1) * per_record).min(entries.len());
+        let mut padded = vec![fp_zero(); per_record];
+        padded[..end - start].copy_from_slice(&entries[start..end]);
+        let mut cells = vec![0u16; shape.record_cells];
+        entries_to_cells(&padded, &mut cells);
+        cells
+    };
+    let answer = |claim: usize, entries: &[Fp], root: Value256| {
+        let stored = plan
+            .iter()
+            .map(|entry| entries[layout.entry_index(entry.array_index)])
+            .collect::<Vec<_>>();
+        // The row the query selects: the record of each group slot and the
+        // entry of each upper slot, as `PirDatabase` lays them out.
+        let slots = row
+            .iter()
+            .enumerate()
+            .map(|(slot, id)| {
+                let mut cells = vec![0u16; shape.slot_width(slot)];
+                match id {
+                    Some(record) if slot < shape.group_slots => {
+                        cells = record_cells(entries, *record);
                     }
-                    // Jobs past the claims are the lying answers of the
-                    // first `kappa` claims.
-                    let (claim, lies) = if job < claims { (job, false) } else { (job - claims, true) };
-                    let mut bulk =
-                        build_primary_columns(&params, &auth, ORDER, common.leaves, BENCH_SEED, claim, 1);
-                    if lies {
-                        let entry = &plan[claim % plan.len()];
-                        bulk.entries[layout.entry_index(entry.array_index)] += fp_one();
+                    Some(pos) => {
+                        let entry_index = layout.upper_entry_index(slot - shape.group_slots, *pos);
+                        let block = record_cells(entries, entry_index / per_record)
+                            .into_iter()
+                            .map(u64::from)
+                            .collect::<Vec<_>>();
+                        bytes_to_cells(bytes_from_cells(&block, entry_index % per_record), &mut cells);
                     }
-                    let stored = plan
-                        .iter()
-                        .map(|entry| bulk.entries[layout.entry_index(entry.array_index)])
-                        .collect::<Vec<_>>();
-                    let database = PirDatabase::from_entries(&layout, &bulk.entries);
-                    let response = database
-                        .answer(&request.query, &request.pack_keys)
-                        .expect("answer");
-                    let reply = encode_binary(&net::Response::AuthReadPrivate {
-                        resp: AuthPrivateReadResponse {
-                            replies: vec![AuthPrivateReadReply {
-                                registry_index: claim as u32,
-                                ciphertexts: response.into_iter().map(NetByteBlob).collect(),
-                            }],
-                        },
-                    })
-                    .expect("serialize the reply");
-                    let public = public_reply(common.tree_height, index, claim, &plan, &stored);
-                    collected.lock().expect("collected replies")[job] =
-                        Some((reply, public, bulk.root));
+                    None => {}
                 }
-            });
-        }
-    });
+                cells.into_iter().map(u64::from).collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        let reply = encode_binary(&net::Response::AuthReadPrivate {
+            resp: AuthPrivateReadResponse {
+                replies: vec![AuthPrivateReadReply {
+                    registry_index: claim as u32,
+                    ciphertexts: opening.encrypt_slots(&slots).into_iter().map(NetByteBlob).collect(),
+                }],
+            },
+        })
+        .expect("serialize the reply");
+        let public = public_reply(common.tree_height, index, claim, &plan, &stored);
+        (reply, public, root)
+    };
+    for first in (0..claims).step_by(claims_per_walk) {
+        let group = (first..(first + claims_per_walk).min(claims)).collect::<Vec<_>>();
+        let columns = BulkLog::build_for_claims(
+            &params,
+            &auth,
+            ORDER,
+            common.leaves,
+            common.leaves,
+            BENCH_SEED,
+            &group,
+            cpus.setup_threads,
+            CHUNK_BITS,
+        )
+        .into_claim_columns();
+        let columns = columns.into_iter().map(Mutex::new).collect::<Vec<_>>();
+        let next = AtomicUsize::new(0);
+        std::thread::scope(|scope| {
+            for _ in 0..workers {
+                scope.spawn(|| {
+                    loop {
+                        let position = next.fetch_add(1, Ordering::Relaxed);
+                        if position >= group.len() {
+                            break;
+                        }
+                        let claim = group[position];
+                        let mut bulk = columns[position].lock().expect("columns");
+                        let bulk = &mut *bulk;
+                        honest.lock().expect("honest replies")[claim] =
+                            Some(answer(claim, &bulk.entries, bulk.root));
+                        if claim < kappa {
+                            let entry = &plan[claim % plan.len()];
+                            bulk.entries[layout.entry_index(entry.array_index)] += fp_one();
+                            lying.lock().expect("lying replies")[claim] =
+                                Some(answer(claim, &bulk.entries, bulk.root));
+                        }
+                        // The columns are not needed again.
+                        bulk.entries = Vec::new();
+                    }
+                });
+            }
+        });
+    }
     cpus.restore();
-    let collected = collected
-        .into_inner()
-        .expect("collected replies")
-        .into_iter()
-        .map(|reply| reply.expect("every claim replied"))
-        .collect::<Vec<_>>();
-    let root = collected[0].2;
-    let expected_value = bulk_leaf_value(BENCH_SEED, index);
-    assert_eq!(collected[claims - 1].0.len() as u64, fields.reply_bytes, "reply bytes");
+    let collect = |replies: Mutex<Vec<Option<(Vec<u8>, AuthReadResponse, Value256)>>>| {
+        replies
+            .into_inner()
+            .expect("collected replies")
+            .into_iter()
+            .map(|reply| reply.expect("every claim replied"))
+            .collect::<Vec<_>>()
+    };
+    let (honest, lying) = (collect(honest), collect(lying));
+    let root = honest[0].2;
+    // The opened leaf is unwritten.
+    let expected_value = encode_value(fp_zero());
+    assert_eq!(honest[claims - 1].0.len() as u64, fields.reply_bytes, "reply bytes");
 
     // The honest replies of every claim, and the replies of the registry
     // in which the first `kappa` claims lie.
-    let (honest, lying) = collected.split_at(claims);
     let registry_lying = lying.iter().chain(&honest[kappa..]).collect::<Vec<_>>();
     let private_zero_bad = honest[..kappa]
         .iter()

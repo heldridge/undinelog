@@ -329,7 +329,7 @@
         "tests/bench_compile.rs references only retained benchmark sources.",
         "third_party/ holds the PIR backend sources of the same commit: YPIR and spiral-rs with the patches recorded in third_party/patches/."
       ],
-      "commit": "03d8f618a49724deeed3cbf4ffd99be9fbf42d9f",
+      "commit": "66dae1485a227641ee7d728355b4f221625595fc",
       "files": {
         "undine/Cargo.lock": {
           "bytes": 30683,
@@ -428,8 +428,8 @@
           "sha256": "faec1c3860c521a7d882621313b935af000fde11d279076b220bbf843c0faf30"
         },
         "undine/benches/bench_private_opening_local.rs": {
-          "bytes": 54946,
-          "sha256": "2a08920ed85622a576879273ab0feb8fbf92f6f8d996497413b19d674f68b569"
+          "bytes": 57852,
+          "sha256": "2dca06c431dee4c12cce42e6f3954f83da633f7c103c7efff7a36860011e8499"
         },
         "undine/benches/support/append_only_log_repair.rs": {
           "bytes": 45006,
@@ -612,8 +612,8 @@
           "sha256": "51f8a7893a3d9d6f646a8dd168a709f6bfda10863fe031afe7ccf5ff30d1db42"
         },
         "undine/src/private/bulk.rs": {
-          "bytes": 23106,
-          "sha256": "6577c69d2d6f5d89d913045ed3a43cfc9c696bb258f2b950a86b17a1d9b8260e"
+          "bytes": 25936,
+          "sha256": "4de1afe3431de673e79511435f68bea04d40ecc21795165613b5208f9a6e7033"
         },
         "undine/src/private/keeper.rs": {
           "bytes": 2932,
@@ -628,12 +628,12 @@
           "sha256": "1e2d40071447576bc37bb7003e0b7621790c45e3c8ec808f989af44abc6beb82"
         },
         "undine/src/private/opening.rs": {
-          "bytes": 16952,
-          "sha256": "b4c07b2c3847a36d1ea28675eab0d72d1e0421fbfa4185a927c8f15d9a2b72e2"
+          "bytes": 17329,
+          "sha256": "47fb2a0a36132205a13430f39daebf862ad1f8e23786fed17e01daffe2ac2a66"
         },
         "undine/src/private/pir.rs": {
-          "bytes": 71748,
-          "sha256": "a4ddb162d582e7e23925aa3b77f287c416bd07d575f44fc882206a87fa7622cd"
+          "bytes": 73713,
+          "sha256": "82eb413a44f2ff37e4734804c5922e7f149a5ee7f8587cef65c57a9c93886955"
         },
         "undine/src/private/records.rs": {
           "bytes": 1412,
