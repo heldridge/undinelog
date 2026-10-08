@@ -149,7 +149,8 @@ the maintainer jobs at 1 and 4 GiB. Its reply is checked to equal the
 record-based reply byte for byte.
 
 **The client** (`tab:private-client`). On the 4 GiB log at every threshold
-and at threshold 256, and on the 8 GiB log at threshold 64, at the public
+and at threshold 256, and on the 8, 16, and 32 GiB logs at threshold 64,
+at the public
 grouping, each of `3 kappa` claims answers one request honestly, and the
 first `kappa` of them answer a second time with a lie about one node of the
 path. The client's work does not depend on the stored values or on how a

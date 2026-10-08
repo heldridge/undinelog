@@ -75,7 +75,7 @@ PRIVATE_SWEEP_LOG_GIB = 4
 # few walks of the tree on all cores, and reply with the selected row
 # encrypted under the client's key.
 PRIVATE_CLIENT_LOG_GIB = 4
-PRIVATE_CLIENT_LARGE_LOGS_GIB = (8,)
+PRIVATE_CLIENT_LARGE_LOGS_GIB = (8, 16, 32)
 # The client at a threshold above the sweep's: Combine over 3 kappa replies
 # at the threshold of the largest maintainer job.
 PRIVATE_CLIENT_LARGE_KAPPAS = (256,)
