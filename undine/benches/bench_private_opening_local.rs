@@ -46,7 +46,7 @@ use paper_a_optimized::private::{
     BulkLog, PackKeys, PirClient, PirDatabase, PirError, PirShape, PlannedEntry, PrivateLayout,
     PrivateOpening, PrivateReadResponse, TableDatabase, build_primary_columns,
     build_tree_cells, bulk_leaf_value, entries_to_cells, entry_from_cells, pattern_bits,
-    release_at, Grouping,
+    Grouping,
 };
 use paper_a_optimized::unauth::error_correcting_share_target;
 use paper_a_optimized::merkle::{default_hash, leaf_key, parent, recompute_root, sibling};
@@ -73,9 +73,6 @@ const DEFAULT_CELLS_PER_RECORD: usize = 64;
 const DEFAULT_APPEND_LEAVES: usize = 1 << 10;
 const DEFAULT_HINT_SAMPLE_COLUMNS: usize = 64;
 const DEFAULT_CLIENT_SETUP_MEMORY_MIB: usize = 12 * 1024;
-/// Release time of a scheduled private opening, after the replies are in
-/// hand (the protocol's deadline for replies).
-const DEFAULT_CLIENT_RELEASE_MS: usize = 2000;
 const FIELD_BYTES: u64 = 32;
 const ORDER: NodeLinearization = NodeLinearization::Preorder;
 
@@ -224,9 +221,6 @@ struct ClientEntry {
     zero_bad_replies: usize,
     correcting_replies: usize,
     bad_replies: usize,
-    /// Milliseconds after the deadline for replies at which a scheduled
-    /// opening returns.
-    release_ms: u64,
     /// Key generation, the query, and the serialized request.
     client_request_ns: MetricStats,
     /// Decoding `kappa` replies, then Combine and Verify.
@@ -244,11 +238,6 @@ struct ClientEntry {
     client_public_honest_ns: MetricStats,
     /// Combine and Verify from the `3 kappa` public replies.
     client_public_kappa_bad_ns: MetricStats,
-    /// The private opening from `3 kappa` honest replies, returned at the
-    /// release time fixed in advance.
-    client_released_honest_ns: MetricStats,
-    /// The same with `kappa` lying replies.
-    client_released_lying_ns: MetricStats,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -1283,11 +1272,6 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         assert_eq!(result.1.root, root);
     };
 
-    // A scheduled opening returns at a release time fixed in advance, so
-    // that the time of the client's next action does not depend on the
-    // replies; the release must lie past the slowest decoding.
-    let release_ms = parse_usize_env("CLIENT_RELEASE_MS", DEFAULT_CLIENT_RELEASE_MS) as u64;
-    let release = std::time::Duration::from_millis(release_ms);
     let mut request_ns = Vec::with_capacity(common.trials);
     let mut private_zero = Vec::with_capacity(common.trials);
     let mut private_honest = Vec::with_capacity(common.trials);
@@ -1295,8 +1279,6 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     let mut public_zero = Vec::with_capacity(common.trials);
     let mut public_honest = Vec::with_capacity(common.trials);
     let mut public_bad = Vec::with_capacity(common.trials);
-    let mut released_honest = Vec::with_capacity(common.trials);
-    let mut released_lying = Vec::with_capacity(common.trials);
     for _ in 0..common.trials {
         let (bytes, ns) = timed(|| {
             let opening = PrivateOpening::with_grouping(
@@ -1352,27 +1334,6 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         });
         public_bad.push(ns);
         check(result.expect("public opening with kappa lying replies"));
-
-        // The scheduled openings measure the release, so the release must
-        // lie past both decodings just timed.
-        let slowest = (*private_honest.last().unwrap()).max(*private_bad.last().unwrap());
-        assert!(
-            slowest < release.as_nanos() as u64,
-            "CLIENT_RELEASE_MS={release_ms} is below the slowest decoding, {slowest} ns"
-        );
-        for (replies, samples, what) in [
-            (&private_honest_replies, &mut released_honest, "honest"),
-            (&private_kappa_bad, &mut released_lying, "lying"),
-        ] {
-            let (result, ns) = timed(|| {
-                release_at(Instant::now() + release, || {
-                    let responses = decode_all(replies);
-                    client.read_with_path_from_responses_correcting(index, &responses, kappa)
-                })
-            });
-            samples.push(ns);
-            check(result.unwrap_or_else(|err| panic!("scheduled private opening, {what} replies: {err:?}")));
-        }
     }
 
     vec![BenchEntry::Client(ClientEntry {
@@ -1383,7 +1344,6 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         zero_bad_replies: kappa,
         correcting_replies: claims,
         bad_replies: kappa,
-        release_ms,
         client_request_ns: stats_from_samples(request_ns),
         client_private_zero_bad_ns: stats_from_samples(private_zero),
         client_private_honest_ns: stats_from_samples(private_honest),
@@ -1391,8 +1351,6 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         client_public_zero_bad_ns: stats_from_samples(public_zero),
         client_public_honest_ns: stats_from_samples(public_honest),
         client_public_kappa_bad_ns: stats_from_samples(public_bad),
-        client_released_honest_ns: stats_from_samples(released_honest),
-        client_released_lying_ns: stats_from_samples(released_lying),
     })]
 }
 

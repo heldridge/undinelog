@@ -329,7 +329,7 @@
         "tests/bench_compile.rs references only retained benchmark sources.",
         "third_party/ holds the PIR backend sources of the same commit: YPIR and spiral-rs with the patches recorded in third_party/patches/."
       ],
-      "commit": "1cc6941661562a8ac9ddcbd056c745fd7c50391f",
+      "commit": "03d8f618a49724deeed3cbf4ffd99be9fbf42d9f",
       "files": {
         "undine/Cargo.lock": {
           "bytes": 30683,
@@ -428,8 +428,8 @@
           "sha256": "faec1c3860c521a7d882621313b935af000fde11d279076b220bbf843c0faf30"
         },
         "undine/benches/bench_private_opening_local.rs": {
-          "bytes": 57155,
-          "sha256": "7a16061eb92ceb25ab87586e21db9bdf3afb464ba73296cb0e279626decfecb8"
+          "bytes": 54946,
+          "sha256": "2a08920ed85622a576879273ab0feb8fbf92f6f8d996497413b19d674f68b569"
         },
         "undine/benches/support/append_only_log_repair.rs": {
           "bytes": 45006,

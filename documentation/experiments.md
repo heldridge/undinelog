@@ -156,11 +156,8 @@ answer a second time with a lie about one node of the path. The client's
 request, its decoding plus Combine+Verify from `kappa` correct replies, from
 the `3 kappa` honest replies, and from the same registry with the `kappa`
 lying replies, and Combine+Verify from the public replies of the same three
-registries are timed in one process. Two further timings run the decoding and
-Combine of the honest and of the lying registry under the protocol's
-schedule: the opening is returned at a release time fixed in advance
-(`CLIENT_RELEASE_MS`, past the slowest decoding of the threshold), so both
-return at the release.
+registries are timed in one process; the lying registry's time is the least
+release time of the protocol's schedule at that threshold.
 
 The benchmark checks, inside every run, that each decoded opening equals the
 stored entries, that the serialized sizes equal the reported ones, that the
