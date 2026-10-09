@@ -329,7 +329,7 @@
         "tests/bench_compile.rs references only retained benchmark sources.",
         "third_party/ holds the PIR backend sources of the same commit: YPIR and spiral-rs with the patches recorded in third_party/patches/."
       ],
-      "commit": "66dae1485a227641ee7d728355b4f221625595fc",
+      "commit": "28815c1ef26e6daab13ad16730307d9ba36635dd",
       "files": {
         "undine/Cargo.lock": {
           "bytes": 30683,
