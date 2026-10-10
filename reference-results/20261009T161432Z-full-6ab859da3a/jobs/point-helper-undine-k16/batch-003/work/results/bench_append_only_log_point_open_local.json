@@ -1,0 +1,92 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 43,
+    "committed_bulk_update_batches": 3,
+    "query_bulk_update_batch": 1,
+    "query_value_offset": 65536,
+    "query_value_index": 196608,
+    "timestamp_unix_ms": 1791563866514,
+    "git": "558eb9894f7a0dcfde462111f058868e354eddf3",
+    "notes": "local append-only-log per-server point-open benchmark: warm one claim-bound server through real bulk updates appends, then time one authenticated leaf-open request on that single server via the core handler and/or the read-only RPC adapter including response serialization",
+    "metrics": [
+      "serialized"
+    ]
+  },
+  "entries": [
+    {
+      "Seg": 256,
+      "encoded_cells_N": 256,
+      "encoded_segment_bytes": 8192,
+      "kappa": 16,
+      "primary_slice_field_elements": 16,
+      "RowsPerClaim": 1,
+      "auxiliary_field_elements_per_claim": 16,
+      "helper_count": 16,
+      "local_claims": 1,
+      "bulk_updates_bytes": 4194304,
+      "inserted_values": 131072,
+      "auth_nodes_returned": 51,
+      "array_shares_returned": 20,
+      "serialized_response_bytes": 1251,
+      "helper_open_share_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "helper_open_share_serialized_ns": {
+        "mean": 7788,
+        "p50": 7680,
+        "p95": 8308,
+        "trials": 43,
+        "samples": [
+          8983,
+          8564,
+          8308,
+          8123,
+          8052,
+          7934,
+          7731,
+          7860,
+          7945,
+          7620,
+          7671,
+          7586,
+          7875,
+          7545,
+          7519,
+          7349,
+          7758,
+          7382,
+          7577,
+          7809,
+          7498,
+          9078,
+          7556,
+          7722,
+          7344,
+          7581,
+          7749,
+          7703,
+          7668,
+          7536,
+          7512,
+          7680,
+          7564,
+          8119,
+          8096,
+          7485,
+          7714,
+          7711,
+          7519,
+          7638,
+          8150,
+          7545,
+          7526
+        ]
+      }
+    }
+  ]
+}

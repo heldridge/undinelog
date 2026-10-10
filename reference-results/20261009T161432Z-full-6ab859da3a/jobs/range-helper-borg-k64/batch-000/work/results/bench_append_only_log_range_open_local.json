@@ -1,0 +1,386 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 13,
+    "committed_bulk_update_batches": 16,
+    "query_bulk_update_batch": 0,
+    "query_byte_offset": 0,
+    "query_global_byte_offset": 0,
+    "query_byte_len": 1048576,
+    "query_leaf_start": 0,
+    "query_leaf_count": 32768,
+    "timestamp_unix_ms": 1791566267942,
+    "git": "558eb9894f7a0dcfde462111f058868e354eddf3",
+    "notes": "clean append-only-log range-opening benchmark: warm one full local app state from real bulk-update appends once, split the captured optimized range response into registry-index helper replies, then time selected helper construction/serialization and local client verified range-open metrics for each requested range length; results are flushed after each completed range length",
+    "metrics": [
+      "serialized"
+    ]
+  },
+  "entries": [
+    {
+      "Seg": 4096,
+      "encoded_cells_N": 4096,
+      "encoded_segment_bytes": 131072,
+      "kappa": 64,
+      "primary_slice_field_elements": 64,
+      "registry_helper_count": 192,
+      "bulk_updates_bytes": 8388608,
+      "inserted_values": 262144,
+      "range_bytes": 1048576,
+      "range_leaf_count": 32768,
+      "request_objects": 57,
+      "request_segments": 16,
+      "request_points": 41,
+      "threshold_helper_replies": 64,
+      "helper_segment_shards": 16,
+      "helper_point_shares": 41,
+      "helper_response_field_elements": 1065,
+      "helper_response_serialized_bytes": 34670,
+      "correcting_helper_replies": 192,
+      "bad_helper_replies": 64,
+      "proof_nodes": 32836,
+      "client_returned_leaves": 32768,
+      "helper_range_share_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "helper_range_share_serialized_ns": {
+        "mean": 680542,
+        "p50": 681262,
+        "p95": 684618,
+        "trials": 13,
+        "samples": [
+          688597,
+          681262,
+          683408,
+          684618,
+          676663,
+          682954,
+          682587,
+          676702,
+          676637,
+          678285,
+          681369,
+          679077,
+          674897
+        ]
+      },
+      "client_threshold_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_correction_budget_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_kappa_failures_filtered_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      }
+    },
+    {
+      "Seg": 4096,
+      "encoded_cells_N": 4096,
+      "encoded_segment_bytes": 131072,
+      "kappa": 64,
+      "primary_slice_field_elements": 64,
+      "registry_helper_count": 192,
+      "bulk_updates_bytes": 8388608,
+      "inserted_values": 262144,
+      "range_bytes": 4194304,
+      "range_leaf_count": 131072,
+      "request_objects": 101,
+      "request_segments": 64,
+      "request_points": 37,
+      "threshold_helper_replies": 64,
+      "helper_segment_shards": 64,
+      "helper_point_shares": 37,
+      "helper_response_field_elements": 4133,
+      "helper_response_serialized_bytes": 133086,
+      "correcting_helper_replies": 192,
+      "bad_helper_replies": 64,
+      "proof_nodes": 131136,
+      "client_returned_leaves": 131072,
+      "helper_range_share_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "helper_range_share_serialized_ns": {
+        "mean": 681284,
+        "p50": 680654,
+        "p95": 684282,
+        "trials": 13,
+        "samples": [
+          690288,
+          680654,
+          683849,
+          684282,
+          677816,
+          679531,
+          681962,
+          678377,
+          677321,
+          678623,
+          679814,
+          681731,
+          682450
+        ]
+      },
+      "client_threshold_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_correction_budget_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_kappa_failures_filtered_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      }
+    },
+    {
+      "Seg": 4096,
+      "encoded_cells_N": 4096,
+      "encoded_segment_bytes": 131072,
+      "kappa": 64,
+      "primary_slice_field_elements": 64,
+      "registry_helper_count": 192,
+      "bulk_updates_bytes": 8388608,
+      "inserted_values": 262144,
+      "range_bytes": 8388608,
+      "range_leaf_count": 262144,
+      "request_objects": 163,
+      "request_segments": 128,
+      "request_points": 35,
+      "threshold_helper_replies": 64,
+      "helper_segment_shards": 128,
+      "helper_point_shares": 35,
+      "helper_response_field_elements": 8227,
+      "helper_response_serialized_bytes": 264454,
+      "correcting_helper_replies": 192,
+      "bad_helper_replies": 64,
+      "proof_nodes": 262206,
+      "client_returned_leaves": 262144,
+      "helper_range_share_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "helper_range_share_serialized_ns": {
+        "mean": 736233,
+        "p50": 735758,
+        "p95": 738382,
+        "trials": 13,
+        "samples": [
+          741857,
+          737357,
+          737108,
+          734438,
+          734447,
+          738126,
+          738044,
+          735296,
+          738382,
+          732415,
+          735758,
+          732641,
+          735163
+        ]
+      },
+      "client_threshold_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_correction_budget_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_kappa_failures_filtered_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      }
+    },
+    {
+      "Seg": 4096,
+      "encoded_cells_N": 4096,
+      "encoded_segment_bytes": 131072,
+      "kappa": 64,
+      "primary_slice_field_elements": 64,
+      "registry_helper_count": 192,
+      "bulk_updates_bytes": 8388608,
+      "inserted_values": 262144,
+      "range_bytes": 33554432,
+      "range_leaf_count": 1048576,
+      "request_objects": 543,
+      "request_segments": 512,
+      "request_points": 31,
+      "threshold_helper_replies": 64,
+      "helper_segment_shards": 512,
+      "helper_point_shares": 31,
+      "helper_response_field_elements": 32799,
+      "helper_response_serialized_bytes": 1053600,
+      "correcting_helper_replies": 192,
+      "bad_helper_replies": 64,
+      "proof_nodes": 1048634,
+      "client_returned_leaves": 1048576,
+      "helper_range_share_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "helper_range_share_serialized_ns": {
+        "mean": 1207010,
+        "p50": 1198261,
+        "p95": 1231380,
+        "trials": 13,
+        "samples": [
+          1254058,
+          1198261,
+          1216628,
+          1184255,
+          1231003,
+          1180436,
+          1190594,
+          1181344,
+          1226360,
+          1227231,
+          1187046,
+          1231380,
+          1182543
+        ]
+      },
+      "client_threshold_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_correction_budget_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_kappa_failures_filtered_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      }
+    },
+    {
+      "Seg": 4096,
+      "encoded_cells_N": 4096,
+      "encoded_segment_bytes": 131072,
+      "kappa": 64,
+      "primary_slice_field_elements": 64,
+      "registry_helper_count": 192,
+      "bulk_updates_bytes": 8388608,
+      "inserted_values": 262144,
+      "range_bytes": 134217728,
+      "range_leaf_count": 4194304,
+      "request_objects": 2075,
+      "request_segments": 2048,
+      "request_points": 27,
+      "threshold_helper_replies": 64,
+      "helper_segment_shards": 2048,
+      "helper_point_shares": 27,
+      "helper_response_field_elements": 131099,
+      "helper_response_serialized_bytes": 4211432,
+      "correcting_helper_replies": 192,
+      "bad_helper_replies": 64,
+      "proof_nodes": 4194358,
+      "client_returned_leaves": 4194304,
+      "helper_range_share_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "helper_range_share_serialized_ns": {
+        "mean": 3664654,
+        "p50": 3624738,
+        "p95": 3810372,
+        "trials": 13,
+        "samples": [
+          3865970,
+          3810372,
+          3728177,
+          3714086,
+          3624738,
+          3595654,
+          3593579,
+          3611999,
+          3613803,
+          3613781,
+          3638784,
+          3642739,
+          3586832
+        ]
+      },
+      "client_threshold_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_correction_budget_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_kappa_failures_filtered_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "tab:append": {
+    "columns": 6,
+    "panel_rows": [
+      4
+    ],
+    "pending_value_source_references": 0,
+    "resolved_value_source_references": 24,
+    "rows": 4,
+    "unit_checked_cells": 24
+  },
+  "tab:maintenance": {
+    "columns": 16,
+    "panel_rows": [
+      4,
+      4
+    ],
+    "pending_value_source_references": 0,
+    "resolved_value_source_references": 128,
+    "rows": 8,
+    "unit_checked_cells": 128
+  },
+  "tab:on-the-fly-open": {
+    "columns": 12,
+    "panel_rows": [
+      16
+    ],
+    "pending_value_source_references": 0,
+    "resolved_value_source_references": 192,
+    "rows": 16,
+    "unit_checked_cells": 192
+  },
+  "tab:point-open": {
+    "columns": 10,
+    "panel_rows": [
+      4
+    ],
+    "pending_value_source_references": 0,
+    "resolved_value_source_references": 40,
+    "rows": 4,
+    "unit_checked_cells": 40
+  },
+  "tab:private-client": {
+    "columns": 11,
+    "panel_rows": [
+      5,
+      3
+    ],
+    "pending_value_source_references": 0,
+    "resolved_value_source_references": 88,
+    "rows": 8,
+    "unit_checked_cells": 88
+  },
+  "tab:private-maintainer": {
+    "columns": 14,
+    "panel_rows": [
+      5,
+      3,
+      3,
+      1
+    ],
+    "pending_value_source_references": 0,
+    "resolved_value_source_references": 216,
+    "rows": 12,
+    "unit_checked_cells": 168
+  },
+  "tab:private-single": {
+    "columns": 11,
+    "panel_rows": [
+      4,
+      4
+    ],
+    "pending_value_source_references": 0,
+    "resolved_value_source_references": 104,
+    "rows": 8,
+    "unit_checked_cells": 88
+  },
+  "tab:private-table": {
+    "columns": 7,
+    "panel_rows": [
+      2
+    ],
+    "pending_value_source_references": 0,
+    "resolved_value_source_references": 14,
+    "rows": 2,
+    "unit_checked_cells": 14
+  },
+  "tab:range-open": {
+    "columns": 11,
+    "panel_rows": [
+      5
+    ],
+    "pending_value_source_references": 0,
+    "resolved_value_source_references": 55,
+    "rows": 5,
+    "unit_checked_cells": 55
+  }
+}

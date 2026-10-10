@@ -1,0 +1,1024 @@
+warning: unused imports: `SYMBOL_LAYOUT_ONE_PER_CODEWORD`, `default_helper_indices`, `encode_segment_from_values`, and `fair_layout_for_params`
+   --> benches/support/rs_striped_baseline.rs:268:9
+    |
+268 |         SYMBOL_LAYOUT_ONE_PER_CODEWORD, default_helper_indices, encode_segment_from_values,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+269 |         fair_layout_for_params,
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `Value256` and `encode_value`
+   --> benches/support/rs_striped_baseline.rs:274:29
+    |
+274 |     use paper_a_optimized::{Value256, encode_value};
+    |                             ^^^^^^^^  ^^^^^^^^^^^^
+
+warning: struct `DerivedParams` is never constructed
+  --> benches/support/mod.rs:41:12
+   |
+41 | pub struct DerivedParams {
+   |            ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `derive_params` is never used
+  --> benches/support/mod.rs:51:8
+   |
+51 | pub fn derive_params(kappa: usize) -> DerivedParams {
+   |        ^^^^^^^^^^^^^
+
+warning: function `choose_g` is never used
+  --> benches/support/mod.rs:76:8
+   |
+76 | pub fn choose_g(need: usize) -> usize {
+   |        ^^^^^^^^
+
+warning: function `fp_zero` is never used
+  --> benches/support/mod.rs:94:8
+   |
+94 | pub fn fp_zero() -> Fp {
+   |        ^^^^^^^
+
+warning: function `fp_one` is never used
+  --> benches/support/mod.rs:99:8
+   |
+99 | pub fn fp_one() -> Fp {
+   |        ^^^^^^
+
+warning: function `fp_pow` is never used
+   --> benches/support/mod.rs:104:8
+    |
+104 | pub fn fp_pow(base: Fp, exp: u64) -> Fp {
+    |        ^^^^^^
+
+warning: function `batch_invert` is never used
+   --> benches/support/mod.rs:109:8
+    |
+109 | pub fn batch_invert(values: &mut [Fp]) {
+    |        ^^^^^^^^^^^^
+
+warning: function `fft_in_place` is never used
+   --> benches/support/mod.rs:114:8
+    |
+114 | pub fn fft_in_place(values: &mut [Fp], root: Fp) {
+    |        ^^^^^^^^^^^^
+
+warning: function `inverse_fft_in_place` is never used
+   --> benches/support/mod.rs:119:8
+    |
+119 | pub fn inverse_fft_in_place(values: &mut [Fp], root: Fp) {
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `make_config` is never used
+   --> benches/support/mod.rs:134:8
+    |
+134 | pub fn make_config(
+    |        ^^^^^^^^^^^
+
+warning: function `build_node_sequence` is never used
+   --> benches/support/mod.rs:186:8
+    |
+186 | pub fn build_node_sequence(height: u32, leaf_count: usize, len: usize, seed: u64) -> Vec<NodeKey> {
+    |        ^^^^^^^^^^^^^^^^^^^
+
+warning: function `build_leaf_sequence` is never used
+   --> benches/support/mod.rs:225:8
+    |
+225 | pub fn build_leaf_sequence(leaf_count: usize, len: usize, seed: u64) -> Vec<usize> {
+    |        ^^^^^^^^^^^^^^^^^^^
+
+warning: function `build_offset_sequence` is never used
+   --> benches/support/mod.rs:240:8
+    |
+240 | pub fn build_offset_sequence(max: usize, len: usize, seed: u64) -> Vec<usize> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `DEFAULT_TRIALS` is never used
+  --> benches/support/append_only_log_repair.rs:41:11
+   |
+41 | pub const DEFAULT_TRIALS: usize = 5;
+   |           ^^^^^^^^^^^^^^
+
+warning: constant `DEFAULT_COMMITTED_BULK_UPDATE_BATCHES` is never used
+  --> benches/support/append_only_log_repair.rs:43:11
+   |
+43 | pub const DEFAULT_COMMITTED_BULK_UPDATE_BATCHES: usize = 3;
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `DEFAULT_HELPER_SURPLUS` is never used
+  --> benches/support/append_only_log_repair.rs:44:11
+   |
+44 | pub const DEFAULT_HELPER_SURPLUS: usize = 1;
+   |           ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `ReplayServer` is never constructed
+   --> benches/support/append_only_log_repair.rs:238:8
+    |
+238 | struct ReplayServer {
+    |        ^^^^^^^^^^^^
+
+warning: struct `ReplayTransport` is never constructed
+   --> benches/support/append_only_log_repair.rs:243:8
+    |
+243 | struct ReplayTransport {
+    |        ^^^^^^^^^^^^^^^
+
+warning: associated functions `unsupported`, `corrupt_row_reply`, and `corrupt_eval_reply` are never used
+   --> benches/support/append_only_log_repair.rs:253:8
+    |
+252 | impl ReplayTransport {
+    | -------------------- associated functions in this implementation
+253 |     fn unsupported(op: &str) -> UnauthClientError {
+    |        ^^^^^^^^^^^
+...
+257 |     fn corrupt_row_reply(reply: &mut [Vec<RowShare>], party_id: u64) {
+    |        ^^^^^^^^^^^^^^^^^
+...
+268 |     fn corrupt_eval_reply(reply: &mut [Vec<Fp>], party_id: u64) {
+    |        ^^^^^^^^^^^^^^^^^^
+
+warning: struct `RepairKernelsFixture` is never constructed
+   --> benches/support/append_only_log_repair.rs:451:12
+    |
+451 | pub struct RepairKernelsFixture {
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `RecoverFixture` is never constructed
+   --> benches/support/append_only_log_repair.rs:491:8
+    |
+491 | struct RecoverFixture {
+    |        ^^^^^^^^^^^^^^
+
+warning: function `build_warmed_cluster` is never used
+   --> benches/support/append_only_log_repair.rs:649:8
+    |
+649 | pub fn build_warmed_cluster(
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `helper_row_matrix_request` is never used
+   --> benches/support/append_only_log_repair.rs:733:4
+    |
+733 | fn helper_row_matrix_request(segs: &[usize], z_eval: Fp) -> UnauthRequest {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `helper_eval_matrix_request` is never used
+   --> benches/support/append_only_log_repair.rs:746:4
+    |
+746 | fn helper_eval_matrix_request(segs: &[usize], col_label: Fp, row_labels: &[Fp]) -> UnauthRequest {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `core_row_matrix_reply` is never used
+   --> benches/support/append_only_log_repair.rs:754:4
+    |
+754 | fn core_row_matrix_reply(
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `core_eval_matrix_reply` is never used
+   --> benches/support/append_only_log_repair.rs:770:4
+    |
+770 | fn core_eval_matrix_reply(
+    |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `rpc_row_matrix_reply` is never used
+   --> benches/support/append_only_log_repair.rs:789:4
+    |
+789 | fn rpc_row_matrix_reply(server: &mut AuthServer, segs: &[usize], z_eval: Fp) -> net::Response {
+    |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `rpc_eval_matrix_reply` is never used
+   --> benches/support/append_only_log_repair.rs:813:4
+    |
+813 | fn rpc_eval_matrix_reply(
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `build_recover_fixture` is never used
+   --> benches/support/append_only_log_repair.rs:841:4
+    |
+841 | fn build_recover_fixture(
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `recover_segments_once`, `install_segments_once`, and `recover_and_install_once` are never used
+   --> benches/support/append_only_log_repair.rs:963:8
+    |
+962 | impl RecoverFixture {
+    | ------------------- methods in this implementation
+963 |     fn recover_segments_once(&self) -> Vec<(usize, RecoveredClaimSegmentState)> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+...
+979 |     fn install_segments_once(
+    |        ^^^^^^^^^^^^^^^^^^^^^
+...
+996 |     fn recover_and_install_once(&self) -> UnauthStore {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: multiple associated items are never used
+    --> benches/support/append_only_log_repair.rs:1002:12
+     |
+1001 | impl RepairKernelsFixture {
+     | ------------------------- associated items in this implementation
+1002 |     pub fn build(
+     |            ^^^^^
+...
+1159 |     pub fn helper_core_assist_once(
+     |            ^^^^^^^^^^^^^^^^^^^^^^^
+...
+1176 |     pub fn helper_rpc_assist_once(&mut self) -> (net::Response, net::Response) {
+     |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+1188 |     pub fn recover_segments_once(&self) -> Vec<(usize, RecoveredClaimSegmentState)> {
+     |            ^^^^^^^^^^^^^^^^^^^^^
+...
+1192 |     pub fn recover_segments_correcting_clean_once(
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1200 |     pub fn recover_segments_correcting_corrupt_once(
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1208 |     pub fn install_segments_once(
+     |            ^^^^^^^^^^^^^^^^^^^^^
+...
+1216 |     pub fn recover_and_install_once(&self) -> UnauthStore {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1220 |     pub fn rebuild_from_downloaded_bulk_updates_once(&self) -> AuthServer {
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1241 |     pub fn validate_recovery(&self) {
+     |            ^^^^^^^^^^^^^^^^^
+...
+1270 |     fn validate_recovered_store(&self, recovered: &UnauthStore) {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1277 |     fn segs(&self) -> Vec<usize> {
+     |        ^^^^
+
+warning: constant `FIELD_BYTES` is never used
+  --> benches/support/generic_bivariate_baseline.rs:23:7
+   |
+23 | const FIELD_BYTES: u64 = 32;
+   |       ^^^^^^^^^^^
+
+warning: constant `ROW_POINT_SCALE` is never used
+  --> benches/support/generic_bivariate_baseline.rs:25:7
+   |
+25 | const ROW_POINT_SCALE: u64 = 1 << 32;
+   |       ^^^^^^^^^^^^^^^
+
+warning: enum `BivariateUpdateMode` is never used
+  --> benches/support/generic_bivariate_baseline.rs:28:10
+   |
+28 | pub enum BivariateUpdateMode {
+   |          ^^^^^^^^^^^^^^^^^^^
+
+warning: struct `BivariateBasisCache` is never constructed
+  --> benches/support/generic_bivariate_baseline.rs:34:12
+   |
+34 | pub struct BivariateBasisCache {
+   |            ^^^^^^^^^^^^^^^^^^^
+
+warning: struct `BivariateClaimState` is never constructed
+  --> benches/support/generic_bivariate_baseline.rs:42:12
+   |
+42 | pub struct BivariateClaimState {
+   |            ^^^^^^^^^^^^^^^^^^^
+
+warning: struct `GenericBivariateBaseline` is never constructed
+  --> benches/support/generic_bivariate_baseline.rs:54:12
+   |
+54 | pub struct GenericBivariateBaseline {
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> benches/support/generic_bivariate_baseline.rs:62:12
+    |
+ 61 | impl GenericBivariateBaseline {
+    | ----------------------------- associated items in this implementation
+ 62 |     pub fn new(
+    |            ^^^
+...
+ 96 |     pub fn apply_updates(&mut self, updates: &[(u64, Fp)]) {
+    |            ^^^^^^^^^^^^^
+...
+171 |     pub fn read_point_from_claims(&self, logical_index: usize, helper_count: usize) -> Fp {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+185 |     pub fn repair_claim_from_helpers(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+222 |     pub fn repair_claim_same_geometry_from_helpers(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+271 |     pub fn merged_target_claim_by_decode_reencode(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+288 |     pub fn split_target_claims_by_decode_reencode(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+303 |     pub fn decode_logical_values_from_claims(&self, helper_count: usize) -> Vec<Fp> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+310 |     fn decode_matrix_from_claims(&self, helper_count: usize) -> Vec<Vec<Fp>> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+338 |     pub fn maintained_bytes_per_claim(&self) -> u64 {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+345 |     pub fn cache_bytes_per_claim(&self) -> u64 {
+    |            ^^^^^^^^^^^^^^^^^^^^^
+...
+353 |     fn source_position(&self, logical_index: usize) -> (usize, usize) {
+    |        ^^^^^^^^^^^^^^^
+
+warning: function `source_z_domain` is never used
+   --> benches/support/generic_bivariate_baseline.rs:363:8
+    |
+363 | pub fn source_z_domain(params: &CodedArrayParams) -> Vec<Fp> {
+    |        ^^^^^^^^^^^^^^^
+
+warning: function `source_w_domain` is never used
+   --> benches/support/generic_bivariate_baseline.rs:368:8
+    |
+368 | pub fn source_w_domain(params: &CodedArrayParams) -> Vec<Fp> {
+    |        ^^^^^^^^^^^^^^^
+
+warning: function `row_eval_points` is never used
+   --> benches/support/generic_bivariate_baseline.rs:374:4
+    |
+374 | fn row_eval_points(source_z_domain: &[Fp]) -> Vec<Fp> {
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `claim_template` is never used
+   --> benches/support/generic_bivariate_baseline.rs:380:8
+    |
+380 | pub fn claim_template(
+    |        ^^^^^^^^^^^^^^
+
+warning: function `encode_claim_from_logical_values` is never used
+   --> benches/support/generic_bivariate_baseline.rs:410:8
+    |
+410 | pub fn encode_claim_from_logical_values(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `hydrate_claim` is never used
+   --> benches/support/generic_bivariate_baseline.rs:423:4
+    |
+423 | fn hydrate_claim(
+    |    ^^^^^^^^^^^^^
+
+warning: function `source_matrix` is never used
+   --> benches/support/generic_bivariate_baseline.rs:462:4
+    |
+462 | fn source_matrix(params: &CodedArrayParams, logical_values: &[Fp]) -> Vec<Vec<Fp>> {
+    |    ^^^^^^^^^^^^^
+
+warning: function `eval_bivariate_with_weights` is never used
+   --> benches/support/generic_bivariate_baseline.rs:471:4
+    |
+471 | fn eval_bivariate_with_weights(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `eval_claim_column` is never used
+   --> benches/support/generic_bivariate_baseline.rs:487:4
+    |
+487 | fn eval_claim_column(claim: &BivariateClaimState, w: Fp) -> Fp {
+    |    ^^^^^^^^^^^^^^^^^
+
+warning: function `eval_claim_row` is never used
+   --> benches/support/generic_bivariate_baseline.rs:492:4
+    |
+492 | fn eval_claim_row(claim: &BivariateClaimState, row_idx: usize, z: Fp) -> Fp {
+    |    ^^^^^^^^^^^^^^
+
+warning: function `precompute_cache` is never used
+   --> benches/support/generic_bivariate_baseline.rs:497:4
+    |
+497 | fn precompute_cache(
+    |    ^^^^^^^^^^^^^^^^
+
+warning: function `maintained_bytes_for_claim` is never used
+   --> benches/support/generic_bivariate_baseline.rs:520:4
+    |
+520 | fn maintained_bytes_for_claim(claim: &BivariateClaimState) -> u64 {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `cache_bytes` is never used
+   --> benches/support/generic_bivariate_baseline.rs:530:4
+    |
+530 | fn cache_bytes(cache: &BivariateBasisCache) -> u64 {
+    |    ^^^^^^^^^^^
+
+warning: constant `SYMBOL_LAYOUT_ONE_PER_CODEWORD` is never used
+  --> benches/support/rs_striped_baseline.rs:17:11
+   |
+17 | pub const SYMBOL_LAYOUT_ONE_PER_CODEWORD: &str = "one_symbol_per_codeword";
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `StripedRsLayout` is never constructed
+  --> benches/support/rs_striped_baseline.rs:20:12
+   |
+20 | pub struct StripedRsLayout {
+   |            ^^^^^^^^^^^^^^^
+
+warning: struct `StripedRsSegment` is never constructed
+  --> benches/support/rs_striped_baseline.rs:30:12
+   |
+30 | pub struct StripedRsSegment {
+   |            ^^^^^^^^^^^^^^^^
+
+warning: struct `StripedRsDecoder` is never constructed
+  --> benches/support/rs_striped_baseline.rs:38:12
+   |
+38 | pub struct StripedRsDecoder {
+   |            ^^^^^^^^^^^^^^^^
+
+warning: function `fair_layout_for_params` is never used
+  --> benches/support/rs_striped_baseline.rs:45:8
+   |
+45 | pub fn fair_layout_for_params(params: &CodedArrayParams, logical_len: usize) -> StripedRsLayout {
+   |        ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `default_helper_indices` is never used
+  --> benches/support/rs_striped_baseline.rs:65:8
+   |
+65 | pub fn default_helper_indices(layout: &StripedRsLayout) -> Vec<usize> {
+   |        ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `encode_segment_from_values` is never used
+  --> benches/support/rs_striped_baseline.rs:69:8
+   |
+69 | pub fn encode_segment_from_values(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `decoder` is never used
+   --> benches/support/rs_striped_baseline.rs:104:12
+    |
+103 | impl StripedRsLayout {
+    | -------------------- method in this implementation
+104 |     pub fn decoder(&self, helper_indices: &[usize]) -> StripedRsDecoder {
+    |            ^^^^^^^
+
+warning: multiple methods are never used
+   --> benches/support/rs_striped_baseline.rs:127:8
+    |
+126 | impl StripedRsDecoder {
+    | --------------------- methods in this implementation
+127 |     fn helper_codeword_samples(&self, segment: &StripedRsSegment, codeword_idx: usize) -> Vec<Fp> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+138 |     pub fn decode_codeword(
+    |            ^^^^^^^^^^^^^^^
+...
+154 |     pub fn read_point(
+    |            ^^^^^^^^^^
+...
+174 |     pub fn read_block(
+    |            ^^^^^^^^^^
+...
+198 |     pub fn reconstruct_shard_vector(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+208 |     pub fn reconstruct_shard_vector_at_point(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+221 |     pub fn decode_full_segment(
+    |            ^^^^^^^^^^^^^^^^^^^
+...
+239 |     pub fn restripe_target_shards(
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+260 |     pub fn helper_points(&self) -> &[Fp] {
+    |            ^^^^^^^^^^^^^
+
+warning: function `sample_params` is never used
+   --> benches/support/rs_striped_baseline.rs:276:8
+    |
+276 |     fn sample_params(kappa: usize) -> paper_a_optimized::CodedArrayParams {
+    |        ^^^^^^^^^^^^^
+
+warning: constant `FIELD_BYTES` is never used
+ --> benches/support/state_metrics.rs:6:7
+  |
+6 | const FIELD_BYTES: u64 = 32;
+  |       ^^^^^^^^^^^
+
+warning: constant `INDEX_BYTES` is never used
+ --> benches/support/state_metrics.rs:7:7
+  |
+7 | const INDEX_BYTES: u64 = 4;
+  |       ^^^^^^^^^^^
+
+warning: struct `ClaimFootprint` is never constructed
+  --> benches/support/state_metrics.rs:10:12
+   |
+10 | pub struct ClaimFootprint {
+   |            ^^^^^^^^^^^^^^
+
+warning: struct `StoreFootprint` is never constructed
+  --> benches/support/state_metrics.rs:17:12
+   |
+17 | pub struct StoreFootprint {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `plus` is never used
+  --> benches/support/state_metrics.rs:29:12
+   |
+28 | impl StoreFootprint {
+   | ------------------- method in this implementation
+29 |     pub fn plus(&self, other: &Self) -> Self {
+   |            ^^^^
+
+warning: function `measure_claim_bundles` is never used
+  --> benches/support/state_metrics.rs:45:8
+   |
+45 | pub fn measure_claim_bundles(claims: &[ClaimBundle]) -> ClaimFootprint {
+   |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `measure_store_footprint` is never used
+  --> benches/support/state_metrics.rs:56:8
+   |
+56 | pub fn measure_store_footprint(store: &UnauthStore) -> StoreFootprint {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `measure_store_set` is never used
+  --> benches/support/state_metrics.rs:87:8
+   |
+87 | pub fn measure_store_set(stores: &[UnauthStore]) -> StoreFootprint {
+   |        ^^^^^^^^^^^^^^^^^
+
+warning: function `registry_json_bytes` is never used
+  --> benches/support/state_metrics.rs:94:8
+   |
+94 | pub fn registry_json_bytes(file: &MockRegistryFile) -> u64 {
+   |        ^^^^^^^^^^^^^^^^^^^
+
+warning: constant `BENCH_SEED` is never used
+  --> benches/support/unauth_update_common.rs:41:11
+   |
+41 | pub const BENCH_SEED: u64 = 42;
+   |           ^^^^^^^^^^
+
+warning: constant `DEFAULT_TRIALS` is never used
+  --> benches/support/unauth_update_common.rs:42:11
+   |
+42 | pub const DEFAULT_TRIALS: usize = 3;
+   |           ^^^^^^^^^^^^^^
+
+warning: constant `DEFAULT_KAPPAS` is never used
+  --> benches/support/unauth_update_common.rs:43:11
+   |
+43 | pub const DEFAULT_KAPPAS: &[usize] = &[8, 16, 32];
+   |           ^^^^^^^^^^^^^^
+
+warning: constant `DEFAULT_BATCH_SIZES` is never used
+  --> benches/support/unauth_update_common.rs:44:11
+   |
+44 | pub const DEFAULT_BATCH_SIZES: &[usize] = &[1, 8, 64];
+   |           ^^^^^^^^^^^^^^^^^^^
+
+warning: constant `FIELD_BYTES` is never used
+  --> benches/support/unauth_update_common.rs:45:7
+   |
+45 | const FIELD_BYTES: u64 = 32;
+   |       ^^^^^^^^^^^
+
+warning: constant `INDEX_BYTES` is never used
+  --> benches/support/unauth_update_common.rs:46:7
+   |
+46 | const INDEX_BYTES: u64 = 8;
+   |       ^^^^^^^^^^^
+
+warning: type alias `UnauthClient` is never used
+  --> benches/support/unauth_update_common.rs:48:6
+   |
+48 | type UnauthClient = CoreUnauthClient<LocalTransport>;
+   |      ^^^^^^^^^^^^
+
+warning: struct `SharedStore` is never constructed
+  --> benches/support/unauth_update_common.rs:51:8
+   |
+51 | struct SharedStore(Arc<Mutex<UnauthStore>>);
+   |        ^^^^^^^^^^^
+
+warning: associated items `new`, `borrow`, and `borrow_mut` are never used
+  --> benches/support/unauth_update_common.rs:54:8
+   |
+53 | impl SharedStore {
+   | ---------------- associated items in this implementation
+54 |     fn new(store: UnauthStore) -> Self {
+   |        ^^^
+...
+58 |     fn borrow(&self) -> MutexGuard<'_, UnauthStore> {
+   |        ^^^^^^
+...
+62 |     fn borrow_mut(&self) -> MutexGuard<'_, UnauthStore> {
+   |        ^^^^^^^^^^
+
+warning: struct `LocalServer` is never constructed
+  --> benches/support/unauth_update_common.rs:68:8
+   |
+68 | struct LocalServer {
+   |        ^^^^^^^^^^^
+
+warning: struct `LocalTransport` is never constructed
+  --> benches/support/unauth_update_common.rs:74:8
+   |
+74 | struct LocalTransport;
+   |        ^^^^^^^^^^^^^^
+
+warning: struct `MetricStats` is never constructed
+   --> benches/support/unauth_update_common.rs:311:8
+    |
+311 | struct MetricStats {
+    |        ^^^^^^^^^^^
+
+warning: struct `UpdateCommStats` is never constructed
+   --> benches/support/unauth_update_common.rs:319:8
+    |
+319 | struct UpdateCommStats {
+    |        ^^^^^^^^^^^^^^^
+
+warning: struct `BenchEntry` is never constructed
+   --> benches/support/unauth_update_common.rs:327:8
+    |
+327 | struct BenchEntry {
+    |        ^^^^^^^^^^
+
+warning: struct `BenchMeta` is never constructed
+   --> benches/support/unauth_update_common.rs:356:8
+    |
+356 | struct BenchMeta {
+    |        ^^^^^^^^^
+
+warning: struct `BenchResults` is never constructed
+   --> benches/support/unauth_update_common.rs:371:12
+    |
+371 | pub struct BenchResults {
+    |            ^^^^^^^^^^^^
+
+warning: function `percentile` is never used
+   --> benches/support/unauth_update_common.rs:376:4
+    |
+376 | fn percentile(sorted: &[u64], pct: usize) -> u64 {
+    |    ^^^^^^^^^^
+
+warning: function `stats_from_samples` is never used
+   --> benches/support/unauth_update_common.rs:384:4
+    |
+384 | fn stats_from_samples(mut samples: Vec<u64>) -> MetricStats {
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `bench_metric` is never used
+   --> benches/support/unauth_update_common.rs:404:4
+    |
+404 | fn bench_metric<F, T>(trials: usize, mut f: F) -> MetricStats
+    |    ^^^^^^^^^^^^
+
+warning: function `bench_mutating_stores` is never used
+   --> benches/support/unauth_update_common.rs:417:4
+    |
+417 | fn bench_mutating_stores<F>(stores: &mut [UnauthStore], mut f: F) -> MetricStats
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `bench_client_workflow` is never used
+   --> benches/support/unauth_update_common.rs:430:4
+    |
+430 | fn bench_client_workflow<F>(
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `git_sha` is never used
+   --> benches/support/unauth_update_common.rs:455:4
+    |
+455 | fn git_sha() -> Option<String> {
+    |    ^^^^^^^
+
+warning: function `parse_list_env` is never used
+   --> benches/support/unauth_update_common.rs:467:8
+    |
+467 | pub fn parse_list_env(name: &str, default: &[usize]) -> Vec<usize> {
+    |        ^^^^^^^^^^^^^^
+
+warning: function `parse_trials_env` is never used
+   --> benches/support/unauth_update_common.rs:488:8
+    |
+488 | pub fn parse_trials_env(name: &str) -> usize {
+    |        ^^^^^^^^^^^^^^^^
+
+warning: function `build_params` is never used
+   --> benches/support/unauth_update_common.rs:498:4
+    |
+498 | fn build_params(kappa: usize) -> CodedArrayParams {
+    |    ^^^^^^^^^^^^
+
+warning: function `valid_kappas` is never used
+   --> benches/support/unauth_update_common.rs:514:4
+    |
+514 | fn valid_kappas(kappas: &[usize]) -> Vec<usize> {
+    |    ^^^^^^^^^^^^
+
+warning: function `segment_lens_for` is never used
+   --> benches/support/unauth_update_common.rs:522:4
+    |
+522 | fn segment_lens_for(kappas: &[usize]) -> Vec<usize> {
+    |    ^^^^^^^^^^^^^^^^
+
+warning: function `build_seed_deltas` is never used
+   --> benches/support/unauth_update_common.rs:526:4
+    |
+526 | fn build_seed_deltas(len: u64, seed: u64) -> Vec<(u64, Fp)> {
+    |    ^^^^^^^^^^^^^^^^^
+
+warning: function `build_logical_values` is never used
+   --> benches/support/unauth_update_common.rs:535:4
+    |
+535 | fn build_logical_values(len: usize, deltas: &[(u64, Fp)]) -> Vec<Value256> {
+    |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `build_update_batch` is never used
+   --> benches/support/unauth_update_common.rs:544:4
+    |
+544 | fn build_update_batch(len: u64, batch_size: usize, seed: u64) -> Vec<(u64, Fp)> {
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `build_block_update_deltas` is never used
+   --> benches/support/unauth_update_common.rs:553:4
+    |
+553 | fn build_block_update_deltas(s: usize, seed: u64) -> Vec<(usize, Fp)> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `block_update_to_point_deltas` is never used
+   --> benches/support/unauth_update_common.rs:564:4
+    |
+564 | fn block_update_to_point_deltas(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `build_full_store` is never used
+   --> benches/support/unauth_update_common.rs:580:4
+    |
+580 | fn build_full_store(params: &CodedArrayParams, len: u64, deltas: &[(u64, Fp)]) -> UnauthStore {
+    |    ^^^^^^^^^^^^^^^^
+
+warning: function `build_single_claim_store` is never used
+   --> benches/support/unauth_update_common.rs:589:4
+    |
+589 | fn build_single_claim_store(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `build_local_store_templates` is never used
+   --> benches/support/unauth_update_common.rs:604:4
+    |
+604 | fn build_local_store_templates(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `wrap_local_servers` is never used
+   --> benches/support/unauth_update_common.rs:623:4
+    |
+623 | fn wrap_local_servers(stores: &[UnauthStore]) -> Vec<LocalServer> {
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `build_client` is never used
+   --> benches/support/unauth_update_common.rs:635:4
+    |
+635 | fn build_client(
+    |    ^^^^^^^^^^^^
+
+warning: function `assert_store_matches_expected_subset` is never used
+   --> benches/support/unauth_update_common.rs:651:4
+    |
+651 | fn assert_store_matches_expected_subset(store: &UnauthStore, expected: &UnauthStore) {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `modeled_update_comm` is never used
+   --> benches/support/unauth_update_common.rs:668:4
+    |
+668 | fn modeled_update_comm(batch_size: usize, server_count: usize) -> UpdateCommStats {
+    |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `updates_per_sec_mean` is never used
+   --> benches/support/unauth_update_common.rs:677:4
+    |
+677 | fn updates_per_sec_mean(batch_size: usize, stats: &MetricStats) -> f64 {
+    |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `mode_name` is never used
+   --> benches/support/unauth_update_common.rs:684:4
+    |
+684 | fn mode_name(mode: DeltaMode) -> &'static str {
+    |    ^^^^^^^^^
+
+warning: function `modeled_block_update_comm` is never used
+   --> benches/support/unauth_update_common.rs:691:4
+    |
+691 | fn modeled_block_update_comm(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `modeled_practical_stripe_comm` is never used
+   --> benches/support/unauth_update_common.rs:710:4
+    |
+710 | fn modeled_practical_stripe_comm(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `apply_point_deltas_to_values` is never used
+   --> benches/support/unauth_update_common.rs:721:4
+    |
+721 | fn apply_point_deltas_to_values(values: &mut [Value256], deltas: &[(u64, Fp)]) {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `apply_block_deltas_to_values` is never used
+   --> benches/support/unauth_update_common.rs:728:4
+    |
+728 | fn apply_block_deltas_to_values(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `bench_practical_stripe_update` is never used
+   --> benches/support/unauth_update_common.rs:738:4
+    |
+738 | fn bench_practical_stripe_update<F>(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `run_point_entry` is never used
+   --> benches/support/unauth_update_common.rs:773:4
+    |
+773 | fn run_point_entry(kappa: usize, batch_size: usize, mode: DeltaMode, trials: usize) -> BenchEntry {
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `run_block_pair` is never used
+   --> benches/support/unauth_update_common.rs:833:4
+    |
+833 | fn run_block_pair(kappa: usize, trials: usize) -> Vec<BenchEntry> {
+    |    ^^^^^^^^^^^^^^
+
+warning: function `run_paper_point_update_pair` is never used
+   --> benches/support/unauth_update_common.rs:927:4
+    |
+927 | fn run_paper_point_update_pair(kappa: usize, trials: usize) -> Vec<BenchEntry> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `run_paper_block_update_pair` is never used
+    --> benches/support/unauth_update_common.rs:1037:4
+     |
+1037 | fn run_paper_block_update_pair(kappa: usize, trials: usize) -> Vec<BenchEntry> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `CLAIM_MODEL` is never used
+    --> benches/support/unauth_update_common.rs:1151:7
+     |
+1151 | const CLAIM_MODEL: &str = "one_claim_per_party";
+     |       ^^^^^^^^^^^
+
+warning: constant `EFFECTIVE_DIMENSION_NOTE` is never used
+    --> benches/support/unauth_update_common.rs:1152:7
+     |
+1152 | const EFFECTIVE_DIMENSION_NOTE: &str = "the threshold kappa is the only configured quantity: segment_len = n_grid = kappa^2, need ...
+     |       ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `timestamp_unix_ms` is never used
+    --> benches/support/unauth_update_common.rs:1154:4
+     |
+1154 | fn timestamp_unix_ms() -> u64 {
+     |    ^^^^^^^^^^^^^^^^^
+
+warning: function `build_point_results` is never used
+    --> benches/support/unauth_update_common.rs:1161:8
+     |
+1161 | pub fn build_point_results(
+     |        ^^^^^^^^^^^^^^^^^^^
+
+warning: function `build_block_results` is never used
+    --> benches/support/unauth_update_common.rs:1203:8
+     |
+1203 | pub fn build_block_results(trials: usize, kappas: Vec<usize>) -> BenchResults {
+     |        ^^^^^^^^^^^^^^^^^^^
+
+warning: function `build_paper_update_results` is never used
+    --> benches/support/unauth_update_common.rs:1228:8
+     |
+1228 | pub fn build_paper_update_results(trials: usize, kappas: Vec<usize>) -> BenchResults {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `write_results` is never used
+    --> benches/support/unauth_update_common.rs:1254:8
+     |
+1254 | pub fn write_results(path_name: &str, results: &BenchResults) {
+     |        ^^^^^^^^^^^^^
+
+warning: constant `FIELD_BYTES` is never used
+  --> benches/support/univariate_segment_baseline.rs:19:7
+   |
+19 | const FIELD_BYTES: u64 = 32;
+   |       ^^^^^^^^^^^
+
+warning: enum `UnivariateUpdateMode` is never used
+  --> benches/support/univariate_segment_baseline.rs:22:10
+   |
+22 | pub enum UnivariateUpdateMode {
+   |          ^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `CompactLagrangeCache` is never constructed
+  --> benches/support/univariate_segment_baseline.rs:28:12
+   |
+28 | pub struct CompactLagrangeCache {
+   |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `UnivariatePartyState` is never constructed
+  --> benches/support/univariate_segment_baseline.rs:35:12
+   |
+35 | pub struct UnivariatePartyState {
+   |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `UnivariateSegmentBaseline` is never constructed
+  --> benches/support/univariate_segment_baseline.rs:43:12
+   |
+43 | pub struct UnivariateSegmentBaseline {
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> benches/support/univariate_segment_baseline.rs:51:12
+    |
+ 50 | impl UnivariateSegmentBaseline {
+    | ------------------------------ associated items in this implementation
+ 51 |     pub fn new(
+    |            ^^^
+...
+ 93 |     pub fn apply_updates(&mut self, updates: &[(u64, Fp)]) {
+    |            ^^^^^^^^^^^^^
+...
+123 |     fn helper_interpolation(&self, helper_count: usize) -> (BarycentricWeights, Vec<Fp>) {
+    |        ^^^^^^^^^^^^^^^^^^^^
+...
+140 |     pub fn read_point_from_parties(&self, logical_index: usize, party_count: usize) -> Fp {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^
+...
+148 |     pub fn read_offsets_from_parties(&self, offsets: &[usize], party_count: usize) -> Vec<Fp> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+161 |     pub fn decode_logical_values_from_parties(&self, helper_count: usize) -> Vec<Fp> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+170 |     pub fn repair_party_from_helpers(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+184 |     pub fn maintained_bytes_per_party(&self) -> u64 {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+191 |     pub fn cache_bytes_per_party(&self) -> u64 {
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `lagrange_basis`, and `field_element_count` are never used
+   --> benches/support/univariate_segment_baseline.rs:201:12
+    |
+200 | impl CompactLagrangeCache {
+    | ------------------------- associated items in this implementation
+201 |     pub fn new(domain: &[Fp], domain_weights: &[Fp], eval_points: &[Fp]) -> Self {
+    |            ^^^
+...
+228 |     pub fn lagrange_basis(
+    |            ^^^^^^^^^^^^^^
+...
+246 |     pub fn field_element_count(&self) -> usize {
+    |            ^^^^^^^^^^^^^^^^^^^
+
+warning: function `segment_domain` is never used
+   --> benches/support/univariate_segment_baseline.rs:253:8
+    |
+253 | pub fn segment_domain(params: &CodedArrayParams) -> Vec<Fp> {
+    |        ^^^^^^^^^^^^^^
+
+warning: function `party_eval_points` is never used
+   --> benches/support/univariate_segment_baseline.rs:259:8
+    |
+259 | pub fn party_eval_points(params: &CodedArrayParams, registry_index: usize) -> Vec<Fp> {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: function `target_party_template` is never used
+   --> benches/support/univariate_segment_baseline.rs:264:8
+    |
+264 | pub fn target_party_template(
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `encode_party_values` is never used
+   --> benches/support/univariate_segment_baseline.rs:278:8
+    |
+278 | pub fn encode_party_values(
+    |        ^^^^^^^^^^^^^^^^^^^
+
+warning: function `padded_domain_values` is never used
+   --> benches/support/univariate_segment_baseline.rs:293:8
+    |
+293 | pub fn padded_domain_values(params: &CodedArrayParams, logical_values: &[Value256]) -> Vec<Fp> {
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `lagrange_basis_naive` is never used
+   --> benches/support/univariate_segment_baseline.rs:301:8
+    |
+301 | pub fn lagrange_basis_naive(domain: &[Fp], idx: usize, point: Fp) -> Fp {
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `encode_field_values` is never used
+   --> benches/support/univariate_segment_baseline.rs:321:8
+    |
+321 | pub fn encode_field_values(values: &[Fp]) -> Vec<Value256> {
+    |        ^^^^^^^^^^^^^^^^^^^
+
+warning: `paper-a-optimized` (bench "bench_append_only_log_one_server_kappa_rescale_local") generated 143 warnings (run `cargo fix --bench "bench_append_only_log_one_server_kappa_rescale_local" -p paper-a-optimized` to apply 2 suggestions)
+    Finished `bench` profile [optimized] target(s) in 0.03s

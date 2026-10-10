@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 13,
+    "committed_bulk_update_batches": 3,
+    "query_bulk_update_batch": 1,
+    "query_value_offset": 65536,
+    "query_value_index": 196608,
+    "timestamp_unix_ms": 1791563861545,
+    "git": "558eb9894f7a0dcfde462111f058868e354eddf3",
+    "notes": "simulated append-only-log client point-open benchmark: warm local auth state from canonical field-entry bulk-update batches through the app codec and frontier path, split a full read reply into helper replies, then time client-side Combine+Verify with kappa replies and 0 bad helpers, and with 3*kappa replies containing kappa staggered bad helpers"
+  },
+  "entries": [
+    {
+      "Seg": 64,
+      "encoded_cells_N": 64,
+      "encoded_segment_bytes": 2048,
+      "kappa": 8,
+      "primary_slice_field_elements": 8,
+      "registry_helper_count": 24,
+      "bulk_updates_bytes": 4194304,
+      "inserted_values": 131072,
+      "zero_bad_helper_replies": 8,
+      "correcting_helper_replies": 24,
+      "bad_helper_replies": 8,
+      "auth_nodes_per_helper": 51,
+      "array_shares_per_helper": 20,
+      "zero_bad_array_shares": 160,
+      "correcting_array_shares": 480,
+      "client_zero_bad_helpers_combine_verify_ns": {
+        "mean": 276193,
+        "p50": 273936,
+        "p95": 285224,
+        "trials": 13,
+        "samples": [
+          291773,
+          285224,
+          277829,
+          275287,
+          274515,
+          273936,
+          273480,
+          272195,
+          276831,
+          272964,
+          271737,
+          271312,
+          273436
+        ]
+      },
+      "client_kappa_bad_helpers_combine_verify_ns": {
+        "mean": 1391764,
+        "p50": 1379771,
+        "p95": 1411032,
+        "trials": 13,
+        "samples": [
+          1377198,
+          1378160,
+          1411032,
+          1510931,
+          1391294,
+          1383370,
+          1389794,
+          1370352,
+          1362818,
+          1378640,
+          1386011,
+          1379771,
+          1373563
+        ]
+      }
+    }
+  ]
+}

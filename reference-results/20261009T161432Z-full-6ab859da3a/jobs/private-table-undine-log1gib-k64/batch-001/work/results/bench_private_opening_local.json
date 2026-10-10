@@ -1,0 +1,88 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 13,
+    "role": "table",
+    "kappa": 64,
+    "leaves": 33554432,
+    "tree_height": 50,
+    "segments_per_record": 1,
+    "cells_per_record": 64,
+    "append_leaves": 1024,
+    "hint_sample_columns": 64,
+    "pir_path": "avx2",
+    "setup_threads": 14,
+    "setup_cpus": "0-13",
+    "timed_cpus": "2",
+    "setup_seconds": 11.893270339,
+    "peak_rss_bytes": 2433392640,
+    "timestamp_unix_ms": 1791592439145,
+    "git": "558eb9894f7a0dcfde462111f058868e354eddf3",
+    "notes": "private openings of one position: one server's first pass and answer to a serialized request, the client's request and decoding, the hint of a sample of database columns, the response-packing tables, and the preprocessing update after appends; or one client's Combine and Verify from private and from public replies"
+  },
+  "entries": [
+    {
+      "role": "table",
+      "kappa": 64,
+      "segments_per_record": 1,
+      "leaves": 33554432,
+      "log_bytes": 1073741824,
+      "record_bytes": 2048,
+      "records": 16385,
+      "patterns": 4096,
+      "pattern_bits": 13,
+      "slots": 17,
+      "group_slots": 5,
+      "db_rows": 4096,
+      "db_cols": 6144,
+      "record_columns": 6083,
+      "outputs": 3,
+      "database_bytes": 33556480,
+      "request_bytes": 501776,
+      "reply_bytes": 36877,
+      "table_bytes": 142606336,
+      "server_first_pass_ns": {
+        "mean": 13126419,
+        "p50": 11961800,
+        "p95": 16027478,
+        "trials": 13,
+        "samples": [
+          14325800,
+          11879565,
+          11853948,
+          11578204,
+          12185500,
+          11714852,
+          11736010,
+          11961800,
+          13568144,
+          16151754,
+          11699953,
+          16027478,
+          15960447
+        ]
+      },
+      "server_answer_ns": {
+        "mean": 62373324,
+        "p50": 62773638,
+        "p95": 65127955,
+        "trials": 13,
+        "samples": [
+          60828654,
+          59333675,
+          63431290,
+          63218854,
+          59738095,
+          64265488,
+          59164746,
+          60917702,
+          62222745,
+          62773638,
+          63826677,
+          66003697,
+          65127955
+        ]
+      }
+    }
+  ]
+}

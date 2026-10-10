@@ -10,7 +10,7 @@ layouts in one run, on one host, under one statistical protocol.
 - `borg/` is the BorgLog implementation, configured with the same segment
   size `kappa^2` and threshold `kappa`.
 
-The reference run `20261007T000217Z-full-3db345efc0` and all of its
+The reference run `20261009T161432Z-full-6ab859da3a` and all of its
 measurements are included under `reference-results/`. No paper source or
 typesetting toolchain is required. The reference run is immutable; new runs
 are written under `results/runs/`.
@@ -62,7 +62,7 @@ The reference machine had an Intel Core Ultra 7 255U, 32 GiB RAM, and 14
 logical CPUs, and ran Linux with Rust 1.98.0. The benchmark processes were
 pinned to logical CPU 2, a performance core, with the `performance` energy
 preference. Exact environment details are retained in
-[`environment.json`](reference-results/20261007T000217Z-full-3db345efc0/provenance/environment.json).
+[`environment.json`](reference-results/20261009T161432Z-full-6ab859da3a/provenance/environment.json).
 Cargo may need network access once to fetch locked dependencies.
 
 ## Reviewer Commands
@@ -133,7 +133,7 @@ Direct benchmarks discard three warmup repetitions per process. Append
 benchmarks discard one complete warmup sequence, and one independent append
 sample is a complete 64-batch sequence. Deterministic quantities must agree
 across observations. A full run is publication-ready only when every consumed
-measurement exists and all 348 timing series satisfy the stopping rule.
+measurement exists and all 390 timing series satisfy the stopping rule.
 
 Jobs of the two layouts use the same benchmark, the same workload variables,
 the same CPU, and the same protocol. They alternate in the schedule.
@@ -165,12 +165,12 @@ workloads and benchmark targets.
 ## Reference Results
 
 The packaged run is
-[`reference-results/20261007T000217Z-full-3db345efc0/`](reference-results/20261007T000217Z-full-3db345efc0/).
-Start with its [rendered result groups](reference-results/20261007T000217Z-full-3db345efc0/tables/README.md).
+[`reference-results/20261009T161432Z-full-6ab859da3a/`](reference-results/20261009T161432Z-full-6ab859da3a/).
+Start with its [rendered result groups](reference-results/20261009T161432Z-full-6ab859da3a/tables/README.md).
 Machine-readable values, units, samples, confidence intervals, raw benchmark
 documents, logs, environment data, and source hashes are retained alongside
 them. The run has 12,110 independent timing samples in 110 batches, and every
-one of its 348 timing series met the precision target.
+one of its 390 timing series met the precision target.
 
 `./artifact verify` checks the complete file-integrity manifest, both crates'
 source hashes, job and measurement semantics, checkpoint completion, every raw
@@ -188,7 +188,7 @@ A reproduction succeeds when:
 1. `./artifact test`, `./artifact smoke`, and `./artifact resume-canary` exit
    with status 0.
 2. `./artifact full` exits with status 0.
-3. `./artifact validate RUN_ID` reports 70 jobs, 713 result cells, 348 timing
+3. `./artifact validate RUN_ID` reports 74 jobs, 797 result cells, 390 timing
    series, and `publishable: true`.
 4. The completed run's `summary.json` lists no missing or unstable
    measurements.

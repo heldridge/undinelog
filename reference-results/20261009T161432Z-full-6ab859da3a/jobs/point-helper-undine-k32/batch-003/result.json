@@ -1,0 +1,92 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 43,
+    "committed_bulk_update_batches": 3,
+    "query_bulk_update_batch": 1,
+    "query_value_offset": 65536,
+    "query_value_index": 196608,
+    "timestamp_unix_ms": 1791563894803,
+    "git": "558eb9894f7a0dcfde462111f058868e354eddf3",
+    "notes": "local append-only-log per-server point-open benchmark: warm one claim-bound server through real bulk updates appends, then time one authenticated leaf-open request on that single server via the core handler and/or the read-only RPC adapter including response serialization",
+    "metrics": [
+      "serialized"
+    ]
+  },
+  "entries": [
+    {
+      "Seg": 1024,
+      "encoded_cells_N": 1024,
+      "encoded_segment_bytes": 32768,
+      "kappa": 32,
+      "primary_slice_field_elements": 32,
+      "RowsPerClaim": 1,
+      "auxiliary_field_elements_per_claim": 32,
+      "helper_count": 32,
+      "local_claims": 1,
+      "bulk_updates_bytes": 4194304,
+      "inserted_values": 131072,
+      "auth_nodes_returned": 51,
+      "array_shares_returned": 20,
+      "serialized_response_bytes": 1251,
+      "helper_open_share_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "helper_open_share_serialized_ns": {
+        "mean": 9266,
+        "p50": 7473,
+        "p95": 13294,
+        "trials": 43,
+        "samples": [
+          15635,
+          13294,
+          14126,
+          13048,
+          13282,
+          13167,
+          12310,
+          17069,
+          12854,
+          10847,
+          11642,
+          12606,
+          11838,
+          11889,
+          8597,
+          7650,
+          7695,
+          7845,
+          7473,
+          7399,
+          7573,
+          7753,
+          7390,
+          7437,
+          7338,
+          7366,
+          7306,
+          7394,
+          7234,
+          7294,
+          7179,
+          6944,
+          8580,
+          7065,
+          7173,
+          7302,
+          7191,
+          7243,
+          7128,
+          7154,
+          7129,
+          7159,
+          6854
+        ]
+      }
+    }
+  ]
+}

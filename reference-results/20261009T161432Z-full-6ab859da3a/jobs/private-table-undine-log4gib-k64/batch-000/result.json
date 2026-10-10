@@ -1,0 +1,88 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 13,
+    "role": "table",
+    "kappa": 64,
+    "leaves": 134217728,
+    "tree_height": 50,
+    "segments_per_record": 1,
+    "cells_per_record": 64,
+    "append_leaves": 1024,
+    "hint_sample_columns": 64,
+    "pir_path": "avx2",
+    "setup_threads": 14,
+    "setup_cpus": "0-13",
+    "timed_cpus": "2",
+    "setup_seconds": 35.587193336,
+    "peak_rss_bytes": 4887842816,
+    "timestamp_unix_ms": 1791592503830,
+    "git": "558eb9894f7a0dcfde462111f058868e354eddf3",
+    "notes": "private openings of one position: one server's first pass and answer to a serialized request, the client's request and decoding, the hint of a sample of database columns, the response-packing tables, and the preprocessing update after appends; or one client's Combine and Verify from private and from public replies"
+  },
+  "entries": [
+    {
+      "role": "table",
+      "kappa": 64,
+      "segments_per_record": 1,
+      "leaves": 134217728,
+      "log_bytes": 4294967296,
+      "record_bytes": 2048,
+      "records": 65537,
+      "patterns": 8192,
+      "pattern_bits": 14,
+      "slots": 22,
+      "group_slots": 9,
+      "db_rows": 8192,
+      "db_cols": 12288,
+      "record_columns": 10786,
+      "outputs": 6,
+      "database_bytes": 134219776,
+      "request_bytes": 530448,
+      "reply_bytes": 73750,
+      "table_bytes": 369098752,
+      "server_first_pass_ns": {
+        "mean": 42749481,
+        "p50": 42440622,
+        "p95": 43799640,
+        "trials": 13,
+        "samples": [
+          42277293,
+          42371560,
+          42265495,
+          42087819,
+          43799640,
+          43206844,
+          42557344,
+          43564985,
+          42440622,
+          42808187,
+          42284472,
+          43893563,
+          42185437
+        ]
+      },
+      "server_answer_ns": {
+        "mean": 134079705,
+        "p50": 133499624,
+        "p95": 136361517,
+        "trials": 13,
+        "samples": [
+          133499624,
+          137569575,
+          132741355,
+          133230525,
+          134452270,
+          132774354,
+          133288164,
+          132315698,
+          133794850,
+          136361517,
+          133955179,
+          135765390,
+          133287672
+        ]
+      }
+    }
+  ]
+}

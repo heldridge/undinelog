@@ -1,0 +1,34 @@
+{
+  "independent_samples": {
+    "output:point-helper-undine-k64:serialized-helper-response": [
+      8049.0,
+      7702.0,
+      9047.0,
+      7742.0,
+      7838.0,
+      7711.0,
+      7526.0,
+      8094.0,
+      8123.0,
+      7354.0
+    ]
+  },
+  "raw_benchmark_samples": {
+    "output:point-helper-undine-k64:serialized-helper-response": [
+      8926.0,
+      8508.0,
+      7859.0,
+      8049.0,
+      7702.0,
+      9047.0,
+      7742.0,
+      7838.0,
+      7711.0,
+      7526.0,
+      8094.0,
+      8123.0,
+      7354.0
+    ]
+  },
+  "seed": 42
+}
