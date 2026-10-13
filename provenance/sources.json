@@ -332,9 +332,13 @@
         "Cargo.lock prunes only packages made unreachable by the excluded targets.",
         "tests/bench_compile.rs references only retained benchmark sources.",
         "third_party/ holds the PIR backend sources of the same commit: YPIR and spiral-rs with the patches recorded in third_party/patches/.",
-        "src/coded_array/rs.rs decodes with Gao's O(n^2) formulation of Berlekamp-Welch in place of the O(n^3) linear solve of the key equation; the decoded polynomial and the bad replies are the same."
+        "src/coded_array/rs.rs decodes with Gao's O(n^2) formulation of Berlekamp-Welch in place of the O(n^3) linear solve of the key equation; the decoded polynomial and the bad replies are the same.",
+        "benches/bench_private_opening_local.rs counts materialized-record storage as complete group columns plus one field element per upper-sibling cell, correcting the logical table byte counter without changing the measured workload."
       ],
       "changed_files": {
+        "benches/bench_private_opening_local.rs": {
+          "original_sha256": "2dca06c431dee4c12cce42e6f3954f83da633f7c103c7efff7a36860011e8499"
+        },
         "src/coded_array/rs.rs": {
           "original_sha256": "eadb8de9eb5814b67397152139492c564de232d982e4510616d987351d4e915e"
         }
@@ -438,8 +442,8 @@
           "sha256": "faec1c3860c521a7d882621313b935af000fde11d279076b220bbf843c0faf30"
         },
         "undine/benches/bench_private_opening_local.rs": {
-          "bytes": 57852,
-          "sha256": "2dca06c431dee4c12cce42e6f3954f83da633f7c103c7efff7a36860011e8499"
+          "bytes": 57932,
+          "sha256": "1373197e7c5a4db3d9f60d331bdecc38c065832177b1435a17f9c538a076307f"
         },
         "undine/benches/support/append_only_log_repair.rs": {
           "bytes": 45006,

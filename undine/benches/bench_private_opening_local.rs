@@ -982,7 +982,9 @@ fn run_table(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     cpus.restore();
 
     let fields = shape_fields(&layout, common.kappa, registry_index);
-    let table_bytes = fields.patterns * fields.slots * fields.record_bytes;
+    let table_bytes = fields.patterns
+        * (fields.group_slots * fields.record_bytes
+            + (fields.slots - fields.group_slots) * FIELD_BYTES);
     // The table answers with the bytes of the record-based database.
     {
         let (_, request) = client_request(&layout, common.kappa, 0);
