@@ -99,8 +99,7 @@ pub fn barycentric_eval(weights: &BarycentricWeights, y: &[Fp], z_eval: Fp) -> F
 ///
 /// This is equivalent to calling [`barycentric_eval`] for both value vectors at
 /// every target point, but it shares the denominator matrix and batch
-/// inversion. It is useful when transport/kappa-rescale needs the same source
-/// row sampled on a larger target row grid.
+/// inversion.
 pub fn barycentric_eval_pair_many(
     weights: &BarycentricWeights,
     y0: &[Fp],
@@ -258,48 +257,87 @@ fn has_duplicate_x(points: &[(Fp, Fp)]) -> bool {
     false
 }
 
+/// Decode by Gao's formulation of Berlekamp-Welch: with `g0 = prod (X - x_i)`
+/// and `g1` the interpolant of all points, run the extended Euclidean
+/// algorithm on `(g0, g1)` until the remainder has degree below
+/// `(n + degree_bound) / 2`; the message polynomial is then the quotient of
+/// that remainder by its cofactor, and the division is exact exactly when at
+/// most `(n - degree_bound) / 2` points are wrong. Every step is schoolbook
+/// polynomial arithmetic, `O(n^2)` in the number of points, where the linear
+/// system of the key equation costs `O(n^3)`.
 fn berlekamp_welch(points: &[(Fp, Fp)], degree_bound: usize, errors: usize) -> Option<Vec<Fp>> {
     if errors == 0 {
         return interpolate_checked(points, degree_bound);
     }
-
-    let q_len = degree_bound + errors;
-    let vars = q_len + errors;
-    let mut matrix = Vec::with_capacity(points.len());
-    for &(x, y) in points {
-        let mut row = vec![fp_zero(); vars + 1];
-        let mut x_pow = fp_one();
-        for slot in row.iter_mut().take(q_len) {
-            *slot = x_pow;
-            x_pow *= x;
-        }
-
-        x_pow = fp_one();
-        for e_idx in 0..errors {
-            row[q_len + e_idx] = -(y * x_pow);
-            x_pow *= x;
-        }
-        row[vars] = y * fp_pow_usize(x, errors);
-        matrix.push(row);
-    }
-
-    let solution = solve_linear_system(matrix, vars)?;
-    let q_coeffs = trim_poly(solution[..q_len].to_vec());
-    let mut e_coeffs = solution[q_len..].to_vec();
-    e_coeffs.push(fp_one());
-    let e_coeffs = trim_poly(e_coeffs);
-    let (quotient, remainder) = poly_div_rem(&q_coeffs, &e_coeffs)?;
-    if !poly_is_zero(&remainder) {
+    let n = points.len();
+    if n < degree_bound + 2 * errors {
         return None;
     }
-    if quotient
-        .iter()
-        .enumerate()
-        .any(|(idx, coeff)| idx >= degree_bound && *coeff != fp_zero())
-    {
+
+    // g0 = prod (X - x_i), g1 = the interpolant through all n points.
+    let mut g0 = vec![fp_one()];
+    for &(x, _) in points {
+        let mut next = vec![fp_zero(); g0.len() + 1];
+        for (idx, coeff) in g0.iter().copied().enumerate() {
+            next[idx] -= coeff * x;
+            next[idx + 1] += coeff;
+        }
+        g0 = next;
+    }
+    let g1 = trim_poly(interpolate_coefficients_from_exact_points(points, n)?);
+
+    // Extended Euclid on (g0, g1), tracking the cofactor of g1 only:
+    // r = u*g0 + v*g1 for some u, and f = r / v once deg r < (n + k) / 2.
+    let mut r_prev = g0;
+    let mut r = g1;
+    let mut v_prev: Vec<Fp> = Vec::new();
+    let mut v = vec![fp_one()];
+    while 2 * r.len() > n + degree_bound {
+        if r.is_empty() {
+            return None;
+        }
+        let (quotient, remainder) = poly_div_rem(&r_prev, &r)?;
+        let v_next = poly_sub(&v_prev, &poly_mul(&quotient, &v));
+        r_prev = r;
+        r = remainder;
+        v_prev = v;
+        v = v_next;
+    }
+    if v.is_empty() {
+        return None;
+    }
+    let (quotient, remainder) = poly_div_rem(&r, &v)?;
+    if !poly_is_zero(&remainder) || quotient.len() > degree_bound {
         return None;
     }
     Some(pad_poly(quotient, degree_bound))
+}
+
+fn poly_mul(a: &[Fp], b: &[Fp]) -> Vec<Fp> {
+    if a.is_empty() || b.is_empty() {
+        return Vec::new();
+    }
+    let mut out = vec![fp_zero(); a.len() + b.len() - 1];
+    for (i, &ai) in a.iter().enumerate() {
+        if ai == fp_zero() {
+            continue;
+        }
+        for (j, &bj) in b.iter().enumerate() {
+            out[i + j] += ai * bj;
+        }
+    }
+    trim_poly(out)
+}
+
+fn poly_sub(a: &[Fp], b: &[Fp]) -> Vec<Fp> {
+    let mut out = vec![fp_zero(); a.len().max(b.len())];
+    for (idx, &ai) in a.iter().enumerate() {
+        out[idx] += ai;
+    }
+    for (idx, &bi) in b.iter().enumerate() {
+        out[idx] -= bi;
+    }
+    trim_poly(out)
 }
 
 fn interpolate_checked(points: &[(Fp, Fp)], degree_bound: usize) -> Option<Vec<Fp>> {
@@ -357,73 +395,10 @@ pub(crate) fn interpolate_coefficients_from_exact_points(
     Some(coefficients)
 }
 
-fn solve_linear_system(mut matrix: Vec<Vec<Fp>>, vars: usize) -> Option<Vec<Fp>> {
-    let rows = matrix.len();
-    let mut pivot_row = 0usize;
-    let mut pivot_for_col = vec![None; vars];
-
-    for col in 0..vars {
-        let pivot = (pivot_row..rows).find(|&row| matrix[row][col] != fp_zero());
-        let Some(found) = pivot else {
-            continue;
-        };
-        matrix.swap(pivot_row, found);
-        let inv = matrix[pivot_row][col].inverse()?;
-        for value in &mut matrix[pivot_row][col..=vars] {
-            *value *= inv;
-        }
-        let pivot_values = matrix[pivot_row].clone();
-        for row in 0..rows {
-            if row == pivot_row {
-                continue;
-            }
-            let factor = matrix[row][col];
-            if factor == fp_zero() {
-                continue;
-            }
-            for idx in col..=vars {
-                matrix[row][idx] -= factor * pivot_values[idx];
-            }
-        }
-        pivot_for_col[col] = Some(pivot_row);
-        pivot_row += 1;
-        if pivot_row == rows {
-            break;
-        }
-    }
-
-    for row in matrix.iter().take(rows).skip(pivot_row) {
-        let lhs_zero = row[..vars].iter().all(|value| *value == fp_zero());
-        if lhs_zero && row[vars] != fp_zero() {
-            return None;
-        }
-    }
-
-    let mut solution = vec![fp_zero(); vars];
-    for (col, pivot) in pivot_for_col.into_iter().enumerate() {
-        if let Some(row) = pivot {
-            solution[col] = matrix[row][vars];
-        }
-    }
-    Some(solution)
-}
-
 fn poly_eval(coeffs: &[Fp], x: Fp) -> Fp {
     let mut acc = fp_zero();
     for coeff in coeffs.iter().rev() {
         acc = acc * x + *coeff;
-    }
-    acc
-}
-
-fn fp_pow_usize(mut base: Fp, mut exp: usize) -> Fp {
-    let mut acc = fp_one();
-    while exp > 0 {
-        if exp & 1 == 1 {
-            acc *= base;
-        }
-        base *= base;
-        exp >>= 1;
     }
     acc
 }
@@ -479,6 +454,50 @@ pub fn rs_decode_with_errors(points: &[(Fp, Fp)]) -> Result<(Vec<Fp>, Vec<usize>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sample_points(coefficients: &[Fp], n: usize) -> Vec<(Fp, Fp)> {
+        (1..=n as u64)
+            .map(|x| {
+                let x = Fp::from(x * 7 + 3);
+                (x, poly_eval(coefficients, x))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn decoder_corrects_up_to_the_budget_and_names_the_bad_points() {
+        let degree_bound = 5;
+        let coefficients = (0..degree_bound as u64)
+            .map(|c| Fp::from(c * 11 + 2))
+            .collect::<Vec<_>>();
+        for errors in 0..4 {
+            let n = degree_bound + 2 * errors;
+            let mut points = sample_points(&coefficients, n);
+            let bad = (0..errors).map(|e| 2 * e + 1).collect::<Vec<_>>();
+            for &idx in &bad {
+                points[idx].1 += Fp::from(5u64);
+            }
+            let decoded =
+                rs_decode_eval_with_errors(&points, degree_bound, Fp::from(99u64), errors)
+                    .expect("decodes within the budget");
+            assert_eq!(decoded.coefficients, coefficients);
+            assert_eq!(decoded.bad_indices, bad);
+            assert_eq!(decoded.value, poly_eval(&coefficients, Fp::from(99u64)));
+        }
+    }
+
+    #[test]
+    fn decoder_fails_one_error_past_the_budget() {
+        let degree_bound = 4;
+        let coefficients = vec![Fp::from(1u64), Fp::from(2u64), Fp::from(3u64), Fp::from(4u64)];
+        let errors = 2;
+        let mut points = sample_points(&coefficients, degree_bound + 2 * errors);
+        for idx in [0, 2, 4] {
+            points[idx].1 += Fp::from(1u64);
+        }
+        let result = rs_decode_eval_with_errors(&points, degree_bound, fp_zero(), errors);
+        assert!(result.is_err() || result.unwrap().coefficients != coefficients);
+    }
 
     #[test]
     fn barycentric_eval_pair_many_matches_scalar_eval() {

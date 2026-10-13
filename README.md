@@ -204,6 +204,18 @@ invariant, build, benchmark, or validation.
 - [Experiments](documentation/experiments.md)
 - [Results and Provenance](documentation/results.md)
 - [Troubleshooting](documentation/troubleshooting.md)
+- [The YPIR Backend](documentation/ypir-backend.md): the database, the
+  messages, the preprocessing, and its patch after an append, which the
+  paper's Section 6 points to
+- [Undoing a Stitch with Helpers at Threshold 2κ](documentation/undo-with-helpers.md):
+  the procedure the paper's Section 4.3 points to
+- [Reads and Repair on the Product Grid](documentation/reads-and-repair.md):
+  the mechanics the paper's Section 3.3 points to
+- [Supplementary Tables](documentation/supplementary-tables.md): the
+  range openings, the threshold sweep, the materialized records, the
+  on-the-fly answers, the client's work, and the TreePIR feature
+  comparison, rendered from the reported run
 
 The root README is the authoritative entry point. The documents above contain
-only implementation and reproduction details needed to inspect this artifact.
+the implementation and reproduction details needed to inspect this artifact
+and the material the paper points to.
