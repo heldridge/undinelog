@@ -114,6 +114,30 @@ impl PrivateOpening {
         })
     }
 
+    /// The opening of leaf `index` of `layout`, read with the plan `plan`
+    /// ([`PrivateLayout::opening_plan`]) under the secret key `client`: the
+    /// parts of [`Self::with_grouping`], for a client that times them.
+    pub fn from_parts(
+        layout: PrivateLayout,
+        tree_height: usize,
+        index: u64,
+        plan: Vec<PlannedEntry>,
+        client: PirClient,
+    ) -> Self {
+        Self {
+            index,
+            tree_height,
+            layout,
+            plan,
+            client,
+        }
+    }
+
+    /// The secret key of this opening.
+    pub fn client(&self) -> &PirClient {
+        &self.client
+    }
+
     /// The layout this opening reads.
     pub fn layout(&self) -> &PrivateLayout {
         &self.layout
@@ -176,21 +200,6 @@ impl PrivateOpening {
         }
         AuthReadResponse { nodes: replies }
     }
-}
-
-/// Run `work` and return its result at `release`, not before. The protocol
-/// of a private opening fixes the time of the client's next action in
-/// advance, so that it does not depend on the replies; a client that acts
-/// on an opening as soon as it is decoded would let a maintainer time a
-/// lie, since correcting replies takes longer than checking them. The
-/// release must lie past the slowest decoding: a result that is ready
-/// only after it is returned then.
-pub fn release_at<T>(release: std::time::Instant, work: impl FnOnce() -> T) -> T {
-    let result = work();
-    if let Some(remaining) = release.checked_duration_since(std::time::Instant::now()) {
-        std::thread::sleep(remaining);
-    }
-    result
 }
 
 /// What [`PrivateState::apply_update`] needs: the layout of the new log

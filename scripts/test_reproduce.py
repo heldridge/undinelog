@@ -21,6 +21,7 @@ SPEC.loader.exec_module(MODULE)
 UNDINE_ONLY_BENCHMARKS = {
     "bench_append_only_log_on_the_fly_open_local",
     MODULE.PRIVATE_BENCHMARK,
+    MODULE.TREEPIR_BENCHMARK,
 }
 
 
@@ -82,6 +83,12 @@ class ManifestTests(unittest.TestCase):
                 # size and no threshold.
                 self.assertFalse(any(name.endswith("_KAPPA") for name in env), job.id)
                 continue
+            if job.benchmark == MODULE.TREEPIR_BENCHMARK:
+                # The threshold is the height of the tree, kappa = h.
+                height = int(env[f"{MODULE.TREEPIR_PREFIX}_HEIGHT"])
+                self.assertIn(f"-h{height}-", job.id)
+                self.assertFalse(any(name.endswith("_KAPPA") for name in env), job.id)
+                continue
             kappa = int(job.id.rsplit("-k", 1)[1])
             if job.layout == "undine":
                 thresholds = [value for name, value in env.items() if name.endswith("_KAPPA")]
@@ -105,6 +112,41 @@ class ManifestTests(unittest.TestCase):
         ]
         self.assertEqual(len(jobs), len(MODULE.KAPPAS))
         self.assertTrue(all(job.layout == "undine" for job in jobs))
+
+    def test_treepir_comparison_runs_at_the_matched_point(self) -> None:
+        jobs = [
+            job
+            for job in self.manifest.jobs.values()
+            if job.benchmark == MODULE.TREEPIR_BENCHMARK
+        ]
+        heights = {
+            (job.env_dict()[f"{MODULE.TREEPIR_PREFIX}_ROLE"],
+             int(job.env_dict()[f"{MODULE.TREEPIR_PREFIX}_HEIGHT"]))
+            for job in jobs
+        }
+        self.assertEqual(
+            heights,
+            {
+                ("server", MODULE.TREEPIR_HEIGHT),
+                ("client", MODULE.TREEPIR_HEIGHT),
+                ("client", MODULE.TREEPIR_VALIDATION_HEIGHT),
+            },
+        )
+        rebuilds = {
+            measurement.sample_mode
+            for job in jobs
+            if job.env_dict()[f"{MODULE.TREEPIR_PREFIX}_ROLE"] == "server"
+            for measurement in self.manifest.measurements_for_job(job.id)
+            if measurement.kind == "timing"
+        }
+        self.assertEqual(rebuilds, {"rebuild"})
+
+    def test_treepir_class_sizes_cover_the_tree(self) -> None:
+        for height in (1, 2, 3, 8, 16, 32):
+            sizes = [MODULE.treepir_class_size(height, color) for color in range(height)]
+            self.assertEqual(sum(sizes), (1 << (height + 1)) - 2)
+            self.assertLessEqual(max(sizes) - min(sizes), 1)
+            self.assertEqual(sizes, sorted(sizes))
 
     def test_private_openings_are_measured_for_undine_only(self) -> None:
         jobs = [
@@ -208,8 +250,8 @@ class ManifestTests(unittest.TestCase):
             MODULE.select_run_jobs(self.manifest, "jobs", [])
 
     def test_exact_full_job_count_is_stable(self) -> None:
-        self.assertEqual(len(self.manifest.jobs), 74)
-        self.assertEqual(len(self.manifest.cells), 797)
+        self.assertEqual(len(self.manifest.jobs), 78)
+        self.assertEqual(len(self.manifest.cells), 969)
 
     def test_every_table_cell_satisfies_its_unit_contract(self) -> None:
         for cell in self.manifest.cells.values():

@@ -9,9 +9,9 @@
 //!   database columns, and the preprocessing update after each of a sequence
 //!   of appends. With `DEFAULT_PREFIX=1` the leaves of the initial log are
 //!   allocated and unwritten, as after an allocation, so the columns are
-//!   built without hashing; the appended leaves are written. The PIR work
-//!   does not depend on the cell values, so the times are those of a
-//!   written log of the same length.
+//!   built without hashing; the appended leaves are written. The full PIR
+//!   representation is built and scanned, but data-dependent shortcuts
+//!   and memory access can affect timings relative to a populated log.
 //! - `single`: a server that stores the whole tree in records of
 //!   `CELLS_PER_RECORD` cells. Same request, answer, decoding, and hint
 //!   sample; it also reports the database shape at the log lengths of
@@ -32,24 +32,25 @@ use paper_a_optimized::auth::service::{
     AuthBatchWriteRequest, AuthBatchWriteResponse, AuthReadNodeReply, AuthReadResponse,
     AuthSubtreeReadResponse, AuthWriteRequest, AuthWriteResponse,
 };
+use paper_a_optimized::merkle::{default_hash, leaf_key, parent, recompute_root, sibling};
 use paper_a_optimized::net;
 use paper_a_optimized::net::wire::{
     AuthPrivateReadReply, AuthPrivateReadRequest, AuthPrivateReadResponse, NetByteBlob,
     decode_binary, encode_binary,
 };
 use paper_a_optimized::private::bulk::CHUNK_BITS;
-use paper_a_optimized::private::pir::{bytes_from_cells, bytes_to_cells, UPPER_CELLS};
+use paper_a_optimized::private::pir::{
+    HINT_COLUMN_BATCH, UPPER_CELLS, bytes_from_cells, bytes_to_cells,
+};
 use paper_a_optimized::private::wire::{
     WORD_BYTES, pack_words, request_to_net, response_from_net, unpack_words,
 };
 use paper_a_optimized::private::{
-    BulkLog, PackKeys, PirClient, PirDatabase, PirError, PirShape, PlannedEntry, PrivateLayout,
-    PrivateOpening, PrivateReadResponse, TableDatabase, build_primary_columns,
+    BulkLog, Grouping, PackKeys, PirClient, PirDatabase, PirError, PirShape, PlannedEntry,
+    PrivateLayout, PrivateOpening, PrivateReadResponse, TableDatabase, build_primary_columns,
     build_tree_cells, bulk_leaf_value, entries_to_cells, entry_from_cells, pattern_bits,
-    Grouping,
 };
 use paper_a_optimized::unauth::error_correcting_share_target;
-use paper_a_optimized::merkle::{default_hash, leaf_key, parent, recompute_root, sibling};
 use paper_a_optimized::{
     AuthParams, CodedArrayConfig, CodedArrayParams, Fp, ShardShare, Value256, build_coded_params,
     build_shard_registry_deterministic, decode_value, encode_value, fp_one, fp_zero,
@@ -71,7 +72,7 @@ const DEFAULT_LEAVES: usize = 1 << 15;
 const DEFAULT_TREE_HEIGHT: usize = 50;
 const DEFAULT_CELLS_PER_RECORD: usize = 64;
 const DEFAULT_APPEND_LEAVES: usize = 1 << 10;
-const DEFAULT_HINT_SAMPLE_COLUMNS: usize = 64;
+const DEFAULT_HINT_SAMPLE_COLUMNS: usize = 4 * HINT_COLUMN_BATCH;
 const DEFAULT_CLIENT_SETUP_MEMORY_MIB: usize = 12 * 1024;
 const FIELD_BYTES: u64 = 32;
 const ORDER: NodeLinearization = NodeLinearization::Preorder;
@@ -341,8 +342,15 @@ fn allowed_cpus() -> Option<String> {
 /// Peak resident memory of the process.
 fn peak_rss_bytes() -> Option<u64> {
     let status = fs::read_to_string("/proc/self/status").ok()?;
-    let line = status.lines().find_map(|line| line.strip_prefix("VmHWM:"))?;
-    let kib = line.trim().trim_end_matches("kB").trim().parse::<u64>().ok()?;
+    let line = status
+        .lines()
+        .find_map(|line| line.strip_prefix("VmHWM:"))?;
+    let kib = line
+        .trim()
+        .trim_end_matches("kB")
+        .trim()
+        .parse::<u64>()
+        .ok()?;
     Some(kib * 1024)
 }
 
@@ -394,8 +402,15 @@ impl CpuPlan {
     fn restore(&self) {
         if let (Some(timed), Some(setup)) = (&self.timed, &self.setup) {
             if timed != setup {
-                assert!(set_thread_cpus(timed), "restore the CPU set of the timed operations");
-                assert_eq!(allowed_cpus().as_ref(), Some(timed), "CPU set of the timed operations");
+                assert!(
+                    set_thread_cpus(timed),
+                    "restore the CPU set of the timed operations"
+                );
+                assert_eq!(
+                    allowed_cpus().as_ref(),
+                    Some(timed),
+                    "CPU set of the timed operations"
+                );
             }
         }
     }
@@ -405,7 +420,10 @@ impl CpuPlan {
 // Parameters and shapes.
 
 fn build_params(kappa: usize, claims: usize) -> CodedArrayParams {
-    assert!(kappa.is_power_of_two() && kappa >= 2, "kappa must be a power of two");
+    assert!(
+        kappa.is_power_of_two() && kappa >= 2,
+        "kappa must be a power of two"
+    );
     build_coded_params(&CodedArrayConfig {
         kappa,
         shard_count: claims,
@@ -575,15 +593,27 @@ fn stored_opening(database: &PirDatabase, layout: &PrivateLayout, leaf: u64) -> 
 /// over the log.
 fn trial_leaf(layout: &PrivateLayout, trial: usize) -> u64 {
     let patterns = layout.patterns() as u64;
-    let pattern = (trial as u64).wrapping_mul(2_654_435_761).wrapping_add(patterns / 3) % patterns;
+    let pattern = (trial as u64)
+        .wrapping_mul(2_654_435_761)
+        .wrapping_add(patterns / 3)
+        % patterns;
     (pattern << layout.group_bits()).min(layout.leaves() - 1)
 }
 
-/// `count` database columns that hold records, evenly spread.
+/// Adjacent batches spread over the record columns. Sampling isolated
+/// columns would miss the full hint builder's shared gather work.
 fn sample_columns(shape: &PirShape, count: usize) -> Vec<usize> {
     let record_columns = shape.row_cells();
     let count = count.min(record_columns);
-    (0..count).map(|i| i * record_columns / count).collect()
+    let batches = count.div_ceil(HINT_COLUMN_BATCH);
+    let spare = record_columns - count;
+    let mut columns = Vec::with_capacity(count);
+    for batch in 0..batches {
+        let width = HINT_COLUMN_BATCH.min(count - columns.len());
+        let start = columns.len() + (batch + 1) * spare / (batches + 1);
+        columns.extend(start..start + width);
+    }
+    columns
 }
 
 /// The answer trials shared by the server roles.
@@ -618,8 +648,7 @@ fn answer_trials(
         let pattern = layout.pattern_of(leaf);
         let plan = layout.opening_plan(leaf);
 
-        let ((client, request), request_ns) =
-            timed(|| client_request(layout, kappa, pattern));
+        let ((client, request), request_ns) = timed(|| client_request(layout, kappa, pattern));
         assert_eq!(request.len() as u64, fields.request_bytes, "request bytes");
         samples.client_request.push(request_ns);
 
@@ -635,7 +664,10 @@ fn answer_trials(
 
         let (entries, decode_ns) = timed(|| client_decode(&client, &plan, &reply));
         samples.client_decode.push(decode_ns);
-        assert!(entries == expected(leaf), "trial {trial}: the opening of leaf {leaf}");
+        assert!(
+            entries == expected(leaf),
+            "trial {trial}: the opening of leaf {leaf}"
+        );
     }
     samples
 }
@@ -661,7 +693,10 @@ fn hint_sample_trials(common: &Common, database: &PirDatabase) -> (MetricStats, 
         samples.push(ns);
         if trial == 0 {
             for (col, values) in cols.iter().zip(&hint) {
-                assert!(*values == database.stored_hint_column(*col), "hint of column {col}");
+                assert!(
+                    *values == database.stored_hint_column(*col),
+                    "hint of column {col}"
+                );
             }
         }
     }
@@ -721,7 +756,11 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     };
 
     // Setup: the primary columns of the seeded log and their preprocessing.
-    let default_leaves = if parse_usize_env("DEFAULT_PREFIX", 0) == 1 { common.leaves } else { 0 };
+    let default_leaves = if parse_usize_env("DEFAULT_PREFIX", 0) == 1 {
+        common.leaves
+    } else {
+        0
+    };
     let mut bulk = BulkLog::build_with_default_prefix(
         &params,
         &auth,
@@ -749,7 +788,10 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         let leaf = trial_leaf(&layout, 0);
         for (entry, value) in layout.opening_plan(leaf).iter().zip(expected(leaf)) {
             let index = layout.entry_index(entry.array_index);
-            assert!(value == bulk.entries()[index], "stored entry of the bulk log");
+            assert!(
+                value == bulk.entries()[index],
+                "stored entry of the bulk log"
+            );
         }
         answer_trials(
             common.trials,
@@ -799,7 +841,10 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
             padded[..end - start].copy_from_slice(&entries[start..end]);
             padded[end - start..].fill(fp_zero());
             entries_to_cells(&padded, &mut fresh);
-            assert!(database.record_cells(record) == fresh.as_slice(), "block {record} after the updates");
+            assert!(
+                database.record_cells(record) == fresh.as_slice(),
+                "block {record} after the updates"
+            );
         }
         // The records equal the fresh ones, so the upper nodes read from
         // them are the fresh upper nodes.
@@ -816,7 +861,10 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     }
     let cols = sample_columns(&database.shape(), common.hint_sample_columns);
     for (col, values) in cols.iter().zip(database.hint_of_columns(&cols)) {
-        assert!(values == database.stored_hint_column(*col), "updated hint of column {col}");
+        assert!(
+            values == database.stored_hint_column(*col),
+            "updated hint of column {col}"
+        );
     }
     for leaf in [0, common.leaves - 1, common.leaves, leaves - 1] {
         let plan = final_layout.opening_plan(leaf);
@@ -991,7 +1039,9 @@ fn run_table(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         let (query, pack_keys) = parse_request(&request);
         assert!(
             table.answer(&query, &pack_keys).expect("table answer")
-                == database.answer(&query, &pack_keys).expect("database answer"),
+                == database
+                    .answer(&query, &pack_keys)
+                    .expect("database answer"),
             "the table and the records give one answer"
         );
     }
@@ -1001,8 +1051,7 @@ fn run_table(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     for trial in 0..common.trials {
         let leaf = trial_leaf(&layout, trial);
         let plan = layout.opening_plan(leaf);
-        let (client, request) =
-            client_request(&layout, common.kappa, layout.pattern_of(leaf));
+        let (client, request) = client_request(&layout, common.kappa, layout.pattern_of(leaf));
         let (query, _) = parse_request(&request);
         first_pass.push(timed(|| table.first_pass(&query).expect("first pass")).1);
         let (reply, answer_ns) = timed(|| {
@@ -1041,7 +1090,9 @@ impl AuthTransport for NoopTransport {
     }
 
     fn auth_get_len(&self, _server: &Self::Server) -> Result<u64, AuthClientError> {
-        Err(AuthClientError::Net("collected replies carry no length".to_string()))
+        Err(AuthClientError::Net(
+            "collected replies carry no length".to_string(),
+        ))
     }
 
     fn auth_read(
@@ -1050,7 +1101,9 @@ impl AuthTransport for NoopTransport {
         _index: u64,
         _kappa: usize,
     ) -> Result<AuthReadResponse, AuthClientError> {
-        Err(AuthClientError::Net("replies are collected in the setup".to_string()))
+        Err(AuthClientError::Net(
+            "replies are collected in the setup".to_string(),
+        ))
     }
 
     fn auth_read_subtree(
@@ -1059,7 +1112,9 @@ impl AuthTransport for NoopTransport {
         _start_index: u64,
         _leaf_count: usize,
     ) -> Result<AuthSubtreeReadResponse, AuthClientError> {
-        Err(AuthClientError::Net("replies are collected in the setup".to_string()))
+        Err(AuthClientError::Net(
+            "replies are collected in the setup".to_string(),
+        ))
     }
 
     fn unauth_multi_read(
@@ -1067,7 +1122,9 @@ impl AuthTransport for NoopTransport {
         _server: &Self::Server,
         _indices: &[u64],
     ) -> Result<Vec<Vec<ShardShare>>, AuthClientError> {
-        Err(AuthClientError::Net("replies are collected in the setup".to_string()))
+        Err(AuthClientError::Net(
+            "replies are collected in the setup".to_string(),
+        ))
     }
 
     fn auth_write(
@@ -1147,8 +1204,9 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     let index = common.leaves / 2 + 1;
 
     // One opening whose replies the setup collects.
-    let opening = PrivateOpening::with_grouping(&params, &auth, ORDER, common.leaves, grouping, index)
-        .expect("opening");
+    let opening =
+        PrivateOpening::with_grouping(&params, &auth, ORDER, common.leaves, grouping, index)
+            .expect("opening");
     let layout = opening.layout().clone();
     let plan = layout.opening_plan(index);
     let fields = shape_fields(&layout, kappa, claims - 1);
@@ -1205,7 +1263,10 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
                             .into_iter()
                             .map(u64::from)
                             .collect::<Vec<_>>();
-                        bytes_to_cells(bytes_from_cells(&block, entry_index % per_record), &mut cells);
+                        bytes_to_cells(
+                            bytes_from_cells(&block, entry_index % per_record),
+                            &mut cells,
+                        );
                     }
                     None => {}
                 }
@@ -1216,7 +1277,11 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
             resp: AuthPrivateReadResponse {
                 replies: vec![AuthPrivateReadReply {
                     registry_index: claim as u32,
-                    ciphertexts: opening.encrypt_slots(&slots).into_iter().map(NetByteBlob).collect(),
+                    ciphertexts: opening
+                        .encrypt_slots(&slots)
+                        .into_iter()
+                        .map(NetByteBlob)
+                        .collect(),
                 }],
             },
         })
@@ -1279,7 +1344,11 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     let root = honest[0].2;
     // The opened leaf is unwritten.
     let expected_value = encode_value(fp_zero());
-    assert_eq!(honest[claims - 1].0.len() as u64, fields.reply_bytes, "reply bytes");
+    assert_eq!(
+        honest[claims - 1].0.len() as u64,
+        fields.reply_bytes,
+        "reply bytes"
+    );
 
     // The honest replies of every claim, and the replies of the registry
     // in which the first `kappa` claims lie.
@@ -1288,8 +1357,10 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         .iter()
         .map(|(reply, _, _)| reply.as_slice())
         .collect::<Vec<_>>();
-    let private_honest_replies =
-        honest.iter().map(|(reply, _, _)| reply.as_slice()).collect::<Vec<_>>();
+    let private_honest_replies = honest
+        .iter()
+        .map(|(reply, _, _)| reply.as_slice())
+        .collect::<Vec<_>>();
     let private_kappa_bad = registry_lying
         .iter()
         .map(|(reply, _, _)| reply.as_slice())
@@ -1298,8 +1369,10 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         .iter()
         .map(|(_, public, _)| public.clone())
         .collect::<Vec<_>>();
-    let public_honest_replies =
-        honest.iter().map(|(_, public, _)| public.clone()).collect::<Vec<_>>();
+    let public_honest_replies = honest
+        .iter()
+        .map(|(_, public, _)| public.clone())
+        .collect::<Vec<_>>();
     let public_kappa_bad = registry_lying
         .iter()
         .map(|(_, public, _)| public.clone())
@@ -1313,7 +1386,10 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     };
     // A decoded private reply is the public reply of its claim.
     for (decoded, public) in decode_all(&private_kappa_bad).iter().zip(&public_kappa_bad) {
-        assert!(same_replies(decoded, public), "a decoded reply is the public reply");
+        assert!(
+            same_replies(decoded, public),
+            "a decoded reply is the public reply"
+        );
     }
 
     let processing_client = || {
@@ -1418,7 +1494,8 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
 }
 
 fn run_benchmark() {
-    let role = std::env::var(format!("{ENV_PREFIX}_ROLE")).unwrap_or_else(|_| "maintainer".to_string());
+    let role =
+        std::env::var(format!("{ENV_PREFIX}_ROLE")).unwrap_or_else(|_| "maintainer".to_string());
     let common = Common {
         trials: parse_usize_env("TRIALS", DEFAULT_TRIALS),
         kappa: parse_usize_env("KAPPA", DEFAULT_KAPPA),
@@ -1434,7 +1511,9 @@ fn run_benchmark() {
         "single" => run_single(&common, &cpus),
         "table" => run_table(&common, &cpus),
         "client" => run_client(&common, &cpus),
-        other => panic!("{ENV_PREFIX}_ROLE must be maintainer, single, table, or client; got {other}"),
+        other => {
+            panic!("{ENV_PREFIX}_ROLE must be maintainer, single, table, or client; got {other}")
+        }
     };
     let elapsed = start.elapsed().as_secs_f64();
 
@@ -1468,7 +1547,7 @@ fn run_benchmark() {
             peak_rss_bytes: peak_rss_bytes(),
             timestamp_unix_ms: timestamp_ms,
             git: git_sha(),
-            notes: "private openings of one position: one server's first pass and answer to a serialized request, the client's request and decoding, the hint of a sample of database columns, the response-packing tables, and the preprocessing update after appends; or one client's Combine and Verify from private and from public replies".to_string(),
+            notes: "private openings of one position: one server's first pass and answer to a serialized request, the client's request and decoding, the hint of adjacent-column batches sampled across the database, the response-packing tables, and the preprocessing update after appends; or one client's Combine and Verify from private and from public replies".to_string(),
         },
         entries,
     };

@@ -57,6 +57,11 @@ harness = false
 required-features = ["bench", "private"]
 
 [[bench]]
+name = "bench_treepir_comparison_local"
+harness = false
+required-features = ["bench", "private"]
+
+[[bench]]
 name = "bench_append_only_log_client_point_open_local"
 harness = false
 required-features = ["bench"]

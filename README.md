@@ -129,11 +129,12 @@ interval with a Bonferroni allocation of the 5% error budget across all five
 looks. Sampling stops when the familywise 95% interval has relative half-width
 at most 5%; otherwise it continues to the next look.
 
-Direct benchmarks discard three warmup repetitions per process. Append
+Direct benchmarks discard three warmup repetitions per process, and the
+benchmarks whose repetition rebuilds a server discard one. Append
 benchmarks discard one complete warmup sequence, and one independent append
 sample is a complete 64-batch sequence. Deterministic quantities must agree
 across observations. A full run is publication-ready only when every consumed
-measurement exists and all 390 timing series satisfy the stopping rule.
+measurement exists and all 460 timing series satisfy the stopping rule.
 
 Jobs of the two layouts use the same benchmark, the same workload variables,
 the same CPU, and the same protocol. They alternate in the schedule.
@@ -188,7 +189,7 @@ A reproduction succeeds when:
 1. `./artifact test`, `./artifact smoke`, and `./artifact resume-canary` exit
    with status 0.
 2. `./artifact full` exits with status 0.
-3. `./artifact validate RUN_ID` reports 74 jobs, 797 result cells, 390 timing
+3. `./artifact validate RUN_ID` reports 78 jobs, 969 result cells, 460 timing
    series, and `publishable: true`.
 4. The completed run's `summary.json` lists no missing or unstable
    measurements.

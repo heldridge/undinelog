@@ -91,7 +91,10 @@ fn assert_updates_equal_fresh(
         let appended = (from..to)
             .map(|idx| encode_value(Fp::from(9000 + 7 * idx as u64)))
             .collect::<Vec<_>>();
-        assert_eq!(client.append_leaves(&appended).expect("append"), from as u64);
+        assert_eq!(
+            client.append_leaves(&appended).expect("append"),
+            from as u64
+        );
 
         {
             let guard = server.inner.lock().expect("server lock");
@@ -123,6 +126,17 @@ fn updates_that_add_a_slot_equal_fresh_preprocessing() {
     };
     assert!(shape_at(33).slots > shape_at(32).slots);
     assert_updates_equal_fresh(2, 8, 1, &[30, 32, 33, 64, 65]);
+}
+
+#[test]
+fn updates_move_an_overlapping_suffix_when_adding_an_upper_slot() {
+    // 129 group slots at kappa=2 give a 74-column residual suffix.
+    // A new upper slot inserts 18 full columns before it, so the old
+    // and new suffix ranges overlap. The partially filled last symbol
+    // must also retain its previous bits when the new tail is added.
+    EXTRA_PATTERN_BITS.with(|bits| bits.set(7));
+    assert_updates_equal_fresh(2, 10, 1, &[256, 257]);
+    EXTRA_PATTERN_BITS.with(|bits| bits.set(0));
 }
 
 #[test]

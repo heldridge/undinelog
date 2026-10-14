@@ -150,12 +150,23 @@ pub fn ntt_forward(params: &Params, operand_overall: &mut [u64]) {
             }
         }
 
-        for i in 0..n {
-            operand[i] -= ((operand[i] >= two_times_modulus_small as u64) as u64)
-                * two_times_modulus_small as u64;
-            operand[i] -= ((operand[i] >= modulus_small as u64) as u64) * modulus_small as u64;
+        // The butterflies leave values below 4*q. With these 32-bit
+        // moduli, subtracting 2*q or q fits the signed range. Use the
+        // sign mask to add back a subtracted modulus on underflow;
+        // conditional subtraction compiled to unpredictable branches.
+        for value in operand.iter_mut() {
+            *value = normalize_small_ntt(*value, modulus_small as u64);
         }
     }
+}
+
+#[inline]
+fn normalize_small_ntt(value: u64, modulus: u64) -> u64 {
+    let twice = 2 * modulus;
+    let value = value.wrapping_sub(twice);
+    let value = value.wrapping_add(((value as i64 >> 63) as u64) & twice);
+    let value = value.wrapping_sub(modulus);
+    value.wrapping_add(((value as i64 >> 63) as u64) & modulus)
 }
 
 pub fn ntt_forward_alt(params: &Params, operand_overall: &mut [u64]) {
@@ -744,6 +755,84 @@ mod test {
     }
 
     const REF_VAL: u64 = 519370102;
+
+    #[test]
+    fn small_ntt_normalization_matches_modulo_at_boundaries() {
+        for modulus in [268369921u64, 249561089u64] {
+            for value in [
+                0,
+                1,
+                modulus - 1,
+                modulus,
+                modulus + 1,
+                2 * modulus - 1,
+                2 * modulus,
+                2 * modulus + 1,
+                3 * modulus,
+                4 * modulus - 1,
+            ] {
+                assert_eq!(normalize_small_ntt(value, modulus), value % modulus);
+            }
+            let mut state = 42u64;
+            for _ in 0..10000 {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                let value = state % (4 * modulus);
+                assert_eq!(normalize_small_ntt(value, modulus), value % modulus);
+            }
+        }
+    }
+
+    #[test]
+    fn small_ntt_forward_matches_modular_reference() {
+        let params = get_params();
+        let mut state = 42u64;
+        for trial in 0..32 {
+            let mut actual = vec![0u64; params.crt_count * params.poly_len];
+            for (part, &modulus) in actual.chunks_exact_mut(params.poly_len).zip(&params.moduli) {
+                for value in part {
+                    state ^= state << 13;
+                    state ^= state >> 7;
+                    state ^= state << 17;
+                    *value = match trial {
+                        0 => 0,
+                        1 => 1,
+                        2 => modulus - 1,
+                        _ => state % modulus,
+                    };
+                }
+            }
+            let original = actual.clone();
+            let mut expected = actual.clone();
+            ntt_forward(&params, &mut actual);
+            // Independent butterfly arithmetic, using exact modular
+            // products instead of the NTT's scaled-root reduction.
+            for (part, &modulus) in expected
+                .chunks_exact_mut(params.poly_len)
+                .zip(&params.moduli)
+            {
+                let index = params.moduli.iter().position(|&q| q == modulus).unwrap();
+                let roots = params.get_ntt_forward_table(index);
+                for stage in 0..params.poly_len_log2 {
+                    let groups = 1 << stage;
+                    let half = params.poly_len >> (stage + 1);
+                    for (i, block) in part.chunks_exact_mut(2 * half).enumerate() {
+                        for j in 0..half {
+                            let x = block[j];
+                            let y = ((block[half + j] as u128 * roots[groups + i] as u128)
+                                % modulus as u128) as u64;
+                            block[j] = (x + y) % modulus;
+                            block[half + j] = (x + modulus - y) % modulus;
+                        }
+                    }
+                }
+            }
+            assert_eq!(actual, expected, "trial {trial}");
+            ntt_inverse(&params, &mut actual);
+            assert_eq!(actual, original, "round trip trial {trial}");
+        }
+    }
 
     #[test]
     fn build_ntt_tables_correct() {

@@ -18,17 +18,19 @@ pub mod layout;
 pub mod opening;
 pub mod pir;
 pub mod records;
+pub mod treepir;
 pub mod wire;
 
 pub use bulk::{
-    BulkColumns, BulkLog, build_primary_columns, build_primary_columns_in_chunks,
-    build_tree_cells, bulk_leaf_value,
+    BulkColumns, BulkLog, SuffixTree, build_primary_columns,
+    build_primary_columns_in_chunks, build_tree_cells, bulk_leaf_value, suffix_segment_entries,
+    tree_segment_entries,
 };
 pub use layout::{Grouping, LayoutError, PlannedEntry, PrivateLayout, pattern_bits};
 pub use keeper::PrivateKeeper;
 pub use opening::{
     PlannedUpdate, PrivateOpening, PrivateReadReply, PrivateReadRequest, PrivateReadResponse,
-    PrivateState, release_at,
+    PrivateState,
 };
 pub use pir::{
     PackKeys, PirClient, PirDatabase, PirError, PirShape, PreprocessTimes, TableDatabase,

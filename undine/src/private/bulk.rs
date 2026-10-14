@@ -51,6 +51,154 @@ pub fn bulk_leaf_value(seed: u64, index: u64) -> Value256 {
     encode_value(value)
 }
 
+/// The full tree of `2^height` leaves whose first `default_leaves` leaves are
+/// allocated and unwritten and whose other leaves hold the seeded values
+/// [`bulk_leaf_value`]: the tree [`BulkLog::build_with_default_prefix`]
+/// encodes for a log of `2^height` leaves. It stores only the labels of the
+/// nodes with a seeded leaf below; every other label is the default of its
+/// level. Any cell of the tree can then be read without encoding the tree.
+pub struct SuffixTree<'a> {
+    auth: &'a AuthParams,
+    default_leaves: u64,
+    seed: u64,
+    /// Per level, the labels from the first node with a seeded leaf below.
+    levels: Vec<Vec<Value256>>,
+}
+
+impl<'a> SuffixTree<'a> {
+    pub fn new(auth: &'a AuthParams, default_leaves: u64, seed: u64) -> Self {
+        let height = auth.tree_height as u32;
+        assert!(height < 63, "tree too tall");
+        assert!(default_leaves < 1u64 << height, "no seeded leaf");
+        assert!(
+            (1u64 << height) - default_leaves <= 1 << 28,
+            "too many seeded leaves to hold their labels"
+        );
+        let mut tree = Self {
+            auth,
+            default_leaves,
+            seed,
+            levels: vec![Vec::new(); height as usize + 1],
+        };
+        tree.levels[height as usize] = (default_leaves..1u64 << height)
+            .map(|pos| leaf_hash(pos, bulk_leaf_value(seed, pos)))
+            .collect();
+        for level in (0..height).rev() {
+            let labels = (tree.first(level)..1u64 << level)
+                .map(|pos| node_hash(tree.label(level + 1, 2 * pos), tree.label(level + 1, 2 * pos + 1)))
+                .collect();
+            tree.levels[level as usize] = labels;
+        }
+        tree
+    }
+
+    pub fn height(&self) -> u32 {
+        self.auth.tree_height as u32
+    }
+
+    pub fn default_leaves(&self) -> u64 {
+        self.default_leaves
+    }
+
+    /// The first position of `level` with a seeded leaf below.
+    fn first(&self, level: u32) -> u64 {
+        self.default_leaves >> (self.height() - level)
+    }
+
+    /// The label of the node at `(level, pos)`.
+    pub fn label(&self, level: u32, pos: u64) -> Value256 {
+        let first = self.first(level);
+        if pos < first {
+            default_hash(&self.auth.defaults, level as usize)
+        } else {
+            self.levels[level as usize][(pos - first) as usize]
+        }
+    }
+
+    /// The label of the node with heap number `node`.
+    pub fn label_of_heap(&self, node: u64) -> Value256 {
+        let level = node.ilog2();
+        self.label(level, node - (1u64 << level))
+    }
+
+    /// The value of leaf `pos`: zero for an unwritten leaf.
+    pub fn leaf_value(&self, pos: u64) -> Value256 {
+        if pos < self.default_leaves {
+            encode_value(fp_zero())
+        } else {
+            bulk_leaf_value(self.seed, pos)
+        }
+    }
+
+    /// The cell of the node at `(level, pos)`: a leaf holds its value and an
+    /// inner node its label.
+    pub fn cell(&self, level: u32, pos: u64) -> Fp {
+        if level == self.height() {
+            decode_value(self.leaf_value(pos))
+        } else {
+            decode_value(self.label(level, pos))
+        }
+    }
+
+    pub fn root(&self) -> Value256 {
+        self.label(0, 0)
+    }
+}
+
+/// The primary-column entries of each of `segments` of the full tree of
+/// `2^height` leaves whose node at `(level, pos)` holds the cell
+/// `cell(level, pos)`, for each claim of `registry_indices`:
+/// `result[segment][claim]` holds the claim's `kappa` entries of that
+/// segment, as [`BulkLog`] builds them in preorder. Only the listed segments
+/// are encoded, so a few records of a large log are read without its
+/// columns.
+pub fn tree_segment_entries(
+    params: &CodedArrayParams,
+    auth: &AuthParams,
+    cell: &dyn Fn(u32, u64) -> Fp,
+    registry_indices: &[usize],
+    segments: &[usize],
+) -> Vec<Vec<Vec<Fp>>> {
+    let height = auth.tree_height as u32;
+    let order = NodeLinearization::Preorder;
+    let cursor = mapping::cursor(order, height as u16, 1u64 << height);
+    let n_grid = params.n_grid as u64;
+    let mut encoder = ColumnEncoder::new(params, registry_indices);
+    segments
+        .iter()
+        .map(|&segment| {
+            let mut entries = vec![vec![fp_zero(); params.need]; registry_indices.len()];
+            for offset in 0..n_grid {
+                let index = segment as u64 * n_grid + offset;
+                let value = if index < cursor {
+                    let (level, pos) = mapping::node_from_preorder_idx(height as u16, index);
+                    cell(u32::from(level), pos)
+                } else {
+                    decode_value(default_value_at_index(auth, order, index))
+                };
+                encoder.add_cell(&mut entries, segment, index, value);
+            }
+            entries
+        })
+        .collect()
+}
+
+/// [`tree_segment_entries`] of the tree `tree`.
+pub fn suffix_segment_entries(
+    params: &CodedArrayParams,
+    tree: &SuffixTree<'_>,
+    registry_indices: &[usize],
+    segments: &[usize],
+) -> Vec<Vec<Vec<Fp>>> {
+    tree_segment_entries(
+        params,
+        tree.auth,
+        &|level, pos| tree.cell(level, pos),
+        registry_indices,
+        segments,
+    )
+}
+
 /// The primary columns of one claim for a whole log.
 pub struct BulkColumns {
     /// `segments * kappa` entries: the primary column of each segment.

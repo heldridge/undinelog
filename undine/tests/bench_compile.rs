@@ -16,6 +16,10 @@ mod bench_append_only_log_on_the_fly_open_local;
 #[path = "../benches/bench_private_opening_local.rs"]
 mod bench_private_opening_local;
 
+#[cfg(feature = "private")]
+#[path = "../benches/bench_treepir_comparison_local.rs"]
+mod bench_treepir_comparison_local;
+
 #[test]
 /// Smoke test: the benches compile under `--features bench`.
 fn bench_entrypoints_compile() {

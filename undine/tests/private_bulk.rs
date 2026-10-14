@@ -7,8 +7,8 @@ mod cluster;
 use cluster::{build_params, build_servers, reader};
 use paper_a_optimized::core::NodeLinearization;
 use paper_a_optimized::private::{
-    PirDatabase, PrivateLayout, build_primary_columns, build_primary_columns_in_chunks,
-    bulk_leaf_value, record_entries,
+    PirDatabase, PrivateLayout, SuffixTree, build_primary_columns,
+    build_primary_columns_in_chunks, bulk_leaf_value, record_entries, suffix_segment_entries,
 };
 use paper_a_optimized::private::bulk::{BulkLog, CHUNK_BITS};
 use paper_a_optimized::{AuthParams, Fp};
@@ -293,6 +293,43 @@ fn a_log_built_for_several_claims_equals_each_claim_s_own_build() {
             assert_eq!(columns[position].segments, alone.segments());
             assert_eq!(columns[position].root, alone.root());
             assert!(columns[position].entries == alone.entries(), "into_claim_columns");
+        }
+    }
+}
+
+#[test]
+fn the_entries_of_a_suffix_tree_equal_the_bulk_columns() {
+    let order = NodeLinearization::Preorder;
+    for &(kappa, height) in &[(2usize, 7usize), (4, 9), (8, 10)] {
+        let params = build_params(kappa, 3 * kappa, 127);
+        let auth = AuthParams::new(height);
+        let leaves = 1u64 << height;
+        let claims = [0usize, kappa, 3 * kappa - 1];
+        for default_leaves in [0, 1, leaves / 3, leaves - 5, leaves - 1] {
+            let bulk = BulkLog::build_for_claims(
+                &params, &auth, order, leaves, default_leaves, SEED, &claims, 2, 3,
+            );
+            let tree = SuffixTree::new(&auth, default_leaves, SEED);
+            let context = format!("kappa {kappa}, height {height}, {default_leaves} unwritten");
+            assert_eq!(tree.root(), bulk.root(), "{context}: root");
+            let segments = (0..bulk.segments()).collect::<Vec<_>>();
+            let entries = suffix_segment_entries(&params, &tree, &claims, &segments);
+            for (segment, by_claim) in entries.iter().enumerate() {
+                for (position, values) in by_claim.iter().enumerate() {
+                    assert!(
+                        values.as_slice()
+                            == &bulk.claim_entries(position)[segment * kappa..(segment + 1) * kappa],
+                        "{context}: segment {segment}, claim {}",
+                        claims[position]
+                    );
+                }
+            }
+            // A sparse request reads the same entries.
+            let some = [bulk.segments() - 1, 0, bulk.segments() / 2];
+            let sparse = suffix_segment_entries(&params, &tree, &claims, &some);
+            for (values, &segment) in sparse.iter().zip(&some) {
+                assert!(*values == entries[segment], "{context}: sparse segment {segment}");
+            }
         }
     }
 }

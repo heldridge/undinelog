@@ -12,7 +12,12 @@ use paper_a_optimized::private::{
     entry_from_cells,
 };
 
-fn assert_private_answers(kappa: usize, tree_height: usize, leaves: usize, segments_per_record: usize) {
+fn assert_private_answers(
+    kappa: usize,
+    tree_height: usize,
+    leaves: usize,
+    segments_per_record: usize,
+) {
     assert_private_answers_for_patterns(kappa, tree_height, leaves, segments_per_record, 0);
 }
 
@@ -52,6 +57,30 @@ fn assert_private_answers_for_patterns(
         database.hint_values() == table.hint_values(),
         "hint differs from the table's"
     );
+    // Both count the same all-zero blocks, out of the same blocks, and the
+    // sizes split into the hint and the packing tables.
+    let (zero, blocks) = database.zero_hint_blocks();
+    assert_eq!((zero, blocks), table.zero_hint_blocks(), "zero blocks");
+    assert!(zero < blocks, "a written database has a nonzero block");
+    assert_eq!(database.hint_bytes(), table.hint_bytes(), "hint bytes");
+    assert_eq!(
+        database.preprocessed_bytes(),
+        database.hint_bytes() + database.packing_bytes()
+    );
+
+    // Samples use the same gather batches, including partial batches,
+    // padding, and requests with repeated or out-of-order columns.
+    assert!(database.hint_of_columns(&[]).is_empty());
+    let columns = (0..290)
+        .chain([shape.db_cols() - 1, 2, 1, 2])
+        .collect::<Vec<_>>();
+    for (&col, hint) in columns.iter().zip(database.hint_of_columns(&columns)) {
+        assert_eq!(
+            hint,
+            database.stored_hint_column(col),
+            "sampled hint column {col}"
+        );
+    }
 
     // The first pass is a linear map for any packed coefficients, including
     // noncanonical 32-bit residues and nonzero coefficients on padded rows.
@@ -161,8 +190,8 @@ fn private_answer_equals_the_table_for_patterns_of_several_groups() {
 #[test]
 fn malformed_requests_and_responses_are_rejected() {
     let (params, auth, servers, _values, _root) = written_cluster(2, 6, 6, 20, 92);
-    let layout = PrivateLayout::new(&params, &auth, NodeLinearization::Preorder, 20, 1)
-        .expect("layout");
+    let layout =
+        PrivateLayout::new(&params, &auth, NodeLinearization::Preorder, 20, 1).expect("layout");
     let shape = PirShape::of(&layout);
     let guard = servers[0].inner.lock().expect("server lock");
     let database = PirDatabase::build(&guard.store.unauth, &layout, 0);
@@ -176,7 +205,10 @@ fn malformed_requests_and_responses_are_rejected() {
     );
     let mut short_keys = pack_keys.clone();
     short_keys.words.pop();
-    assert_eq!(database.answer(&query, &short_keys), Err(PirError::PackKeys));
+    assert_eq!(
+        database.answer(&query, &short_keys),
+        Err(PirError::PackKeys)
+    );
 
     let mut response = database.answer(&query, &pack_keys).expect("answer");
     assert!(client.decode(&response).is_ok());

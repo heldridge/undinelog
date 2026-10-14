@@ -331,27 +331,18 @@
         "Cargo.toml retains only the append-only-log application and the measured benchmark targets.",
         "Cargo.lock prunes only packages made unreachable by the excluded targets.",
         "tests/bench_compile.rs references only retained benchmark sources.",
-        "third_party/ holds the PIR backend sources of the same commit: YPIR and spiral-rs with the patches recorded in third_party/patches/.",
-        "src/coded_array/rs.rs decodes with Gao's O(n^2) formulation of Berlekamp-Welch in place of the O(n^3) linear solve of the key equation; the decoded polynomial and the bad replies are the same.",
-        "benches/bench_private_opening_local.rs counts materialized-record storage as complete group columns plus one field element per upper-sibling cell, correcting the logical table byte counter without changing the measured workload."
+        "third_party/ holds the PIR backend sources of the same commit: YPIR and spiral-rs with the patches recorded in third_party/patches/, and the TreePIR reference algorithms."
       ],
-      "changed_files": {
-        "benches/bench_private_opening_local.rs": {
-          "original_sha256": "2dca06c431dee4c12cce42e6f3954f83da633f7c103c7efff7a36860011e8499"
-        },
-        "src/coded_array/rs.rs": {
-          "original_sha256": "eadb8de9eb5814b67397152139492c564de232d982e4510616d987351d4e915e"
-        }
-      },
-      "commit": "28815c1ef26e6daab13ad16730307d9ba36635dd",
+      "changed_files": {},
+      "commit": "c3031144462c9a75d59bee097f6bde1c1fb020e6",
       "files": {
         "undine/Cargo.lock": {
           "bytes": 30683,
           "sha256": "19694fe8600310306a9444f05296d47bd2017ae7f313cef74057e5c6ace190d9"
         },
         "undine/Cargo.toml": {
-          "bytes": 1943,
-          "sha256": "1c812bd353d32eca502fae140dbe994faa8ffdca9a60d2d7d20d12eaee77c168"
+          "bytes": 2051,
+          "sha256": "2e13b0f1316c528bb19f75ad98b72650374737811108dfa380f6fdcb48cebfe5"
         },
         "undine/apps/appendOnlyLog/Cargo.toml": {
           "bytes": 440,
@@ -442,8 +433,12 @@
           "sha256": "faec1c3860c521a7d882621313b935af000fde11d279076b220bbf843c0faf30"
         },
         "undine/benches/bench_private_opening_local.rs": {
-          "bytes": 57932,
-          "sha256": "1373197e7c5a4db3d9f60d331bdecc38c065832177b1435a17f9c538a076307f"
+          "bytes": 59348,
+          "sha256": "604891358cdf03253dd1eab10a7c6ce81c5bab89b717d92f8909f732bad924c1"
+        },
+        "undine/benches/bench_treepir_comparison_local.rs": {
+          "bytes": 67222,
+          "sha256": "9c2a5c83a6de7c86c28ef9a541541275c1005539781ace2b15ad60fbc1b30d15"
         },
         "undine/benches/support/append_only_log_repair.rs": {
           "bytes": 45006,
@@ -626,8 +621,8 @@
           "sha256": "51f8a7893a3d9d6f646a8dd168a709f6bfda10863fe031afe7ccf5ff30d1db42"
         },
         "undine/src/private/bulk.rs": {
-          "bytes": 25936,
-          "sha256": "4de1afe3431de673e79511435f68bea04d40ecc21795165613b5208f9a6e7033"
+          "bytes": 31141,
+          "sha256": "fee13db39b5591a230e0ec0b9d23e3fb15aba40271198c500f811167866d00fd"
         },
         "undine/src/private/keeper.rs": {
           "bytes": 2932,
@@ -638,20 +633,24 @@
           "sha256": "bbefe125db75c8f73ef79805c96047ff5214bbc012a7997b428dc5303591e8bf"
         },
         "undine/src/private/mod.rs": {
-          "bytes": 1509,
-          "sha256": "1e2d40071447576bc37bb7003e0b7621790c45e3c8ec808f989af44abc6beb82"
+          "bytes": 1576,
+          "sha256": "209542866c0b7d3f9673b6346472370a59fd07768b300c84abb82b77544f0218"
         },
         "undine/src/private/opening.rs": {
-          "bytes": 17329,
-          "sha256": "47fb2a0a36132205a13430f39daebf862ad1f8e23786fed17e01daffe2ac2a66"
+          "bytes": 17245,
+          "sha256": "7f69176a9637118ab9010051a1135ec7e55bcf954c88e416f4e883e827a42b5c"
         },
         "undine/src/private/pir.rs": {
-          "bytes": 73713,
-          "sha256": "82eb413a44f2ff37e4734804c5922e7f149a5ee7f8587cef65c57a9c93886955"
+          "bytes": 135685,
+          "sha256": "3eae731c897d36ea3f905f8fddc6f95dbab3273a8e3b7858ee4a6283ff87b0e2"
         },
         "undine/src/private/records.rs": {
           "bytes": 1412,
           "sha256": "e3e55a841b923dc4a518d49411cdd3a01ee9aae79401cecf66fb9aa17473f3dc"
+        },
+        "undine/src/private/treepir.rs": {
+          "bytes": 26763,
+          "sha256": "eea52f5f2a893267421198a8a2852f25ed2000707090e47339e56c47b813843c"
         },
         "undine/src/private/wire.rs": {
           "bytes": 4097,
@@ -690,16 +689,16 @@
           "sha256": "d4e6ccf295959593baee3927af7c72fef0df7bc63ef66fe3a9ff96691889f66b"
         },
         "undine/third_party/README.md": {
-          "bytes": 3538,
-          "sha256": "63b61e203e45e47dda1a85b7b0787887bd19a0d1337301fbf5c3033d7e95f904"
+          "bytes": 4962,
+          "sha256": "9c79f69c94b62c5a34544fbccd3a22198e6a8b831232366c57c4258e369c852c"
         },
         "undine/third_party/patches/spiral-rs.diff": {
-          "bytes": 1203,
-          "sha256": "a206c30c3097ada8a574d6369278456a4bdd402a25cf6455d9567f80e8f4a8fe"
+          "bytes": 5586,
+          "sha256": "8782fc2f6aa0f5ccc86af648e2e410088f52c80b398cdd9e593e383ecec257cf"
         },
         "undine/third_party/patches/ypir.diff": {
-          "bytes": 62148,
-          "sha256": "317919eac26d0516ce2fa7ed38c1c0f9f51d84e484f35acaff6e1c565b6b47fd"
+          "bytes": 66962,
+          "sha256": "6ac9d83002cbf645a666e3efd249bd453a05bcd740219accec9125e9e4378b27"
         },
         "undine/third_party/spiral-rs/.cargo/config.toml": {
           "bytes": 55,
@@ -754,8 +753,8 @@
           "sha256": "a0fb7e61ec0241caabe2ec3110807720fd8629dde062604972572499a5a3ebba"
         },
         "undine/third_party/spiral-rs/src/ntt.rs": {
-          "bytes": 36212,
-          "sha256": "d60e916f5631ac621dcdeb94ba21e5b0af187750e559f710ecef5b8b8d0a80c1"
+          "bytes": 39785,
+          "sha256": "440c4977be581e9d6d91c1ded7d3b7145560b8edcf6a4c55cfe33ecbcc913751"
         },
         "undine/third_party/spiral-rs/src/number_theory.rs": {
           "bytes": 2386,
@@ -776,6 +775,22 @@
         "undine/third_party/spiral-rs/src/util.rs": {
           "bytes": 11665,
           "sha256": "8983484765a08bcfb6a2c3777dbba5138cca609da2b44098254977abb7e76dfb"
+        },
+        "undine/third_party/treepir/LICENSE": {
+          "bytes": 1063,
+          "sha256": "61ea31e6147c9f601f353c9874c87877826d5c974c49b716723a7990edef8514"
+        },
+        "undine/third_party/treepir/README.md": {
+          "bytes": 1343,
+          "sha256": "6d8fba253a886f23a1aa14f53d2e4c58cb7935b113bdfbb77dc954f2947173ad"
+        },
+        "undine/third_party/treepir/reference/CSA.java": {
+          "bytes": 24366,
+          "sha256": "0aa4930a5bd6f3779676270c58f96e0f2918a08ed5e40270f36448706b31bc8f"
+        },
+        "undine/third_party/treepir/reference/SubCSA.java": {
+          "bytes": 24849,
+          "sha256": "28e40ad790a8ef56fd9d6ffa1c7fd0bdedb0123d209d4ee451329b6d10372568"
         },
         "undine/third_party/ypir/.cargo/config.toml": {
           "bytes": 55,
@@ -826,8 +841,8 @@
           "sha256": "b3f980b132d942a7b9f8303b54e369c29433cd83ab5de15888e61759ffc196f6"
         },
         "undine/third_party/ypir/src/factored.rs": {
-          "bytes": 25930,
-          "sha256": "2a58ace7a86c2f72dde3ead013a3454fa377f59b5bd44db4e44a7435f942cbcc"
+          "bytes": 30664,
+          "sha256": "341210299bbcd5c2513e11bc0f01f906bfda5166b9dbf03e40c7638d2eba6120"
         },
         "undine/third_party/ypir/src/kernel.rs": {
           "bytes": 8271,

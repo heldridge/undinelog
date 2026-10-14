@@ -8,6 +8,11 @@ repository and the crates.io registry.
 | --- | --- | --- |
 | `ypir/` | https://github.com/menonsamir/ypir | `a73e550a469605c2fa23945a4d96c20fb2f4a839` |
 | `spiral-rs/` | https://github.com/menonsamir/spiral-rs | `6929441` (the revision YPIR pins) |
+| `treepir/reference/` | https://github.com/PIR-PIXR/TreePIR | `930063c5aefc441244abb4890fdf35383f3aa956` |
+
+The TreePIR directory contains the unmodified MIT-licensed Java algorithms
+used to check our Rust port, not another PIR backend. Its provenance and
+reference harness are documented in [treepir/README.md](treepir/README.md).
 
 `patches/ypir.diff` and `patches/spiral-rs.diff` are the complete differences
 from those commits. They contain:
@@ -37,6 +42,18 @@ from those commits. They contain:
   ciphertext instead of about 320 MiB; the responses are unchanged, byte
   for byte.
 - **Local dependency.** YPIR depends on `../spiral-rs`.
+- **Preprocessing memory access.** The column-major hint is produced directly,
+  and each response-packing block uses a tiled transpose. The scalar
+  small-modulus NTT uses branchless final normalization, avoiding the
+  data-dependent branches generated for conditional subtraction. Boundary
+  tests and independent modular butterfly tests check identical residues.
+  TreePIR and Undine share this NTT optimization.
+  The hint builder also skips redundant input reductions when every u16
+  database symbol is already below both CRT moduli; smaller moduli retain
+  the original reduction path.
+  `HintColumnKernel` accepts borrowed columns so adapters can supply a
+  dense column or a bounded gathered batch without an additional copy.
+  The original fill-callback interface delegates to the same arithmetic.
 - **Column-based building blocks.** `ypir/src/factored.rs` runs the SimplePIR
   variant's preprocessing, response packing, query generation, and decoding
   on a database described by its columns, following `YServer` step for step.
@@ -56,6 +73,13 @@ build enables it, for example with `RUSTFLAGS="-C target-cpu=native"` on a
 machine that has AVX-512.
 
 ## Tests
+
+Focused checks for the shared preprocessing changes:
+
+```sh
+cargo test --manifest-path third_party/ypir/Cargo.toml --release --locked factored::test -- --test-threads=1
+cargo test --manifest-path third_party/spiral-rs/Cargo.toml --release --locked ntt::test -- --test-threads=1
+```
 
 `third_party` is excluded from the workspace. YPIR's own tests run from its
 directory, one at a time because two of them build 8 GB databases:

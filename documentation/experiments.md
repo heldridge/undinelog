@@ -9,11 +9,12 @@ deduplicated.
 
 The complete manifest contains:
 
-- 9 result groups;
-- 797 exact result cells;
-- 390 timing series;
-- 74 deduplicated benchmark jobs: 22 per layout for the paired groups, 4
-  for the UndineLog on-the-fly openings, and 26 for the private openings.
+- 12 result groups;
+- 969 exact result cells;
+- 460 timing series;
+- 78 deduplicated benchmark jobs: 22 per layout for the paired groups, 4
+  for the UndineLog on-the-fly openings, 26 for the private openings, and 4
+  for the comparison with TreePIR.
 
 Manifest validation rejects uncovered cells, measurements without consumers,
 duplicate job semantics, incompatible units, unexpected timing fields, and
@@ -21,7 +22,9 @@ deterministic outputs that vary across repetitions.
 
 ## Operating Points
 
-Every job uses Merkle height 50. The thresholds are 8, 16, 32, and 64, each
+Every job of the first nine result groups uses Merkle height 50; the
+comparison with TreePIR uses a tree of height 32 (and 16 for validation) with
+`kappa = h`. The thresholds are 8, 16, 32, and 64, each
 with segment size `kappa^2`: 64, 256, 1,024, and 4,096. UndineLog benchmarks
 take the threshold. BorgLog benchmarks take the segment size together with
 the threshold or the primary width `Seg / kappa`. Apart from these
@@ -128,9 +131,10 @@ its subtree meets and one entry per level above. Each repetition
 opens one position: the client's request
 (key generation, query, serialization), the maintainer's first pass, the
 complete answer from the serialized request to the serialized reply, and the
-client's decoding of the reply. Each repetition also computes the hint of 64
-database columns spread over the row and the response-packing tables of one
-reply ciphertext; the preprocessing cell scales the two to the whole database
+client's decoding of the reply. Each repetition also computes the hint of
+4,096 database columns, four runs of 1,024 adjacent columns spread over the
+row so that the sample gathers its columns as the complete build does, and the
+response-packing tables of one reply ciphertext; the preprocessing cell scales the two to the whole database
 by the column and ciphertext counts the benchmark reports. Then each
 repetition appends 4 MiB to the log and updates the preprocessing from the
 changed records, timing the hint patch and the packing tables.
@@ -175,6 +179,71 @@ private reply equals the public reply of its claim.
 The database is built and preprocessed on all cores before the timed
 repetitions, which run on the pinned CPU. The result document records both
 CPU sets.
+
+### UndineLog against TreePIR (`tab:treepir-server`, `tab:treepir-client`, `tab:treepir-check`)
+
+Benchmark: `bench_treepir_comparison_local` (both systems in the UndineLog
+crate, over the same YPIR backend)
+
+The matched point is `h = kappa = 32`: a log of `2^32` leaves (128 GiB), the
+perfect tree TreePIR needs without padding, 32 UndineLog maintainers and 32
+TreePIR servers, and the same reply ciphertext count, which the runner checks.
+
+**Servers** (`tab:treepir-server`). Two jobs each pair one UndineLog claim with
+one TreePIR class: claim 0 with class 0, and claim 31 with class 31. Every
+repetition rebuilds both servers from the start, in an order that alternates,
+and answers one fresh query on each. They use the same valid Merkle tree as
+the client: `2^32 - 2^20` allocated, unwritten leaves followed by `2^20`
+seeded leaves. Every query opens a seeded leaf. UndineLog uses the existing
+`BulkLog::build_with_default_prefix`, and each rebuilt fragment's root must
+equal the root of the `SuffixTree` supplying TreePIR's labels. The result
+records the seeded-leaf count and both roots; the runner checks them. Default
+labels avoid hashing unwritten subtrees, while both systems materialize their
+full PIR inputs with normal padding and the backend's zero-block shortcut.
+
+The maintainer's fragment, including encoding the claim's primary columns and
+hashing the seeded suffix, is built once per process on every online CPU and
+kept in a temporary file; its wall time is recorded in the result, outside the
+timed series. Every repetition reloads it untimed and rebuilds both PIR
+servers. UndineLog's stages are the primary columns into PIR cells, the row
+table and the upper nodes' cells, the hint (which gathers its columns from the cells), and
+the packing tables; TreePIR's are the class's nodes in database order, the
+database columns from their labels, the hint, and the packing tables. All
+run on the pinned CPU. The initial `SuffixTree`
+construction is fixture setup; tree hashing is excluded from the PIR
+conversion, hint, packing and answer timers. These jobs discard one warmup
+rebuild per process.
+
+The storage columns are each server's dedicated PIR state: the PIR database
+(UndineLog's is derived from the claim's primary columns and needs none of the
+auxiliary rows; TreePIR's is the class's dense padded matrix), the hint, and
+the packing tables. After the first rebuild's timers, each job counts the
+hint's all-zero blocks of 2,048 rows of one column, which the hint's kernel
+skips, and those that lie in the padding columns. The runner checks that
+every zero block count lies between the padding blocks and all blocks.
+
+**Clients** (`tab:treepir-client`). At `h = 32` the tree has `2^32 - 2^20`
+allocated, unwritten leaves followed by `2^20` seeded ones; at `h = 16` every
+leaf is seeded. Every opening is of a seeded leaf, so it returns and verifies
+real content. Each repetition times
+both clients, alternating: the requests in parts (indexing, key generation,
+the query with its packing keys, serialization) on one opening and as a whole
+on a second; then the processing of every reply into a verified opening, in
+parts (decrypting the replies, UndineLog's Combine+Verify, the root from the
+recovered path) and as a whole. UndineLog uses one secret key and one request
+for its `kappa` maintainers; TreePIR uses one secret key per request, since
+the backend reuses a public query matrix. Reconstruction is fault-free. At
+`h = 16` every reply comes from a real server of each system, and each one is
+checked to decode to the row of the generated reply. At `h = 32` each reply is
+the row its server returns, read from the tree without building the server and
+encrypted under the client's key in the server's format.
+
+**Generated and real replies** (`tab:treepir-check`). The `h = 32` client job
+also builds UndineLog claim 0 and TreePIR class 0 on the opening tree. For
+every repetition, the real reply and the generated reply for the same server
+and query decode to the same row (checked exactly), and both are decoded in
+turn. The runner rejects a batch whose mean decoding times differ by more
+than 10%.
 
 ## Execution and Sampling
 

@@ -44,6 +44,9 @@ DEFAULT_MIN_REPETITIONS = 10
 DEFAULT_MAX_REPETITIONS = 160
 DIRECT_WARMUP_REPETITIONS = 3
 APPEND_WARMUP_REPETITIONS = 1
+# A repetition that rebuilds a server from the start has warm code and a warm
+# allocator after one rebuild.
+REBUILD_WARMUP_REPETITIONS = 1
 DEFAULT_RELATIVE_HALF_WIDTH = 0.05
 SEQUENTIAL_LOOKS = (10, 20, 40, 80, 160)
 SEQUENTIAL_FAMILY_ALPHA = 0.05
@@ -86,7 +89,9 @@ CLIENT_SETUP_SECONDS_PER_GIB = 45.0
 PRIVATE_PATTERN_SHIFT = 5
 PRIVATE_PATTERN_SWEEP_GIB = 64
 PRIVATE_PATTERN_SWEEP_OFFSETS = (-2, -1, 1)
-PRIVATE_HINT_SAMPLE_COLUMNS = 64
+# Four of the hint builder's batches of 1,024 adjacent columns, so that the
+# sample gathers its columns as the complete build does.
+PRIVATE_HINT_SAMPLE_COLUMNS = 4 * 1024
 PRIVATE_SINGLE_GROUP_CELLS = 64
 PRIVATE_SINGLE_PATTERN_OFFSETS = (-1, 1)
 PRIVATE_SINGLE_MEASURED_GIB = (1, 4)
@@ -94,6 +99,23 @@ PRIVATE_SINGLE_SHAPE_GIB = (16, 64, 256, 1024)
 PRIVATE_TABLE_LOGS_GIB = (1, 4)
 PRIVATE_SMOKE_LEAVES = 32768
 PRIVATE_SMOKE_APPEND_LEAVES = 1024
+TREEPIR_BENCHMARK = "bench_treepir_comparison_local"
+TREEPIR_PREFIX = "BENCH_TREEPIR_COMPARISON"
+# h = kappa = 32: a log of 2^32 leaves, 128 GiB, which is TreePIR's tree
+# without padding and gives both systems 32 servers.
+TREEPIR_HEIGHT = 32
+# Every server of both systems is real at this height.
+TREEPIR_VALIDATION_HEIGHT = 16
+# The opened leaves are seeded; the leaves before them are allocated and
+# unwritten.
+TREEPIR_SEEDED_LEAVES = 1 << 20
+# (UndineLog claim, TreePIR class) of each pair of measured servers.
+TREEPIR_SERVERS = ((0, 0), (TREEPIR_HEIGHT - 1, TREEPIR_HEIGHT - 1))
+# Largest relative difference between the mean decoding time of a real
+# server's replies and that of the generated replies for the same queries.
+TREEPIR_PAIRED_TOLERANCE = 0.10
+TREEPIR_SMOKE_HEIGHT = 8
+TREEPIR_SMOKE_SEEDED_LEAVES = 100
 
 TABLE_LABELS = (
     "tab:append",
@@ -105,6 +127,9 @@ TABLE_LABELS = (
     "tab:private-single",
     "tab:private-table",
     "tab:private-client",
+    "tab:treepir-server",
+    "tab:treepir-client",
+    "tab:treepir-check",
 )
 
 TABLE_METADATA: dict[str, dict[str, Any]] = {
@@ -179,8 +204,9 @@ TABLE_METADATA.update(
                 "serialization), the first pass, the complete answer from "
                 "serialized request to serialized reply, and the client's "
                 "decoding of one reply are milliseconds on one core. "
-                "Preprocessing is core-seconds: the measured hint of 64 "
-                "database columns scaled to all record columns, plus the "
+                "Preprocessing is core-seconds: the measured hint of 4,096 "
+                "database columns in runs of 1,024 adjacent ones, scaled to "
+                "all record columns, plus the "
                 "measured packing tables of one reply ciphertext times the "
                 "ciphertext count. The update cells follow a 4 MiB append: "
                 "the hint patch in milliseconds and the packing tables in "
@@ -226,6 +252,77 @@ TABLE_METADATA.update(
                 "which kappa lie about one node. All are milliseconds."
             ),
         },
+        "tab:treepir-server": {
+            "title": "UndineLog against TreePIR: one server's preparation and answer",
+            "notes": (
+                "h = kappa = 32: a log of 2^32 leaves (128 GiB), 32 UndineLog "
+                "maintainers and 32 TreePIR servers over the same YPIR "
+                "backend. Each pair of rows is one UndineLog claim and one "
+                "TreePIR class, whose PIR servers are rebuilt from the start "
+                "in every repetition and alternated, on the same valid Merkle "
+                "tree as the client: "
+                "2^32 - 2^20 allocated, unwritten leaves followed by 2^20 "
+                "seeded ones. Every query opens a seeded leaf. The fragment "
+                "and the TreePIR label source must have the same root. Both "
+                "systems materialize their full PIR inputs with normal "
+                "padding; zero blocks retain the backend's shortcut. The "
+                "maintainer's fragment is built once per process, outside "
+                "these stages, and every repetition starts from it. The "
+                "stages are seconds on one core: UndineLog gathers its primary columns "
+                "into PIR cells, then reads the row table and the upper "
+                "nodes, then builds the hint (which gathers its columns as it "
+                "goes) and the packing tables; TreePIR enumerates its class, "
+                "writes its database columns, then builds the hint and the "
+                "packing tables. Prepare is the four stages of one rebuild. "
+                "PIR is the PIR database (UndineLog's is derived from the "
+                "claim's primary columns and needs none of the auxiliary "
+                "rows; TreePIR's is the class's dense padded matrix); hint "
+                "and packing are the preprocessing; state is the three; all "
+                "MiB. The hint's kernel skips an all-zero block of 2,048 rows "
+                "of one column: zero-blocks counts those, padding-blocks "
+                "those in the padding columns, out of hint-blocks. First "
+                "pass and answer are milliseconds on one core; request, "
+                "query, keys, and reply are serialized KiB."
+            ),
+        },
+        "tab:treepir-client": {
+            "title": "UndineLog against TreePIR: the client's work for one opening",
+            "notes": (
+                "UndineLog prepares one request and sends it to kappa "
+                "maintainers; TreePIR prepares h requests, each with its own "
+                "secret key, since the backend reuses a public query matrix "
+                "and one secret for different queries would let colluding "
+                "servers subtract them. Upload counts every transmitted "
+                "request and download every reply of one opening (MiB and "
+                "KiB). Index, verify are microseconds; the other cells are "
+                "milliseconds on one core. Index is the pattern and the "
+                "opening plan, or the h colors and offsets of the path; "
+                "keygen, query (with the packing keys), and serialize are "
+                "the request's parts; decrypt parses and decrypts every reply "
+                "and extracts the shares or the proof nodes; combine+verify "
+                "is UndineLog's reconstruction and path check; verify "
+                "recomputes the root from the recovered path. The totals are "
+                "timed as a whole on a second opening. At h = 32 the log has "
+                "2^32 - 2^20 allocated, unwritten leaves followed by 2^20 "
+                "seeded ones; at h = 16 every leaf is seeded; every opening "
+                "is of a seeded leaf. At h = 16 every "
+                "reply comes from a real server; at h = 32 each reply is the "
+                "row its server returns, read from the tree and encrypted "
+                "under the client's key, and the check table compares such "
+                "replies with a real server's. Reconstruction is fault-free."
+            ),
+        },
+        "tab:treepir-check": {
+            "title": "UndineLog against TreePIR: generated and real replies",
+            "notes": (
+                "At h = kappa = 32, one real UndineLog claim and one real "
+                "TreePIR server are built on the opening tree. For each "
+                "query, the real reply and the generated reply for the same "
+                "server decode to the same row (checked exactly), and their "
+                "decoding is timed in turn, in alternating order. "
+                "Milliseconds on one core."
+            ),
+        },
     }
 )
 
@@ -239,8 +336,10 @@ OMITTED_EXPERIMENTS = (
     "reconfiguration component and all-helper serial timing variants",
     "segment sizes other than kappa^2",
     "private openings of ranges",
-    "private-opening baselines with one query per tree level, TreePIR, "
-    "replicated full-copy servers, and BorgLog under the same PIR pipeline",
+    "private-opening baselines with one query per tree level, replicated "
+    "full-copy servers, and BorgLog under the same PIR pipeline",
+    "UndineLog against TreePIR at heights other than 16 and 32, at other "
+    "thresholds than kappa = h, and with faulty replies",
     "private openings over an emulated wide-area network",
     "the single server's preprocessing update after an append",
     "the maintainer service's update that compares every record; the "
@@ -250,7 +349,7 @@ OMITTED_EXPERIMENTS = (
 RENDER_UNIT_CONTRACTS: dict[str, tuple[frozenset[str], ...]] = {
     "bytes-integer": (frozenset({"bytes"}),),
     "gib-1": (frozenset({"bytes"}),),
-    "integer": (frozenset({"", "reads", "segments"}),),
+    "integer": (frozenset({"", "reads", "segments", "ciphertexts"}),),
     "kib-1": (frozenset({"bytes"}),),
     "mib-1": (frozenset({"bytes"}),),
     "mib-3": (frozenset({"bytes"}),),
@@ -715,6 +814,7 @@ def build_manifest() -> Manifest:
     _build_private_single_table(manifest)
     _build_private_table_table(manifest)
     _build_private_client_table(manifest)
+    _build_treepir_tables(manifest)
     validate_manifest(manifest)
     return manifest
 
@@ -1910,6 +2010,354 @@ def _build_private_client_table(manifest: Manifest) -> None:
         )
 
 
+def treepir_class_size(height: int, color: int) -> int:
+    """Nodes of TreePIR's class `color` in a tree of height `height`: the
+    2^(h+1) - 2 non-root nodes split into h balanced classes, the larger
+    ones last."""
+    nodes = (1 << (height + 1)) - 2
+    small = height - nodes % height
+    return nodes // height + (1 if color >= small else 0)
+
+
+def _treepir_job(
+    manifest: Manifest,
+    *,
+    identifier: str,
+    role: str,
+    env: Mapping[str, Any],
+    setup: str,
+    setup_seconds: float,
+    repetition_seconds: float,
+) -> JobSpec:
+    return add_job(
+        manifest,
+        identifier=identifier,
+        layout="undine",
+        family=f"treepir-{role}",
+        benchmark=TREEPIR_BENCHMARK,
+        features=("bench",),
+        env=job_env(
+            **{f"{TREEPIR_PREFIX}_ROLE": role},
+            **{f"{TREEPIR_PREFIX}_{key}": value for key, value in env.items()},
+        ),
+        result_relpath=f"results/{TREEPIR_BENCHMARK}.json",
+        trial_env=f"{TREEPIR_PREFIX}_TRIALS",
+        setup=setup,
+        setup_seconds=setup_seconds,
+        repetition_seconds=repetition_seconds,
+    )
+
+
+def _treepir_outputs(
+    manifest: Manifest,
+    job: JobSpec,
+    match: tuple[tuple[str, Any], ...],
+    tag: str,
+    *,
+    sizes: Mapping[str, str] = {},
+    counts: Mapping[str, tuple[str, str]] = {},
+    timings: Mapping[str, str] = {},
+    sample_mode: str = "direct",
+) -> dict[str, str]:
+    outputs: dict[str, str] = {}
+    for name, description in sizes.items():
+        outputs[name] = ensure_output(
+            manifest, job, f"{tag}{name}", entry_selector=match, path=name,
+            kind="value", unit="bytes", description=description,
+        )
+    for name, (unit, description) in counts.items():
+        outputs[name] = ensure_output(
+            manifest, job, f"{tag}{name}", entry_selector=match, path=name,
+            kind="value", unit=unit, description=description,
+        )
+    for name, description in timings.items():
+        outputs[name] = ensure_output(
+            manifest, job, f"{tag}{name}", entry_selector=match, path=name,
+            kind="timing", unit="ns", sample_mode=sample_mode,
+            description=description,
+        )
+    return outputs
+
+
+TREEPIR_MESSAGE_SIZES = {
+    "request_bytes": "Serialized bytes of one request.",
+    "query_bytes": "Bytes of the request's query.",
+    "key_bytes": "Bytes of the request's packing keys.",
+    "reply_bytes": "Serialized bytes of one reply.",
+}
+TREEPIR_SERVER_SIZES = {
+    "pir_bytes": "The PIR database.",
+    "hint_bytes": "The hint.",
+    "packing_bytes": "The response-packing tables.",
+    "serving_state_bytes": "The PIR database, the hint, and the packing tables.",
+    **TREEPIR_MESSAGE_SIZES,
+}
+TREEPIR_SERVER_COUNTS = {
+    "outputs": ("ciphertexts", "Ciphertexts of one reply."),
+    "hint_blocks": ("", "Blocks of 2,048 rows of one database column."),
+    "zero_hint_blocks": ("", "All-zero blocks, which the hint skips."),
+    "padding_hint_blocks": ("", "Blocks of the padding columns."),
+}
+TREEPIR_SERVER_ONLINE = {
+    "first_pass_ns": "The query's inner product with every database column.",
+    "answer_ns": "From the serialized request to the serialized reply.",
+}
+TREEPIR_SERVER_STAGES = {
+    "undine": {
+        "gather_cells_ns": "The primary columns into PIR cells.",
+        "gather_upper_ns": "The row table and the upper nodes' cells.",
+        "hint_ns": "The hint, gathering its columns from the cells.",
+        "packing_ns": "The response-packing tables.",
+        "prepare_ns": "The four one-core stages of one rebuild.",
+    },
+    "treepir": {
+        "enumerate_ns": "The class's nodes in database order.",
+        "columns_ns": "The database columns from the class's labels.",
+        "hint_ns": "The hint over the database columns.",
+        "packing_ns": "The response-packing tables.",
+        "prepare_ns": "The four stages of one rebuild.",
+    },
+}
+TREEPIR_STAGE_COLUMNS = {
+    "gather-cells-s": ("gather_cells_ns", "undine", "seconds-1"),
+    "gather-upper-s": ("gather_upper_ns", "undine", "seconds-3"),
+    "enumerate-s": ("enumerate_ns", "treepir", "seconds-1"),
+    "columns-s": ("columns_ns", "treepir", "seconds-1"),
+    "hint-s": ("hint_ns", None, "seconds-1"),
+    "packing-s": ("packing_ns", None, "seconds-1"),
+    "prepare-s": ("prepare_ns", None, "seconds-1"),
+}
+TREEPIR_CLIENT_TIMINGS = {
+    "index_ns": "The pattern and the opening plan, or the h colors and offsets.",
+    "keygen_ns": "Fresh secret keys: one, or one per TreePIR server.",
+    "query_ns": "The encrypted queries and their packing keys.",
+    "serialize_ns": "The serialized requests.",
+    "decrypt_ns": "Parsing and decrypting every reply and extracting the opening.",
+    "verify_ns": "The root from the recovered value and path.",
+    "request_total_ns": "Preparing the requests, timed as a whole.",
+    "process_total_ns": "The replies into a verified opening, timed as a whole.",
+    "client_total_ns": "Preparing the requests and processing the replies.",
+}
+TREEPIR_CLIENT_COLUMNS = (
+    ("index-us", "index_ns", "microseconds-1"),
+    ("keygen-ms", "keygen_ns", "milliseconds-3"),
+    ("query-ms", "query_ns", "milliseconds-3"),
+    ("serialize-ms", "serialize_ns", "milliseconds-3"),
+    ("request-total-ms", "request_total_ns", "milliseconds-3"),
+    ("decrypt-ms", "decrypt_ns", "milliseconds-3"),
+    ("combine-verify-ms", "combine_verify_ns", "milliseconds-3"),
+    ("verify-us", "verify_ns", "microseconds-1"),
+    ("process-total-ms", "process_total_ns", "milliseconds-3"),
+    ("client-total-ms", "client_total_ns", "milliseconds-3"),
+)
+
+
+def _treepir_server_job(manifest: Manifest, claim: int, color: int) -> JobSpec:
+    return _treepir_job(
+        manifest,
+        identifier=f"treepir-server-h{TREEPIR_HEIGHT}-m{claim}-c{color}",
+        role="server",
+        env={
+            "HEIGHT": TREEPIR_HEIGHT,
+            "MAINTAINER": claim,
+            "COLOR": color,
+            "SEEDED_LEAVES": TREEPIR_SEEDED_LEAVES,
+        },
+        setup=(
+            "The valid Merkle tree of an unwritten prefix followed by seeded "
+            "leaves, and the maintainer's fragment on it, built once and kept "
+            "on disk; every repetition reloads the fragment untimed and "
+            "rebuilds both PIR servers."
+        ),
+        setup_seconds=240.0,
+        repetition_seconds=330.0,
+    )
+
+
+def _treepir_client_job(manifest: Manifest, height: int, replies: str) -> JobSpec:
+    real = replies == "real"
+    return _treepir_job(
+        manifest,
+        identifier=f"treepir-client-h{height}-{replies}",
+        role="client",
+        env={
+            "HEIGHT": height,
+            "REPLIES": replies,
+            "SEEDED_LEAVES": min(TREEPIR_SEEDED_LEAVES, 1 << height),
+        },
+        setup=(
+            "Every server of both systems, built on the tree."
+            if real
+            else "The records the openings read, encoded from the tree, then one "
+            "real server of each system for the paired check."
+        ),
+        setup_seconds=60.0 if real else 480.0,
+        repetition_seconds=3.0 if real else 10.0,
+    )
+
+
+def _build_treepir_tables(manifest: Manifest) -> None:
+    dash = _dash(manifest)
+    table = "tab:treepir-server"
+    manifest.table_columns[table] = [
+        "system", "server", "outputs", "pir-mib", "hint-mib", "packing-mib",
+        "state-mib", "hint-blocks", "zero-blocks", "padding-blocks",
+        *TREEPIR_STAGE_COLUMNS, "first-pass-ms", "answer-ms",
+        "request-kib", "query-kib", "key-kib", "reply-kib",
+    ]
+    for claim, color in TREEPIR_SERVERS:
+        job = _treepir_server_job(manifest, claim, color)
+        for system, server in (("undine", claim), ("treepir", color)):
+            outputs = _treepir_outputs(
+                manifest,
+                job,
+                selector(role="server", system=system),
+                f"{system}-",
+                sizes=TREEPIR_SERVER_SIZES,
+                counts=TREEPIR_SERVER_COUNTS,
+                timings=TREEPIR_SERVER_STAGES[system] | TREEPIR_SERVER_ONLINE,
+                sample_mode="rebuild",
+            )
+            row = f"m{claim}-c{color}:{system}"
+            cells = [
+                cell(table, row, "system", ensure_formula(manifest, "text", system),
+                     "text", "The system."),
+                cell(table, row, "server", ensure_formula(manifest, "integer", server),
+                     "integer", "The UndineLog claim or the TreePIR class."),
+                cell(table, row, "outputs", outputs["outputs"], "integer",
+                     "Ciphertexts of one reply."),
+                cell(table, row, "pir-mib", outputs["pir_bytes"], "mib-1",
+                     "The PIR database."),
+                cell(table, row, "hint-mib", outputs["hint_bytes"], "mib-1",
+                     "The hint."),
+                cell(table, row, "packing-mib", outputs["packing_bytes"], "mib-1",
+                     "The response-packing tables."),
+                cell(table, row, "state-mib", outputs["serving_state_bytes"], "mib-1",
+                     "The PIR database, the hint, and the packing tables."),
+                cell(table, row, "hint-blocks", outputs["hint_blocks"], "integer",
+                     "Blocks of 2,048 rows of one database column."),
+                cell(table, row, "zero-blocks", outputs["zero_hint_blocks"], "integer",
+                     "All-zero blocks, which the hint skips."),
+                cell(table, row, "padding-blocks", outputs["padding_hint_blocks"], "integer",
+                     "Blocks of the padding columns."),
+            ]
+            for column, (metric, owner, render) in TREEPIR_STAGE_COLUMNS.items():
+                if owner in (None, system):
+                    cells.append(cell(table, row, column, outputs[metric], render,
+                                      TREEPIR_SERVER_STAGES[system][metric]))
+                else:
+                    cells.append(cell(table, row, column, dash, "text",
+                                      "A stage of the other system."))
+            cells += [
+                cell(table, row, "first-pass-ms", outputs["first_pass_ns"],
+                     "milliseconds-1", TREEPIR_SERVER_ONLINE["first_pass_ns"]),
+                cell(table, row, "answer-ms", outputs["answer_ns"],
+                     "milliseconds-1", TREEPIR_SERVER_ONLINE["answer_ns"]),
+                cell(table, row, "request-kib", outputs["request_bytes"], "kib-1",
+                     "Serialized request."),
+                cell(table, row, "query-kib", outputs["query_bytes"], "kib-1",
+                     "The request's query."),
+                cell(table, row, "key-kib", outputs["key_bytes"], "kib-1",
+                     "The request's packing keys."),
+                cell(table, row, "reply-kib", outputs["reply_bytes"], "kib-1",
+                     "Serialized reply."),
+            ]
+            manifest.add_row(table, row, cells)
+
+    table = "tab:treepir-client"
+    manifest.table_columns[table] = [
+        "system", "height", "replies", "servers", "queries", "request-kib",
+        "upload-mib", "download-kib",
+        *(column for column, _, _ in TREEPIR_CLIENT_COLUMNS),
+    ]
+    check_outputs: dict[str, dict[str, str]] = {}
+    for height, replies in (
+        (TREEPIR_VALIDATION_HEIGHT, "real"),
+        (TREEPIR_HEIGHT, "generated"),
+    ):
+        job = _treepir_client_job(manifest, height, replies)
+        for system in ("undine", "treepir"):
+            timings = dict(TREEPIR_CLIENT_TIMINGS)
+            if system == "undine":
+                timings["combine_verify_ns"] = "Combining the shares and verifying the path."
+            outputs = _treepir_outputs(
+                manifest,
+                job,
+                selector(role="client", system=system),
+                f"{system}-",
+                sizes={
+                    "request_bytes": TREEPIR_MESSAGE_SIZES["request_bytes"],
+                    "upload_bytes": "Every transmitted request of one opening.",
+                    "download_bytes": "Every reply of one opening.",
+                },
+                counts={
+                    "servers": ("", "Servers contacted per opening."),
+                    "queries": ("", "Distinct queries per opening."),
+                },
+                timings=timings,
+            )
+            row = f"h{height}-{replies}:{system}"
+            cells = [
+                cell(table, row, "system", ensure_formula(manifest, "text", system),
+                     "text", "The system."),
+                cell(table, row, "height", ensure_formula(manifest, "integer", height),
+                     "integer", "Height of the tree, and the threshold."),
+                cell(table, row, "replies", ensure_formula(manifest, "text", replies),
+                     "text", "Where the replies come from."),
+                cell(table, row, "servers", outputs["servers"], "integer",
+                     "Servers contacted per opening."),
+                cell(table, row, "queries", outputs["queries"], "integer",
+                     "Distinct queries per opening."),
+                cell(table, row, "request-kib", outputs["request_bytes"], "kib-1",
+                     "Serialized bytes of one request."),
+                cell(table, row, "upload-mib", outputs["upload_bytes"], "mib-1",
+                     "Every transmitted request of one opening."),
+                cell(table, row, "download-kib", outputs["download_bytes"], "kib-1",
+                     "Every reply of one opening."),
+            ]
+            for column, metric, render in TREEPIR_CLIENT_COLUMNS:
+                if metric in outputs:
+                    cells.append(cell(table, row, column, outputs[metric], render,
+                                      timings[metric]))
+                else:
+                    cells.append(cell(table, row, column, dash, "text",
+                                      "UndineLog's reconstruction step."))
+            manifest.add_row(table, row, cells)
+            if replies == "generated":
+                check_outputs[system] = _treepir_outputs(
+                    manifest,
+                    job,
+                    selector(role="paired", system=system),
+                    f"paired-{system}-",
+                    counts={"server": ("", "The real server's claim or class.")},
+                    timings={
+                        "real_decode_ns": "Decoding the real server's reply.",
+                        "generated_decode_ns": "Decoding the generated reply.",
+                    },
+                )
+
+    table = "tab:treepir-check"
+    manifest.table_columns[table] = [
+        "system", "server", "real-decode-ms", "generated-decode-ms",
+    ]
+    for system, outputs in check_outputs.items():
+        row = system
+        manifest.add_row(
+            table,
+            row,
+            [
+                cell(table, row, "system", ensure_formula(manifest, "text", system),
+                     "text", "The system."),
+                cell(table, row, "server", outputs["server"], "integer",
+                     "The real server's claim or class."),
+                cell(table, row, "real-decode-ms", outputs["real_decode_ns"],
+                     "milliseconds-3", "Decoding the real server's reply."),
+                cell(table, row, "generated-decode-ms", outputs["generated_decode_ns"],
+                     "milliseconds-3", "Decoding the generated reply."),
+            ],
+        )
+
+
 def evaluate_formula(spec: MeasurementSpec) -> Any:
     name = spec.formula
     args = spec.formula_args
@@ -2195,6 +2643,8 @@ def benchmark_warmup_repetitions(run_job: RunJob, mode: str) -> int:
         return APPEND_WARMUP_REPETITIONS
     if modes == {"direct"}:
         return DIRECT_WARMUP_REPETITIONS
+    if modes == {"rebuild"}:
+        return REBUILD_WARMUP_REPETITIONS
     raise PipelineError(
         f"{run_job.spec.id}: cannot select one warmup policy for sample modes "
         f"{sorted(modes)}"
@@ -2558,6 +3008,25 @@ def select_run_jobs(
         )
         add(f"private-table-undine-log{first_gib}gib-k{PRIVATE_KAPPA}", overrides=small)
         add(f"private-client-undine-k{smallest}", overrides=small)
+        claim, color = TREEPIR_SERVERS[0]
+        add(
+            f"treepir-server-h{TREEPIR_HEIGHT}-m{claim}-c{color}",
+            overrides={
+                f"{TREEPIR_PREFIX}_HEIGHT": TREEPIR_SMOKE_HEIGHT,
+                f"{TREEPIR_PREFIX}_SEEDED_LEAVES": TREEPIR_SMOKE_SEEDED_LEAVES,
+            },
+        )
+        for height, replies in (
+            (TREEPIR_VALIDATION_HEIGHT, "real"),
+            (TREEPIR_HEIGHT, "generated"),
+        ):
+            add(
+                f"treepir-client-h{height}-{replies}",
+                overrides={
+                    f"{TREEPIR_PREFIX}_HEIGHT": TREEPIR_SMOKE_HEIGHT,
+                    f"{TREEPIR_PREFIX}_SEEDED_LEAVES": TREEPIR_SMOKE_SEEDED_LEAVES,
+                },
+            )
     else:
         first_leaves = leaves_of_gib(first_gib)
         add(
@@ -2567,6 +3036,9 @@ def select_run_jobs(
         add(f"private-single-undine-log{first_gib}gib-p{private_pattern_bits(first_leaves, 1)}")
         add(f"private-table-undine-log{first_gib}gib-k{PRIVATE_KAPPA}")
         add(f"private-client-undine-k{PRIVATE_KAPPA}")
+        claim, color = TREEPIR_SERVERS[0]
+        add(f"treepir-server-h{TREEPIR_HEIGHT}-m{claim}-c{color}")
+        add(f"treepir-client-h{TREEPIR_HEIGHT}-generated")
     return selected
 
 
@@ -2908,7 +3380,7 @@ def extract_measurements(
             raise PipelineError(
                 f"{measurement.id}: trials={declared_trials}, samples={len(numeric)}"
             )
-        if measurement.sample_mode == "direct":
+        if measurement.sample_mode in {"direct", "rebuild"}:
             expected_trials = declared_run_repetitions
             if len(numeric) != expected_trials:
                 raise PipelineError(
@@ -3023,6 +3495,29 @@ def validate_output_contract(
                 raise PipelineError(
                     f"{run_job.spec.id}: private-opening parameter echo mismatch "
                     f"for {key}: {meta.get(key)!r} != {expected_value!r}"
+                )
+    elif benchmark == TREEPIR_BENCHMARK:
+        role = env[f"{TREEPIR_PREFIX}_ROLE"]
+        height = int(env[f"{TREEPIR_PREFIX}_HEIGHT"])
+        echoes = {
+            "role": role,
+            "height": height,
+            "kappa": height,
+            "leaves": 1 << height,
+            "seeded_leaves": min(
+                int(env[f"{TREEPIR_PREFIX}_SEEDED_LEAVES"]), 1 << height
+            ),
+        }
+        if role == "server":
+            echoes["maintainer"] = int(env[f"{TREEPIR_PREFIX}_MAINTAINER"])
+            echoes["color"] = int(env[f"{TREEPIR_PREFIX}_COLOR"])
+        else:
+            echoes["replies"] = env[f"{TREEPIR_PREFIX}_REPLIES"]
+        for key, expected_value in echoes.items():
+            if meta.get(key) != expected_value:
+                raise PipelineError(
+                    f"{run_job.spec.id}: TreePIR-comparison parameter echo "
+                    f"mismatch for {key}: {meta.get(key)!r} != {expected_value!r}"
                 )
 
     for measurement in run_job.measurements:
@@ -3175,6 +3670,8 @@ def validate_output_contract(
                 raise PipelineError(
                     f"{run_job.spec.id}: database dimensions are inconsistent"
                 )
+    elif benchmark == TREEPIR_BENCHMARK:
+        validate_treepir_entries(run_job, env, entries)
     elif benchmark == "bench_append_only_log_on_the_fly_open_local":
         for entry in entries:
             if entry.get("query") == "stitch":
@@ -3185,6 +3682,109 @@ def validate_output_contract(
                     f"{run_job.spec.id}: serialized answer is smaller than its "
                     "field-element payload"
                 )
+
+
+def validate_treepir_entries(
+    run_job: RunJob, env: Mapping[str, str], entries: Sequence[Mapping[str, Any]]
+) -> None:
+    """Independently derive the sizes and counts of the TreePIR comparison,
+    and hold the generated replies to the real ones."""
+    job_id = run_job.spec.id
+    height = int(env[f"{TREEPIR_PREFIX}_HEIGHT"])
+    leaves = 1 << height
+    by_role: dict[tuple[str, str], Mapping[str, Any]] = {}
+    for entry in entries:
+        key = (str(entry["role"]), str(entry["system"]))
+        if key in by_role:
+            raise PipelineError(f"{job_id}: two entries for {key}")
+        by_role[key] = entry
+    role = env[f"{TREEPIR_PREFIX}_ROLE"]
+    expected_keys = {(role, "undine"), (role, "treepir")}
+    if role == "client" and env[f"{TREEPIR_PREFIX}_REPLIES"] == "generated":
+        expected_keys |= {("paired", "undine"), ("paired", "treepir")}
+    if set(by_role) != expected_keys:
+        raise PipelineError(f"{job_id}: entries {sorted(by_role)} != {sorted(expected_keys)}")
+    undine = by_role[(role, "undine")]
+    treepir = by_role[(role, "treepir")]
+    seeded = min(int(env[f"{TREEPIR_PREFIX}_SEEDED_LEAVES"]), leaves)
+    for entry in (undine, treepir):
+        if int(entry["leaves"]) != leaves or int(entry["log_bytes"]) != leaves * FIELD_BYTES:
+            raise PipelineError(f"{job_id}: log size fails 2^h leaves of 32 bytes")
+        if int(entry["seeded_leaves"]) != seeded or not 0 < seeded <= leaves:
+            raise PipelineError(f"{job_id}: seeded suffix differs from the configured workload")
+        if int(entry["request_bytes"]) <= int(entry["query_bytes"]) + int(entry["key_bytes"]):
+            raise PipelineError(f"{job_id}: request smaller than its query and keys")
+        if int(entry["query_bytes"]) != 7 * int(entry["db_rows"]):
+            raise PipelineError(f"{job_id}: query bytes fail seven per database row")
+        if int(entry["outputs"]) * 2048 != int(entry["db_cols"]):
+            raise PipelineError(f"{job_id}: ciphertexts fail the padded columns")
+    # The matched point: both systems reply with the same ciphertext count.
+    if int(undine["outputs"]) != int(treepir["outputs"]):
+        raise PipelineError(
+            f"{job_id}: reply ciphertexts differ: {undine['outputs']} against "
+            f"{treepir['outputs']}"
+        )
+    if role == "server":
+        root = undine["tree_root"]
+        if (
+            not isinstance(root, list)
+            or len(root) != FIELD_BYTES
+            or any(type(byte) is not int or not 0 <= byte <= 255 for byte in root)
+            or treepir["tree_root"] != root
+        ):
+            raise PipelineError(f"{job_id}: the servers do not use the same Merkle root")
+        segments = ceil_div(cursor_preorder(height, leaves), height * height)
+        if int(undine["database_bytes"]) != segments * height * FIELD_BYTES:
+            raise PipelineError(f"{job_id}: primary columns fail kappa entries per segment")
+        if int(undine["fragment_bytes"]) != 2 * int(undine["database_bytes"]):
+            raise PipelineError(f"{job_id}: fragment is not twice the primary columns")
+        color = int(env[f"{TREEPIR_PREFIX}_COLOR"])
+        if int(treepir["class_nodes"]) != treepir_class_size(height, color):
+            raise PipelineError(f"{job_id}: class size fails the balanced split")
+        if int(treepir["database_bytes"]) != treepir_class_size(height, color) * FIELD_BYTES:
+            raise PipelineError(f"{job_id}: class bytes fail 32 per node")
+        for entry in (undine, treepir):
+            if int(entry["preprocessed_bytes"]) != int(entry["hint_bytes"]) + int(
+                entry["packing_bytes"]
+            ):
+                raise PipelineError(f"{job_id}: preprocessing fails hint plus packing")
+            if int(entry["serving_state_bytes"]) != int(entry["pir_bytes"]) + int(
+                entry["preprocessed_bytes"]
+            ):
+                raise PipelineError(f"{job_id}: state fails PIR plus preprocessing")
+            # One hint column of 2,048 words per database column, and one
+            # block per 2,048 rows of each column.
+            if int(entry["hint_bytes"]) != int(entry["db_cols"]) * 2048 * 8:
+                raise PipelineError(f"{job_id}: hint bytes fail one column per database column")
+            if int(entry["hint_blocks"]) != int(entry["db_cols"]) * int(entry["db_rows"]) // 2048:
+                raise PipelineError(f"{job_id}: hint blocks fail the database dimensions")
+            padding = (int(entry["db_cols"]) - int(entry["record_columns"])) * (
+                int(entry["db_rows"]) // 2048
+            )
+            if int(entry["padding_hint_blocks"]) != padding:
+                raise PipelineError(f"{job_id}: padding blocks fail the padding columns")
+            if not padding <= int(entry["zero_hint_blocks"]) <= int(entry["hint_blocks"]):
+                raise PipelineError(f"{job_id}: zero blocks outside padding and all blocks")
+        return
+    for entry, servers, queries in ((undine, height, 1), (treepir, height, height)):
+        if int(entry["servers"]) != servers or int(entry["queries"]) != queries:
+            raise PipelineError(f"{job_id}: server or query count")
+        if int(entry["upload_bytes"]) != servers * int(entry["request_bytes"]):
+            raise PipelineError(f"{job_id}: upload fails one request per server")
+        if int(entry["download_bytes"]) != servers * int(entry["reply_bytes"]):
+            raise PipelineError(f"{job_id}: download fails one reply per server")
+    for system in ("undine", "treepir"):
+        paired = by_role.get(("paired", system))
+        if paired is None:
+            continue
+        real = statistics.fmean(paired["real_decode_ns"]["samples"])
+        generated = statistics.fmean(paired["generated_decode_ns"]["samples"])
+        if abs(generated - real) > TREEPIR_PAIRED_TOLERANCE * real:
+            raise PipelineError(
+                f"{job_id}: {system} generated replies decode in {generated:.0f} ns "
+                f"on average against {real:.0f} ns for a real server's, beyond "
+                f"the tolerance of {TREEPIR_PAIRED_TOLERANCE:.0%}"
+            )
 
 
 def expected_repetitions_for_mode(mode: str) -> int:
@@ -3911,6 +4511,7 @@ def write_summary_outputs(
             ),
             "append_independent_unit": "one complete 64-batch sequence",
             "direct_warmup_repetitions_per_process": DIRECT_WARMUP_REPETITIONS,
+            "rebuild_warmup_repetitions_per_process": REBUILD_WARMUP_REPETITIONS,
             "append_warmup_sequences_per_process": APPEND_WARMUP_REPETITIONS,
         },
         "records": records,
