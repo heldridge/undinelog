@@ -91,7 +91,7 @@ PRIVATE_PATTERN_SWEEP_GIB = 64
 PRIVATE_PATTERN_SWEEP_OFFSETS = (-2, -1, 1)
 # Four of the hint builder's batches of 1,024 adjacent columns, so that the
 # sample gathers its columns as the complete build does.
-PRIVATE_HINT_SAMPLE_COLUMNS = 4 * 1024
+PRIVATE_HINT_CHECK_COLUMNS = 4 * 1024
 PRIVATE_SINGLE_GROUP_CELLS = 64
 PRIVATE_SINGLE_PATTERN_OFFSETS = (-1, 1)
 PRIVATE_SINGLE_MEASURED_GIB = (1, 4)
@@ -204,11 +204,13 @@ TABLE_METADATA.update(
                 "serialization), the first pass, the complete answer from "
                 "serialized request to serialized reply, and the client's "
                 "decoding of one reply are milliseconds on one core. "
-                "Preprocessing is core-seconds: the measured hint of 4,096 "
-                "database columns in runs of 1,024 adjacent ones, scaled to "
-                "all record columns, plus the "
-                "measured packing tables of one reply ciphertext times the "
-                "ciphertext count. The update cells follow a 4 MiB append: "
+                "Preprocessing is measured in seconds on one core: each "
+                "repetition rebuilds the entire hint, including padding, and "
+                "all response-packing tables. The two stages and their sum "
+                "are reported separately; preprocessing size is MiB. Tree "
+                "construction, fragment encoding and conversion to PIR cells "
+                "are outside these timers. Each rebuild serves a checked "
+                "opening. The update cells follow a 4 MiB append: "
                 "the hint patch in milliseconds and the packing tables in "
                 "seconds."
             ),
@@ -223,7 +225,8 @@ TABLE_METADATA.update(
                 "state are GiB, the request is MiB, and the reply is KiB. "
                 "Client request and decoding are milliseconds; first pass "
                 "and answer are seconds on one core. Preprocessing is "
-                "core-seconds, measured as for a maintainer. The rows at 16 "
+                "seconds on one core, measured as for a maintainer; its size "
+                "is GiB. The rows at 16 "
                 "and 64 GiB give the database dimensions and message sizes "
                 "of those logs."
             ),
@@ -1553,7 +1556,7 @@ def _private_job(
             **{
                 f"{PRIVATE_PREFIX}_ROLE": role,
                 f"{PRIVATE_PREFIX}_TREE_HEIGHT": TREE_HEIGHT,
-                f"{PRIVATE_PREFIX}_HINT_SAMPLE_COLUMNS": PRIVATE_HINT_SAMPLE_COLUMNS,
+                f"{PRIVATE_PREFIX}_HINT_CHECK_COLUMNS": PRIVATE_HINT_CHECK_COLUMNS,
                 **{f"{PRIVATE_PREFIX}_{key}": value for key, value in env.items()},
             }
         ),
@@ -1576,8 +1579,9 @@ PRIVATE_SERVER_TIMINGS = {
     "server_first_pass_ns": "The query's inner product with every database column.",
     "server_answer_ns": "From the serialized request to the serialized reply.",
     "client_decode_ns": "From the serialized reply to the entries of the opening.",
-    "hint_sample_ns": "The hint of a sample of database columns.",
-    "packing_table_ns": "The response-packing tables of one reply ciphertext.",
+    "hint_ns": "A complete fresh hint, including padded columns, on one core.",
+    "packing_ns": "Fresh packing tables of every reply ciphertext, on one core.",
+    "preprocess_ns": "The sum of the full hint and packing stages of each rebuild.",
 }
 
 
@@ -1590,6 +1594,7 @@ def _private_outputs(
     sizes: Mapping[str, str] = PRIVATE_SIZE_FIELDS,
     timings: Mapping[str, str] = {},
     counts: Mapping[str, tuple[str, str]] = {},
+    sample_mode: str = "direct",
 ) -> dict[str, str]:
     outputs: dict[str, str] = {}
     for name, description in sizes.items():
@@ -1605,7 +1610,7 @@ def _private_outputs(
     for name, description in timings.items():
         outputs[name] = ensure_output(
             manifest, job, f"{tag}{name}", entry_selector=match, path=name,
-            kind="timing", unit="ns", description=description,
+            kind="timing", unit="ns", sample_mode=sample_mode, description=description,
         )
     return outputs
 
@@ -1624,13 +1629,12 @@ def _private_server_outputs(
         job,
         selector(role=role),
         sizes=PRIVATE_SIZE_FIELDS
-        | {"serving_state_bytes": "Bytes of the records, the row table, and the preprocessing."},
-        timings=timings,
-        counts={
-            "record_columns": ("columns", "Database columns that hold records."),
-            "hint_sample_columns": ("columns", "Database columns of the hint sample."),
-            "outputs": ("ciphertexts", "Ciphertexts of one reply."),
+        | {
+            "serving_state_bytes": "Bytes of the records, the row table, and the preprocessing.",
+            "preprocessed_bytes": "Bytes of the complete hint and packing tables.",
         },
+        timings=timings,
+        sample_mode="rebuild",
     )
 
 
@@ -1641,15 +1645,9 @@ def _private_preprocess_cell(
         table,
         row,
         "preprocess-core-s",
-        (
-            outputs["hint_sample_ns"],
-            outputs["record_columns"],
-            outputs["hint_sample_columns"],
-            outputs["packing_table_ns"],
-            outputs["outputs"],
-        ),
-        "preprocess-core-seconds-1",
-        "Hint of all record columns and packing tables of all reply ciphertexts.",
+        outputs["preprocess_ns"],
+        "seconds-1",
+        "Measured full hint and packing-table rebuild on one core.",
     )
 
 
@@ -1672,10 +1670,11 @@ def _private_maintainer(
         },
         setup=(
             "Build one claim's primary columns for the seeded log on all "
-            "cores and preprocess them."
+            "cores and convert them to PIR cells. Each repetition rebuilds "
+            "all PIR preprocessing on one core."
         ),
-        setup_seconds=30.0 + 8.0 * gib + 20.0 * database_gib,
-        repetition_seconds=4.0 + 2.5 * ciphertexts + 2.0 * database_gib,
+        setup_seconds=30.0 + 8.0 * gib,
+        repetition_seconds=4.0 + 3.5 * ciphertexts + 25.0 * database_gib,
     )
     return job, _private_server_outputs(manifest, job, "maintainer", updates=True)
 
@@ -1696,6 +1695,8 @@ def _private_server_cells(
              "Records the server answers from."),
         cell(table, row, "state", outputs["serving_state_bytes"], size_render,
              "Records, row table, and preprocessing."),
+        cell(table, row, "preprocess-size", outputs["preprocessed_bytes"], size_render,
+             "Complete hint and packing tables."),
         cell(table, row, "request", outputs["request_bytes"], request_render,
              "Serialized request."),
         cell(table, row, "reply-kib", outputs["reply_bytes"], "kib-1",
@@ -1709,15 +1710,20 @@ def _private_server_cells(
         cell(table, row, "client-decode-ms", outputs["client_decode_ns"],
              "milliseconds-1", "Decoding the reply of one claim."),
         _private_preprocess_cell(table, row, outputs),
+        cell(table, row, "preprocess-hint-s", outputs["hint_ns"], "seconds-1",
+             "Complete hint rebuild on one core."),
+        cell(table, row, "preprocess-packing-s", outputs["packing_ns"], "seconds-1",
+             "Rebuild all response-packing tables on one core."),
     ]
 
 
 def _build_private_maintainer_table(manifest: Manifest) -> None:
     table = "tab:private-maintainer"
     manifest.table_columns[table] = [
-        "kappa", "log-gib", "record-kib", "database", "state", "request",
+        "kappa", "log-gib", "record-kib", "database", "state", "preprocess-size", "request",
         "reply-kib", "client-request-ms", "first-pass", "answer",
-        "client-decode-ms", "preprocess-core-s", "update-hint-ms",
+        "client-decode-ms", "preprocess-core-s", "preprocess-hint-s",
+        "preprocess-packing-s", "update-hint-ms",
         "update-packing-s",
     ]
     points = [
@@ -1783,9 +1789,14 @@ def _private_single(
         identifier=f"private-single-undine-log{gib}gib-p{pattern_bits}",
         role="single",
         env=env,
-        setup="Build the cells of the whole tree on all cores and preprocess them.",
+        setup=(
+            "Build the cells of the whole tree on all cores. Each repetition "
+            "rebuilds all PIR preprocessing on one core."
+        ),
         setup_seconds=150.0 * gib,
-        repetition_seconds=8.0 * gib,
+        repetition_seconds=58.0 * gib + private_reply_ciphertexts(
+            pattern_bits, PRIVATE_SINGLE_GROUP_CELLS, PRIVATE_SINGLE_GROUP_CELLS
+        ),
     )
     return job, _private_server_outputs(manifest, job, "single", updates=False)
 
@@ -1793,9 +1804,9 @@ def _private_single(
 def _build_private_single_table(manifest: Manifest) -> None:
     table = "tab:private-single"
     manifest.table_columns[table] = [
-        "log-gib", "record-kib", "database", "state", "request", "reply-kib",
+        "log-gib", "record-kib", "database", "state", "preprocess-size", "request", "reply-kib",
         "client-request-ms", "first-pass", "answer", "client-decode-ms",
-        "preprocess-core-s",
+        "preprocess-core-s", "preprocess-hint-s", "preprocess-packing-s",
     ]
     dash = _dash(manifest)
     first_gib = PRIVATE_SINGLE_MEASURED_GIB[0]
@@ -1846,8 +1857,8 @@ def _build_private_single_table(manifest: Manifest) -> None:
         cells += [
             cell(table, row, column, dash, "text", "Measured at 1 and 4 GiB.")
             for column in (
-                "state", "client-request-ms", "first-pass", "answer",
-                "client-decode-ms", "preprocess-core-s",
+                "state", "preprocess-size", "client-request-ms", "first-pass", "answer",
+                "client-decode-ms", "preprocess-core-s", "preprocess-hint-s", "preprocess-packing-s",
             )
         ]
         manifest.add_row(table, row, cells)
@@ -3479,8 +3490,14 @@ def validate_output_contract(
             "role": role,
             "leaves": int(env[f"{PRIVATE_PREFIX}_LEAVES"]),
             "tree_height": int(env[f"{PRIVATE_PREFIX}_TREE_HEIGHT"]),
-            "hint_sample_columns": int(env[f"{PRIVATE_PREFIX}_HINT_SAMPLE_COLUMNS"]),
         }
+        # Archived runs used sampled timing; new runs use samples only for
+        # untimed update checks and must contain full rebuild timings below.
+        check_key = (
+            "HINT_CHECK_COLUMNS" if f"{PRIVATE_PREFIX}_HINT_CHECK_COLUMNS" in env
+            else "HINT_SAMPLE_COLUMNS"
+        )
+        echoes[check_key.lower()] = int(env[f"{PRIVATE_PREFIX}_{check_key}"])
         if role == "single":
             echoes["cells_per_record"] = int(env[f"{PRIVATE_PREFIX}_CELLS_PER_RECORD"])
         else:
@@ -3623,6 +3640,11 @@ def validate_output_contract(
                 )
     elif benchmark == PRIVATE_BENCHMARK:
         for entry in entries:
+            if (
+                entry["role"] in {"maintainer", "single"}
+                and f"{PRIVATE_PREFIX}_HINT_CHECK_COLUMNS" in env
+            ):
+                validate_private_preprocessing(entry, meta["trials"], run_job.spec.id)
             leaves = int(entry["leaves"])
             if int(entry["log_bytes"]) != leaves * FIELD_BYTES:
                 raise PipelineError(f"{run_job.spec.id}: log bytes fail 32 per leaf")
@@ -3682,6 +3704,33 @@ def validate_output_contract(
                     f"{run_job.spec.id}: serialized answer is smaller than its "
                     "field-element payload"
                 )
+
+
+def validate_private_preprocessing(
+    entry: Mapping[str, Any], trials: int, job_id: str
+) -> None:
+    """Require complete-build samples and their paired sum, never scaled samples."""
+    samples = {}
+    for field in ("hint_ns", "packing_ns", "preprocess_ns"):
+        metric = entry.get(field)
+        if not isinstance(metric, dict):
+            raise PipelineError(f"{job_id}: missing full preprocessing metric {field}")
+        values = metric.get("samples")
+        if (
+            not isinstance(values, list)
+            or len(values) != trials
+            or metric.get("trials") != trials
+            or any(type(value) is not int or value <= 0 for value in values)
+        ):
+            raise PipelineError(f"{job_id}: incomplete full preprocessing samples for {field}")
+        samples[field] = values
+    if samples["preprocess_ns"] != [
+        hint + packing for hint, packing in zip(samples["hint_ns"], samples["packing_ns"])
+    ]:
+        raise PipelineError(f"{job_id}: preprocessing total is not hint plus packing per rebuild")
+    expected_bytes = int(entry["outputs"]) * (2048 * 2048 * 8 + 100_859_904)
+    if entry.get("preprocessed_bytes") != expected_bytes:
+        raise PipelineError(f"{job_id}: preprocessing bytes fail the full hint and packing size")
 
 
 def validate_treepir_entries(
@@ -4971,8 +5020,9 @@ def full_preflight_risks() -> list[str]:
         f"{DEFAULT_MIN_REPETITIONS} independent repetitions.",
         "The 64-batch append sequences and the large corrupted range openings "
         "are the dominant CPU costs.",
-        "The private-opening jobs build and preprocess their databases on all "
-        "cores; the single server at a 4 GiB log holds about 15 GiB of memory.",
+        "The private server jobs build their input cells on all cores, then "
+        "rebuild all PIR preprocessing on the pinned core in every repetition; "
+        "the single server at a 4 GiB log holds about 15 GiB of memory.",
         "Thermal throttling or competing host load can widen confidence intervals "
         f"and push individual jobs toward {DEFAULT_MAX_REPETITIONS} repetitions.",
         f"A timing series that misses the precision target at "

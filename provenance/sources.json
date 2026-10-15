@@ -334,7 +334,7 @@
         "third_party/ holds the PIR backend sources of the same commit: YPIR and spiral-rs with the patches recorded in third_party/patches/, and the TreePIR reference algorithms."
       ],
       "changed_files": {},
-      "commit": "c3031144462c9a75d59bee097f6bde1c1fb020e6",
+      "commit": "5088653538828fcef2ec579592c73c2aa6a29d8b",
       "files": {
         "undine/Cargo.lock": {
           "bytes": 30683,
@@ -433,8 +433,8 @@
           "sha256": "faec1c3860c521a7d882621313b935af000fde11d279076b220bbf843c0faf30"
         },
         "undine/benches/bench_private_opening_local.rs": {
-          "bytes": 59348,
-          "sha256": "604891358cdf03253dd1eab10a7c6ce81c5bab89b717d92f8909f732bad924c1"
+          "bytes": 58557,
+          "sha256": "bd2a8a8e41d469d98936b29ecaa2075c287a33a747d3a88bdffabf5e66ed5368"
         },
         "undine/benches/bench_treepir_comparison_local.rs": {
           "bytes": 67222,
@@ -641,8 +641,8 @@
           "sha256": "7f69176a9637118ab9010051a1135ec7e55bcf954c88e416f4e883e827a42b5c"
         },
         "undine/src/private/pir.rs": {
-          "bytes": 135685,
-          "sha256": "3eae731c897d36ea3f905f8fddc6f95dbab3273a8e3b7858ee4a6283ff87b0e2"
+          "bytes": 135902,
+          "sha256": "cdce5de6b665fe1da1d0fa02b3069fa88931fbe181511fb9b09fe9c433c71128"
         },
         "undine/src/private/records.rs": {
           "bytes": 1412,

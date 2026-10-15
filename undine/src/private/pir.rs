@@ -1322,12 +1322,18 @@ impl PirDatabase {
         self.shape
     }
 
-    /// The plaintext cells of one record.
     /// The cells of every record, record by record.
     pub fn cells(&self) -> &[u16] {
         &self.cells
     }
 
+    /// Release the preprocessing and return the owned plaintext cells.
+    /// A fresh build can reuse this buffer without retaining two databases.
+    pub fn into_cells(self) -> Vec<u16> {
+        self.cells
+    }
+
+    /// The plaintext cells of one record.
     pub fn record_cells(&self, record: usize) -> &[u16] {
         &self.cells[record * self.shape.record_cells..(record + 1) * self.shape.record_cells]
     }

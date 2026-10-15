@@ -5,17 +5,17 @@
 //! - `maintainer`: one claim of a maintainer. Its PIR database is the claim's
 //!   primary columns, built by the bulk builder for a seeded log. The process
 //!   times the client's request, the maintainer's first pass and complete
-//!   answer, the client's decoding of the reply, the hint of a sample of
-//!   database columns, and the preprocessing update after each of a sequence
+//!   answer, the client's decoding of the reply, a complete preprocessing
+//!   rebuild, and the preprocessing update after each of a sequence
 //!   of appends. With `DEFAULT_PREFIX=1` the leaves of the initial log are
 //!   allocated and unwritten, as after an allocation, so the columns are
 //!   built without hashing; the appended leaves are written. The full PIR
 //!   representation is built and scanned, but data-dependent shortcuts
 //!   and memory access can affect timings relative to a populated log.
 //! - `single`: a server that stores the whole tree in records of
-//!   `CELLS_PER_RECORD` cells. Same request, answer, decoding, and hint
-//!   sample; it also reports the database shape at the log lengths of
-//!   `SHAPE_LEAVES_LIST`.
+//!   `CELLS_PER_RECORD` cells. Same request, answer, decoding, and complete
+//!   preprocessing rebuild; it also reports the database shape at the log
+//!   lengths of `SHAPE_LEAVES_LIST`.
 //! - `table`: YPIR over the table of complete openings of one claim, one row
 //!   per pattern. First pass and complete answer.
 //! - `client`: a client that opens one position from `kappa` replies and from
@@ -72,7 +72,7 @@ const DEFAULT_LEAVES: usize = 1 << 15;
 const DEFAULT_TREE_HEIGHT: usize = 50;
 const DEFAULT_CELLS_PER_RECORD: usize = 64;
 const DEFAULT_APPEND_LEAVES: usize = 1 << 10;
-const DEFAULT_HINT_SAMPLE_COLUMNS: usize = 4 * HINT_COLUMN_BATCH;
+const DEFAULT_HINT_CHECK_COLUMNS: usize = 4 * HINT_COLUMN_BATCH;
 const DEFAULT_CLIENT_SETUP_MEMORY_MIB: usize = 12 * 1024;
 const FIELD_BYTES: u64 = 32;
 const ORDER: NodeLinearization = NodeLinearization::Preorder;
@@ -103,7 +103,7 @@ struct BenchMeta {
     segments_per_record: usize,
     cells_per_record: usize,
     append_leaves: u64,
-    hint_sample_columns: usize,
+    hint_check_columns: usize,
     /// Instruction set of the PIR backend's kernels: AVX-512 when the build
     /// targets it, otherwise AVX2 when the host has it, otherwise scalar.
     pir_path: &'static str,
@@ -169,9 +169,12 @@ struct ServerEntry {
     server_answer_ns: MetricStats,
     /// From the serialized reply to the entries of the opening.
     client_decode_ns: MetricStats,
-    /// The hint of `hint_sample_columns` database columns.
-    hint_sample_ns: MetricStats,
-    hint_sample_columns: u64,
+    /// A fresh hint over all database columns, including padding, on one core.
+    hint_ns: MetricStats,
+    /// Fresh response-packing tables for every reply ciphertext, on one core.
+    packing_ns: MetricStats,
+    /// The sum of the full hint and packing stages in each rebuild.
+    preprocess_ns: MetricStats,
     /// After an append of `append_leaves` leaves: the changed records and
     /// the patched hint.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -182,8 +185,6 @@ struct ServerEntry {
     update_packing_ns: Option<MetricStats>,
     #[serde(skip_serializing_if = "Option::is_none")]
     append_leaves: Option<u64>,
-    /// The response-packing tables of one reply ciphertext.
-    packing_table_ns: MetricStats,
 }
 
 /// The database shape of a server at another log length.
@@ -600,8 +601,8 @@ fn trial_leaf(layout: &PrivateLayout, trial: usize) -> u64 {
     (pattern << layout.group_bits()).min(layout.leaves() - 1)
 }
 
-/// Adjacent batches spread over the record columns. Sampling isolated
-/// columns would miss the full hint builder's shared gather work.
+/// Columns for the untimed correctness check after incremental updates.
+/// Adjacent batches spread the check over the record columns.
 fn sample_columns(shape: &PirShape, count: usize) -> Vec<usize> {
     let record_columns = shape.row_cells();
     let count = count.min(record_columns);
@@ -616,34 +617,47 @@ fn sample_columns(shape: &PirShape, count: usize) -> Vec<usize> {
     columns
 }
 
-/// The answer trials shared by the server roles.
-struct AnswerSamples {
+/// Full preprocessing rebuilds and openings, shared by the server roles.
+struct ServerSamples {
+    hint: Vec<u64>,
+    packing: Vec<u64>,
+    preprocess: Vec<u64>,
     client_request: Vec<u64>,
     first_pass: Vec<u64>,
     answer: Vec<u64>,
     client_decode: Vec<u64>,
 }
 
-/// Time `trials` openings against one database. Every decoded opening is
-/// compared with `expected(leaf)`.
-#[allow(clippy::too_many_arguments)]
-fn answer_trials(
-    trials: usize,
+/// Rebuild all preprocessing on one core in each trial, then time an opening
+/// against that build and check it against `expected`. Reuse only the input
+/// cells; discard the previous hint, packing tables, row table and upper cache.
+fn server_trials(
+    common: &Common,
     layout: &PrivateLayout,
+    mut cells: Vec<u16>,
     kappa: usize,
     registry_index: usize,
     fields: &ShapeFields,
-    first_pass: &dyn Fn(&[u64]) -> Result<Vec<u64>, PirError>,
-    answer: &dyn Fn(&[u64], &PackKeys) -> Result<Vec<Vec<u8>>, PirError>,
-    expected: &dyn Fn(u64) -> Vec<Fp>,
-) -> AnswerSamples {
-    let mut samples = AnswerSamples {
-        client_request: Vec::with_capacity(trials),
-        first_pass: Vec::with_capacity(trials),
-        answer: Vec::with_capacity(trials),
-        client_decode: Vec::with_capacity(trials),
+    expected: &dyn Fn(&PirDatabase, u64) -> Vec<Fp>,
+) -> (PirDatabase, ServerSamples) {
+    assert!(common.trials > 0, "at least one trial");
+    let mut samples = ServerSamples {
+        hint: Vec::with_capacity(common.trials),
+        packing: Vec::with_capacity(common.trials),
+        preprocess: Vec::with_capacity(common.trials),
+        client_request: Vec::with_capacity(common.trials),
+        first_pass: Vec::with_capacity(common.trials),
+        answer: Vec::with_capacity(common.trials),
+        client_decode: Vec::with_capacity(common.trials),
     };
-    for trial in 0..trials {
+    for trial in 0..common.trials {
+        let (database, times) = PirDatabase::from_cells_timed(layout, cells, 1);
+        samples.hint.push(times.hint.as_nanos() as u64);
+        samples.packing.push(times.packing.as_nanos() as u64);
+        samples
+            .preprocess
+            .push((times.hint + times.packing).as_nanos() as u64);
+
         let leaf = trial_leaf(layout, trial);
         let pattern = layout.pattern_of(leaf);
         let plan = layout.opening_plan(leaf);
@@ -653,11 +667,17 @@ fn answer_trials(
         samples.client_request.push(request_ns);
 
         let (query, _) = parse_request(&request);
-        let (_, first_pass_ns) = timed(|| first_pass(&query).expect("first pass"));
+        let (_, first_pass_ns) = timed(|| database.first_pass(&query).expect("first pass"));
         samples.first_pass.push(first_pass_ns);
         drop(query);
 
-        let (reply, answer_ns) = timed(|| serve(answer, registry_index, &request));
+        let (reply, answer_ns) = timed(|| {
+            serve(
+                &|query, keys| database.answer(query, keys),
+                registry_index,
+                &request,
+            )
+        });
         assert_eq!(reply.len() as u64, fields.reply_bytes, "reply bytes");
         samples.answer.push(answer_ns);
         drop(request);
@@ -665,11 +685,15 @@ fn answer_trials(
         let (entries, decode_ns) = timed(|| client_decode(&client, &plan, &reply));
         samples.client_decode.push(decode_ns);
         assert!(
-            entries == expected(leaf),
+            entries == expected(&database, leaf),
             "trial {trial}: the opening of leaf {leaf}"
         );
+        if trial + 1 == common.trials {
+            return (database, samples);
+        }
+        cells = database.into_cells();
     }
-    samples
+    unreachable!("the last trial returns the database and samples")
 }
 
 // ---------------------------------------------------------------------------
@@ -680,36 +704,7 @@ struct Common {
     kappa: usize,
     leaves: u64,
     tree_height: usize,
-    hint_sample_columns: usize,
-}
-
-/// Time the hint of the sample columns, once per trial, and compare it with
-/// the stored hint.
-fn hint_sample_trials(common: &Common, database: &PirDatabase) -> (MetricStats, u64) {
-    let cols = sample_columns(&database.shape(), common.hint_sample_columns);
-    let mut samples = Vec::with_capacity(common.trials);
-    for trial in 0..common.trials {
-        let (hint, ns) = timed(|| database.hint_of_columns(&cols));
-        samples.push(ns);
-        if trial == 0 {
-            for (col, values) in cols.iter().zip(&hint) {
-                assert!(
-                    *values == database.stored_hint_column(*col),
-                    "hint of column {col}"
-                );
-            }
-        }
-    }
-    (stats_from_samples(samples), cols.len() as u64)
-}
-
-/// Time the response-packing tables of one reply ciphertext, once per trial.
-fn packing_table_trials(common: &Common, database: &PirDatabase) -> MetricStats {
-    let outputs = database.shape().outputs();
-    let samples = (0..common.trials)
-        .map(|trial| timed(|| database.packing_table_of_output(trial % outputs)).1)
-        .collect();
-    stats_from_samples(samples)
+    hint_check_columns: usize,
 }
 
 /// The grouping of a run: the public one by default. `PATTERN_BITS` sets
@@ -755,7 +750,7 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         PrivateLayout::with_grouping(&params, &auth, ORDER, leaves, grouping).expect("layout")
     };
 
-    // Setup: the primary columns of the seeded log and their preprocessing.
+    // Untimed setup: the primary columns of the seeded log and their PIR cells.
     let default_leaves = if parse_usize_env("DEFAULT_PREFIX", 0) == 1 {
         common.leaves
     } else {
@@ -774,38 +769,28 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     );
     let layout = layout_at(common.leaves);
     let cells = PirDatabase::cells_from_entries(&layout, bulk.entries());
-    let (mut database, _) = PirDatabase::from_cells_timed(&layout, cells, cpus.setup_threads);
     cpus.restore();
 
     let fields = shape_fields(&layout, common.kappa, registry_index);
+
+    // A full preprocessing rebuild and a verified opening in every trial.
+    let (mut database, samples) = server_trials(
+        common,
+        &layout,
+        cells,
+        common.kappa,
+        registry_index,
+        &fields,
+        &|_, leaf| {
+            layout
+                .opening_plan(leaf)
+                .iter()
+                .map(|entry| bulk.entries()[layout.entry_index(entry.array_index)])
+                .collect()
+        },
+    );
     let preprocessed_bytes = database.preprocessed_bytes() as u64;
     let serving_state_bytes = preprocessed_bytes + database.record_state_bytes() as u64;
-
-    // Openings against the log of `leaves` leaves.
-    let answers = {
-        let expected = |leaf: u64| stored_opening(&database, &layout, leaf);
-        // The stored cells are the entries of the bulk log.
-        let leaf = trial_leaf(&layout, 0);
-        for (entry, value) in layout.opening_plan(leaf).iter().zip(expected(leaf)) {
-            let index = layout.entry_index(entry.array_index);
-            assert!(
-                value == bulk.entries()[index],
-                "stored entry of the bulk log"
-            );
-        }
-        answer_trials(
-            common.trials,
-            &layout,
-            common.kappa,
-            registry_index,
-            &fields,
-            &|query| database.first_pass(query),
-            &|query, pack_keys| database.answer(query, pack_keys),
-            &expected,
-        )
-    };
-    let (hint_sample_ns, hint_sample_columns) = hint_sample_trials(common, &database);
-    let packing_table_ns = packing_table_trials(common, &database);
 
     // A sequence of appends, each followed by the preprocessing update.
     let mut update_hint = Vec::with_capacity(common.trials);
@@ -859,7 +844,7 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
             }
         }
     }
-    let cols = sample_columns(&database.shape(), common.hint_sample_columns);
+    let cols = sample_columns(&database.shape(), common.hint_check_columns);
     for (col, values) in cols.iter().zip(database.hint_of_columns(&cols)) {
         assert!(
             values == database.stored_hint_column(*col),
@@ -889,16 +874,16 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         shape: fields,
         preprocessed_bytes,
         serving_state_bytes,
-        client_request_ns: stats_from_samples(answers.client_request),
-        server_first_pass_ns: stats_from_samples(answers.first_pass),
-        server_answer_ns: stats_from_samples(answers.answer),
-        client_decode_ns: stats_from_samples(answers.client_decode),
-        hint_sample_ns,
-        hint_sample_columns,
+        client_request_ns: stats_from_samples(samples.client_request),
+        server_first_pass_ns: stats_from_samples(samples.first_pass),
+        server_answer_ns: stats_from_samples(samples.answer),
+        client_decode_ns: stats_from_samples(samples.client_decode),
+        hint_ns: stats_from_samples(samples.hint),
+        packing_ns: stats_from_samples(samples.packing),
+        preprocess_ns: stats_from_samples(samples.preprocess),
         update_hint_ns: Some(stats_from_samples(update_hint)),
         update_packing_ns: Some(stats_from_samples(update_packing)),
         append_leaves: Some(append_leaves),
-        packing_table_ns,
     }))]
 }
 
@@ -914,19 +899,15 @@ fn run_single(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
 
     let layout = layout_at(common.leaves);
     let (cells, root) = build_tree_cells(&auth, ORDER, BENCH_SEED, &layout, cpus.setup_threads);
-    let (database, _) = PirDatabase::from_cells_timed(&layout, cells, cpus.setup_threads);
     cpus.restore();
 
     // The single server serves one database: kappa is one on the wire.
     let fields = shape_fields(&layout, 1, 0);
-    let preprocessed_bytes = database.preprocessed_bytes() as u64;
-    let serving_state_bytes = preprocessed_bytes + database.record_state_bytes() as u64;
-
-    let answers = {
+    let (database, samples) = {
         // The decoded cells are the leaf and the siblings of its path: they
         // hash to the root of the log.
-        let expected = |leaf: u64| {
-            let opening = stored_opening(&database, &layout, leaf);
+        let expected = |database: &PirDatabase, leaf: u64| {
+            let opening = stored_opening(database, &layout, leaf);
             let plan = layout.opening_plan(leaf);
             let value = bulk_leaf_value(BENCH_SEED, leaf);
             assert!(opening[0] == decode_value(value), "leaf {leaf}");
@@ -948,19 +929,10 @@ fn run_single(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
             );
             opening
         };
-        answer_trials(
-            common.trials,
-            &layout,
-            1,
-            0,
-            &fields,
-            &|query| database.first_pass(query),
-            &|query, pack_keys| database.answer(query, pack_keys),
-            &expected,
-        )
+        server_trials(common, &layout, cells, 1, 0, &fields, &expected)
     };
-    let (hint_sample_ns, hint_sample_columns) = hint_sample_trials(common, &database);
-    let packing_table_ns = packing_table_trials(common, &database);
+    let preprocessed_bytes = database.preprocessed_bytes() as u64;
+    let serving_state_bytes = preprocessed_bytes + database.record_state_bytes() as u64;
 
     let mut entries = vec![BenchEntry::Server(Box::new(ServerEntry {
         role: "single",
@@ -970,16 +942,16 @@ fn run_single(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         shape: fields,
         preprocessed_bytes,
         serving_state_bytes,
-        client_request_ns: stats_from_samples(answers.client_request),
-        server_first_pass_ns: stats_from_samples(answers.first_pass),
-        server_answer_ns: stats_from_samples(answers.answer),
-        client_decode_ns: stats_from_samples(answers.client_decode),
-        hint_sample_ns,
-        hint_sample_columns,
+        client_request_ns: stats_from_samples(samples.client_request),
+        server_first_pass_ns: stats_from_samples(samples.first_pass),
+        server_answer_ns: stats_from_samples(samples.answer),
+        client_decode_ns: stats_from_samples(samples.client_decode),
+        hint_ns: stats_from_samples(samples.hint),
+        packing_ns: stats_from_samples(samples.packing),
+        preprocess_ns: stats_from_samples(samples.preprocess),
         update_hint_ns: None,
         update_packing_ns: None,
         append_leaves: None,
-        packing_table_ns,
     }))];
     // A longer log has the pattern size of its own length: the measured
     // log's distance from the public size is kept.
@@ -1501,7 +1473,7 @@ fn run_benchmark() {
         kappa: parse_usize_env("KAPPA", DEFAULT_KAPPA),
         leaves: parse_usize_env("LEAVES", DEFAULT_LEAVES) as u64,
         tree_height: parse_usize_env("TREE_HEIGHT", DEFAULT_TREE_HEIGHT),
-        hint_sample_columns: parse_usize_env("HINT_SAMPLE_COLUMNS", DEFAULT_HINT_SAMPLE_COLUMNS),
+        hint_check_columns: parse_usize_env("HINT_CHECK_COLUMNS", DEFAULT_HINT_CHECK_COLUMNS),
     };
 
     let start = Instant::now();
@@ -1532,7 +1504,7 @@ fn run_benchmark() {
             segments_per_record: parse_usize_env("SEGMENTS_PER_RECORD", 1),
             cells_per_record: parse_usize_env("CELLS_PER_RECORD", DEFAULT_CELLS_PER_RECORD),
             append_leaves: parse_usize_env("APPEND_LEAVES", DEFAULT_APPEND_LEAVES) as u64,
-            hint_sample_columns: common.hint_sample_columns,
+            hint_check_columns: common.hint_check_columns,
             pir_path: if cfg!(target_feature = "avx512f") {
                 "avx512f"
             } else if cfg!(target_arch = "x86_64") && std::arch::is_x86_feature_detected!("avx2") {
@@ -1547,7 +1519,7 @@ fn run_benchmark() {
             peak_rss_bytes: peak_rss_bytes(),
             timestamp_unix_ms: timestamp_ms,
             git: git_sha(),
-            notes: "private openings of one position: one server's first pass and answer to a serialized request, the client's request and decoding, the hint of adjacent-column batches sampled across the database, the response-packing tables, and the preprocessing update after appends; or one client's Combine and Verify from private and from public replies".to_string(),
+            notes: "private openings of one position: one server's first pass and answer to a serialized request, the client's request and decoding, complete single-core hint and packing-table rebuilds in every server trial, and the preprocessing update after appends; preprocessing totals exclude tree construction, encoding and conversion to PIR cells; sampled hint columns are only an untimed update correctness check; or one client's Combine and Verify from private and from public replies".to_string(),
         },
         entries,
     };

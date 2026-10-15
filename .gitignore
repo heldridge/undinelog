@@ -4,6 +4,7 @@
 /results/gates/
 /artifact-run.log
 /artifact-jobs.log
+/artifact-jobs-decoder.log
 __pycache__/
 *.pyc
 *.swp

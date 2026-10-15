@@ -175,6 +175,47 @@ class ManifestTests(unittest.TestCase):
             },
         )
 
+    def test_private_preprocessing_uses_full_rebuild_measurements(self) -> None:
+        for table in ("tab:private-maintainer", "tab:private-single"):
+            for row in self.manifest.table_rows[table]:
+                if row.startswith("shape:"):
+                    continue
+                time = self.manifest.cells[f"{table}|{row}|preprocess-core-s"]
+                self.assertEqual(time.render, "seconds-1")
+                self.assertEqual(len(time.sources), 1)
+                measurement = self.manifest.measurements[time.sources[0]]
+                self.assertEqual(measurement.path, ("preprocess_ns",))
+                self.assertEqual(measurement.kind, "timing")
+                self.assertEqual(measurement.sample_mode, "rebuild")
+                job = self.manifest.jobs[measurement.job_id]
+                run_job = MODULE.RunJob(job, tuple(self.manifest.measurements_for_job(job.id)))
+                self.assertEqual(MODULE.benchmark_warmup_repetitions(run_job, "full"), 1)
+                self.assertIn(f"{MODULE.PRIVATE_PREFIX}_HINT_CHECK_COLUMNS", job.env_dict())
+                self.assertNotIn(f"{MODULE.PRIVATE_PREFIX}_HINT_SAMPLE_COLUMNS", job.env_dict())
+                size = self.manifest.cells[f"{table}|{row}|preprocess-size"]
+                self.assertEqual(self.manifest.measurements[size.sources[0]].path, ("preprocessed_bytes",))
+
+    def test_private_preprocessing_rejects_sampled_or_inconsistent_results(self) -> None:
+        def metric(values):
+            return {"samples": values, "trials": len(values)}
+
+        entry = {
+            "hint_ns": metric([100, 110]),
+            "packing_ns": metric([200, 190]),
+            "preprocess_ns": metric([300, 300]),
+            "outputs": 2,
+            "preprocessed_bytes": 2 * (2048 * 2048 * 8 + 100_859_904),
+        }
+        MODULE.validate_private_preprocessing(entry, 2, "test")
+        for field, invalid in (
+            ("hint_ns", None),
+            ("packing_ns", metric([200])),
+            ("preprocess_ns", metric([300, 301])),
+            ("preprocessed_bytes", entry["preprocessed_bytes"] // 2),
+        ):
+            with self.subTest(field=field), self.assertRaises(MODULE.PipelineError):
+                MODULE.validate_private_preprocessing(entry | {field: invalid}, 2, "test")
+
     def test_private_patterns_follow_the_public_grouping(self) -> None:
         bits = MODULE.private_pattern_bits
         # kappa = 64: patterns of 2^13 to 2^16 leaves on logs of 1 to 64 GiB.
@@ -251,7 +292,7 @@ class ManifestTests(unittest.TestCase):
 
     def test_exact_full_job_count_is_stable(self) -> None:
         self.assertEqual(len(self.manifest.jobs), 78)
-        self.assertEqual(len(self.manifest.cells), 969)
+        self.assertEqual(len(self.manifest.cells), 1029)
 
     def test_every_table_cell_satisfies_its_unit_contract(self) -> None:
         for cell in self.manifest.cells.values():
@@ -672,7 +713,7 @@ class ResultOutputTests(unittest.TestCase):
         self.assertEqual(render("seconds-3", 5_610_000_000), "5.610")
         self.assertEqual(render("seconds-1", 5_660_000_000), "5.7")
 
-    def test_preprocessing_renderer_scales_its_two_samples(self) -> None:
+    def test_archived_preprocessing_renderer_scales_its_two_samples(self) -> None:
         cell = MODULE.CellSpec(
             "table", "row", "column", (), "preprocess-core-seconds-1", ""
         )

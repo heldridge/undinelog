@@ -10,8 +10,8 @@ deduplicated.
 The complete manifest contains:
 
 - 12 result groups;
-- 969 exact result cells;
-- 460 timing series;
+- 1,029 exact result cells;
+- 476 timing series;
 - 78 deduplicated benchmark jobs: 22 per layout for the paired groups, 4
   for the UndineLog on-the-fly openings, 26 for the private openings, and 4
   for the comparison with TreePIR.
@@ -131,13 +131,21 @@ its subtree meets and one entry per level above. Each repetition
 opens one position: the client's request
 (key generation, query, serialization), the maintainer's first pass, the
 complete answer from the serialized request to the serialized reply, and the
-client's decoding of the reply. Each repetition also computes the hint of
-4,096 database columns, four runs of 1,024 adjacent columns spread over the
-row so that the sample gathers its columns as the complete build does, and the
-response-packing tables of one reply ciphertext; the preprocessing cell scales the two to the whole database
-by the column and ciphertext counts the benchmark reports. Then each
+client's decoding of the reply. Before each opening, the repetition rebuilds
+the entire hint, including padded columns, and all response-packing tables
+on one core, using the same constructor and timing boundaries as the TreePIR
+comparison. The artifact reports the two stages (`hint_ns`, `packing_ns`)
+and their per-rebuild sum (`preprocess_ns`), without extrapolation. Tree
+construction, fragment encoding, conversion to PIR cells, and construction
+of the row table and upper-node cache are outside this hint-and-packing
+total. Each build serves a checked opening. Between builds only the input
+cell buffer is retained; the previous preprocessing is released.
+The preprocessing size is recorded directly. Historical runs that report
+`hint_sample_ns` and `packing_table_ns` remain estimates and must not be
+substituted for these full-build measurements. Then each
 repetition appends 4 MiB to the log and updates the preprocessing from the
-changed records, timing the hint patch and the packing tables.
+changed records, timing the hint patch and the packing tables. Sampled hint
+columns are used only for an untimed correctness check after these updates.
 
 **A single server** (`tab:private-single`). The server stores every cell of
 the tree in groups of 64 cells and runs the same request, answer, decoding,
@@ -170,15 +178,16 @@ registries are timed in one process; the lying registry's time is the least
 release time of the protocol's schedule at that threshold.
 
 The benchmark checks, inside every run, that each decoded opening equals the
-stored entries, that the serialized sizes equal the reported ones, that the
-hint sample equals the stored hint, that after the appends the records, the
+stored entries, that the serialized sizes equal the reported ones, and that
+after the appends the records, a recomputed sample of the
 patched hint, and openings across the log equal those of the longer log, that
 the single server's decoded cells hash to the root, and that a decoded
 private reply equals the public reply of its claim.
 
-The database is built and preprocessed on all cores before the timed
-repetitions, which run on the pinned CPU. The result document records both
-CPU sets.
+The input cells are built on all cores before the timed repetitions, which
+run on the pinned CPU. The maintainer and single-server jobs rebuild all
+preprocessing in every repetition and discard one warmup rebuild per process,
+as in the TreePIR server comparison. The result document records both CPU sets.
 
 ### UndineLog against TreePIR (`tab:treepir-server`, `tab:treepir-client`, `tab:treepir-check`)
 
