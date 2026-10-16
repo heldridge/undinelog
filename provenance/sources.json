@@ -3,11 +3,20 @@
     "borg": {
       "adaptations": [
         "benches/bench_append_only_log_range_open_local.rs times a one-claim helper's handler for the range request and checks its answer against the full server's answer.",
-        "src/coded_array/rs.rs decodes with Gao's O(n^2) formulation of Berlekamp-Welch in place of the O(n^3) linear solve of the key equation; the decoded polynomial and the bad replies are the same."
+        "src/coded_array/rs.rs decodes with Gao's O(n^2) formulation of Berlekamp-Welch in place of the O(n^3) linear solve of the key equation; the decoded polynomial and the bad replies are the same.",
+        "Artifact benchmark harness adaptations: immutable checksum-verified range fixtures and the same 32-call helper timing batches as Undine."
       ],
       "changed_files": {
         "benches/bench_append_only_log_range_open_local.rs": {
           "original_sha256": "deb35c47739d3d64b74867bc43191e15b53751c4a611feaace23ff22af5585f2"
+        },
+        "benches/support/auth_fixture.rs": {
+          "note": "Benchmark harness optimization; added file",
+          "original_sha256": null
+        },
+        "benches/support/fixture_cache.rs": {
+          "note": "Benchmark harness optimization; added file",
+          "original_sha256": null
         },
         "src/coded_array/rs.rs": {
           "original_sha256": "ad644412530e1a8226c6433fce907963b0cf66b532230fd7b4f2864602502124"
@@ -96,8 +105,8 @@
           "sha256": "cae2ec9d7dd0829a4ea8f8998407c88702242431bcd63263201adf56ea746903"
         },
         "borg/benches/bench_append_only_log_range_open_local.rs": {
-          "bytes": 54725,
-          "sha256": "3aecde14052ae8c882584a4981e21082303a167eaf35879cfb0666771a678c03"
+          "bytes": 57220,
+          "sha256": "515ba0eb93160380c46ad45dcc23fdfd688f9fdf8eb9d8c94254541369103f8a"
         },
         "borg/benches/bench_append_only_log_repair_kernels_local.rs": {
           "bytes": 12978,
@@ -122,6 +131,14 @@
         "borg/benches/support/append_only_log_repair.rs": {
           "bytes": 45607,
           "sha256": "473c2a40429d17a63f5d52403a76096a428cff4c1e4e7d7873753fe277bb80fc"
+        },
+        "borg/benches/support/auth_fixture.rs": {
+          "bytes": 4537,
+          "sha256": "40f00dc76f17735130e3fad58ae7a0bcf6f3c7e4059e5e261cd7672c54445aed"
+        },
+        "borg/benches/support/fixture_cache.rs": {
+          "bytes": 5166,
+          "sha256": "6834d7ce950f95d5da9fd62bc9a99cd4df547930b5bc5f73d143c0e15b3b1bee"
         },
         "borg/benches/support/generic_bivariate_baseline.rs": {
           "bytes": 21309,
@@ -331,10 +348,18 @@
         "Cargo.toml retains only the append-only-log application and the measured benchmark targets.",
         "Cargo.lock prunes only packages made unreachable by the excluded targets.",
         "tests/bench_compile.rs references only retained benchmark sources.",
+        "All retained implementation and benchmark sources match the recorded commit. The selected-record fixtures, complete-opening sampling and warmup policies are part of that commit.",
         "third_party/ holds the PIR backend sources of the same commit: YPIR and spiral-rs with the patches recorded in third_party/patches/, and the TreePIR reference algorithms."
       ],
-      "changed_files": {},
-      "commit": "5088653538828fcef2ec579592c73c2aa6a29d8b",
+      "changed_files": {
+        "Cargo.lock": {
+          "original_sha256": "eaf9b632aa3d612a66e674a6d416dfd6e2e7c23aecff2d08501fa989e0165c0a"
+        },
+        "Cargo.toml": {
+          "original_sha256": "6db67222e0d713814544ab3cdf479ce7227e03d4ace3c0b52757d7df8506b184"
+        }
+      },
+      "commit": "1bc6562fe46c1d94cd74529d9ba5c724861cc711",
       "files": {
         "undine/Cargo.lock": {
           "bytes": 30683,
@@ -413,8 +438,8 @@
           "sha256": "1ba6cb473762ae964cd9960af85e6c7fe2ae12b4765adef582e38ea6646d70e0"
         },
         "undine/benches/bench_append_only_log_on_the_fly_open_local.rs": {
-          "bytes": 33305,
-          "sha256": "b9d289d6872df9bf950b4c61311624aca33f16903ff3a12cfefc5259b77b1655"
+          "bytes": 33654,
+          "sha256": "36aae80a482814c69b1e2a607507026d58022260b5bc6d0b90bb822362649dd8"
         },
         "undine/benches/bench_append_only_log_one_server_kappa_rescale_local.rs": {
           "bytes": 22921,
@@ -425,24 +450,32 @@
           "sha256": "a823053425ae278b45bd437c3f4faec78facd00ea1533599f77be1043c6e5660"
         },
         "undine/benches/bench_append_only_log_range_open_local.rs": {
-          "bytes": 54099,
-          "sha256": "687074b3ffaf033e7d815760bbd15ab52fc9c85b3d61fa1657370c7e7c585103"
+          "bytes": 56601,
+          "sha256": "9f75af304ea469be84ae59b10ae84bfe5a026347f9a5334684d50349c7900e92"
         },
         "undine/benches/bench_append_only_log_repair_kernels_local.rs": {
           "bytes": 12849,
           "sha256": "faec1c3860c521a7d882621313b935af000fde11d279076b220bbf843c0faf30"
         },
         "undine/benches/bench_private_opening_local.rs": {
-          "bytes": 58557,
-          "sha256": "bd2a8a8e41d469d98936b29ecaa2075c287a33a747d3a88bdffabf5e66ed5368"
+          "bytes": 58536,
+          "sha256": "d45ae6ee862c80bd52c267ea5de5bdd8603ca2b15f318c929370b354c8be6fc0"
         },
         "undine/benches/bench_treepir_comparison_local.rs": {
-          "bytes": 67222,
-          "sha256": "9c2a5c83a6de7c86c28ef9a541541275c1005539781ace2b15ad60fbc1b30d15"
+          "bytes": 71834,
+          "sha256": "8d07b3b1f515b51cfb804f0d195929d897c588064490491c91b6b06d664be9c8"
         },
         "undine/benches/support/append_only_log_repair.rs": {
           "bytes": 45006,
           "sha256": "82fd31999e4af6ce6ee1899c2b57bc51dce038e6ed79b1d577ff053aeed07587"
+        },
+        "undine/benches/support/auth_fixture.rs": {
+          "bytes": 4537,
+          "sha256": "40f00dc76f17735130e3fad58ae7a0bcf6f3c7e4059e5e261cd7672c54445aed"
+        },
+        "undine/benches/support/fixture_cache.rs": {
+          "bytes": 5166,
+          "sha256": "6834d7ce950f95d5da9fd62bc9a99cd4df547930b5bc5f73d143c0e15b3b1bee"
         },
         "undine/benches/support/generic_bivariate_baseline.rs": {
           "bytes": 20491,
@@ -456,9 +489,17 @@
           "bytes": 2074,
           "sha256": "2d20bb2e19a459e3e60e9d19543badc30840c708354c28b86061fa93ddfd35b6"
         },
+        "undine/benches/support/private_records.rs": {
+          "bytes": 6814,
+          "sha256": "e3f88b6c0a4f0bcf809ee550c0d9ac684e3cb6bd34d150c500fd79ad37e9ec12"
+        },
         "undine/benches/support/rs_striped_baseline.rs": {
           "bytes": 10956,
           "sha256": "28e33a7791c464afd467bf89a33d2dafb7e35d85d0f699922dc9d97b10cb0a7a"
+        },
+        "undine/benches/support/sampling.rs": {
+          "bytes": 1004,
+          "sha256": "5d2a613ac16dace870c2227ce9a2fc3f272c2626a8638de12b9b05190ce616c1"
         },
         "undine/benches/support/state_metrics.rs": {
           "bytes": 3369,
@@ -621,8 +662,8 @@
           "sha256": "51f8a7893a3d9d6f646a8dd168a709f6bfda10863fe031afe7ccf5ff30d1db42"
         },
         "undine/src/private/bulk.rs": {
-          "bytes": 31141,
-          "sha256": "fee13db39b5591a230e0ec0b9d23e3fb15aba40271198c500f811167866d00fd"
+          "bytes": 35147,
+          "sha256": "feefbf7bbe9e54a7815eb5954e6421f09af7153332be5dd8c0ea0adfe2b96842"
         },
         "undine/src/private/keeper.rs": {
           "bytes": 2932,
@@ -641,8 +682,8 @@
           "sha256": "7f69176a9637118ab9010051a1135ec7e55bcf954c88e416f4e883e827a42b5c"
         },
         "undine/src/private/pir.rs": {
-          "bytes": 135902,
-          "sha256": "cdce5de6b665fe1da1d0fa02b3069fa88931fbe181511fb9b09fe9c433c71128"
+          "bytes": 135456,
+          "sha256": "49f40d72a6224eaef2ccdf1efd7d0fce852d1870dc6157a1d04d1969f91c6c31"
         },
         "undine/src/private/records.rs": {
           "bytes": 1412,

@@ -1,0 +1,26 @@
+{
+  "status": "preflight diagnostics complete; not publication measurements",
+  "created_utc": "2026-10-16T18:06:58.392299+00:00",
+  "pipeline_tests": 52,
+  "exact_checks": [
+    "real h16 replies match generated plaintext and serialized lengths for every server",
+    "all 104 opening pairs per system verify at h16 and h32",
+    "raw single-opening timings re-derive every retained client batch mean",
+    "direct client totals equal request plus reply processing per opening",
+    "source hashes matched fresh diagnostic builds; no legacy diagnostic switches in binaries"
+  ],
+  "fixes": [
+    "run-local source-bound Cargo target directories; compiler wrappers disabled",
+    "strip undeclared benchmark and profiling environment variables",
+    "client components and direct totals remain coupled",
+    "average eight complete fresh opening pairs, retaining all per-opening timings",
+    "average 32 already-warmed on-the-fly point answers per sample",
+    "Rust fixture/PIR/opening correctness tests mandatory in smoke gate",
+    "archive exact source files including untracked additions"
+  ],
+  "rejected_prototype": "The initial isolated repetition of short client components warmed their allocations and changed their cost; it is not used. Those source/results are retained only as diagnostic evidence.",
+  "statistical_rule": "Unchanged: per-series 95% across five stopping looks, 5% relative half-width, n=10/20/40/80/160. Preflight client diagnostics stop at the first look; 15 of 19 client series stable at each height. Full run must continue sampling or fail validation.",
+  "main_paper_files": "untouched",
+  "final_run_policy": "one complete fresh run, no overlaid measurements",
+  "maintainer_attribution": "../20261016-maintainer-attribution/summary.json"
+}

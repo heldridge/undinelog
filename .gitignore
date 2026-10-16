@@ -2,6 +2,8 @@
 /borg/target/
 /results/runs/
 /results/gates/
+# Reviewed diagnostic evidence is added explicitly; scratch outputs stay local.
+/results/diagnostics/
 /artifact-run.log
 /artifact-jobs.log
 /artifact-jobs-decoder.log

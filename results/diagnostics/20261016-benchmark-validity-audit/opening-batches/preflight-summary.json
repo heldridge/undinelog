@@ -1,0 +1,278 @@
+[
+  {
+    "job": "treepir-client-h16-real",
+    "rows": [
+      {
+        "metric": "output:treepir-client-h16-real:undine-index_ns",
+        "n": 10,
+        "mean_ns": 3492.7,
+        "relative_half_width": 0.11026184472796241,
+        "stable": false
+      },
+      {
+        "metric": "output:treepir-client-h16-real:undine-keygen_ns",
+        "n": 10,
+        "mean_ns": 52521.6,
+        "relative_half_width": 0.04242304038852001,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h16-real:undine-query_ns",
+        "n": 10,
+        "mean_ns": 33662978.9,
+        "relative_half_width": 0.005837051083647942,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h16-real:undine-serialize_ns",
+        "n": 10,
+        "mean_ns": 93386.2,
+        "relative_half_width": 0.08393207655114329,
+        "stable": false
+      },
+      {
+        "metric": "output:treepir-client-h16-real:undine-decrypt_ns",
+        "n": 10,
+        "mean_ns": 4546227.0,
+        "relative_half_width": 0.0048514712685378495,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h16-real:undine-verify_ns",
+        "n": 10,
+        "mean_ns": 4500.9,
+        "relative_half_width": 0.00914740768071079,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h16-real:undine-request_total_ns",
+        "n": 10,
+        "mean_ns": 33768547.4,
+        "relative_half_width": 0.0035367561359540786,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h16-real:undine-process_total_ns",
+        "n": 10,
+        "mean_ns": 4802516.4,
+        "relative_half_width": 0.0071195462760594635,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h16-real:undine-client_total_ns",
+        "n": 10,
+        "mean_ns": 38571064.3,
+        "relative_half_width": 0.0028575944404620225,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h16-real:undine-combine_verify_ns",
+        "n": 10,
+        "mean_ns": 317743.4,
+        "relative_half_width": 0.013525906653309414,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h16-real:treepir-index_ns",
+        "n": 10,
+        "mean_ns": 6777.6,
+        "relative_half_width": 0.11853057586645181,
+        "stable": false
+      },
+      {
+        "metric": "output:treepir-client-h16-real:treepir-keygen_ns",
+        "n": 10,
+        "mean_ns": 632622.0,
+        "relative_half_width": 0.02205638231279043,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h16-real:treepir-query_ns",
+        "n": 10,
+        "mean_ns": 538203848.5,
+        "relative_half_width": 0.0021205673876470805,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h16-real:treepir-serialize_ns",
+        "n": 10,
+        "mean_ns": 1958146.8,
+        "relative_half_width": 0.07484039567030741,
+        "stable": false
+      },
+      {
+        "metric": "output:treepir-client-h16-real:treepir-decrypt_ns",
+        "n": 10,
+        "mean_ns": 4390536.2,
+        "relative_half_width": 0.004595949787611081,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h16-real:treepir-verify_ns",
+        "n": 10,
+        "mean_ns": 8479.9,
+        "relative_half_width": 0.03699791830247389,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h16-real:treepir-request_total_ns",
+        "n": 10,
+        "mean_ns": 540504744.7,
+        "relative_half_width": 0.002989121142273784,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h16-real:treepir-process_total_ns",
+        "n": 10,
+        "mean_ns": 4339764.6,
+        "relative_half_width": 0.004724124829346974,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h16-real:treepir-client_total_ns",
+        "n": 10,
+        "mean_ns": 544844510.1,
+        "relative_half_width": 0.0029806077918187717,
+        "stable": true
+      }
+    ]
+  },
+  {
+    "job": "treepir-client-h32-generated",
+    "rows": [
+      {
+        "metric": "output:treepir-client-h32-generated:undine-index_ns",
+        "n": 10,
+        "mean_ns": 9341.8,
+        "relative_half_width": 0.05305687278757392,
+        "stable": false
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:undine-keygen_ns",
+        "n": 10,
+        "mean_ns": 51529.3,
+        "relative_half_width": 0.03926935767788772,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:undine-query_ns",
+        "n": 10,
+        "mean_ns": 48583917.0,
+        "relative_half_width": 0.0029108195378139377,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:undine-serialize_ns",
+        "n": 10,
+        "mean_ns": 263011.6,
+        "relative_half_width": 0.0734800928372541,
+        "stable": false
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:undine-decrypt_ns",
+        "n": 10,
+        "mean_ns": 328126051.4,
+        "relative_half_width": 0.0018490716222827823,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:undine-verify_ns",
+        "n": 10,
+        "mean_ns": 8414.3,
+        "relative_half_width": 0.022918927382812038,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:undine-request_total_ns",
+        "n": 10,
+        "mean_ns": 48939926.5,
+        "relative_half_width": 0.0046466408693407535,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:undine-process_total_ns",
+        "n": 10,
+        "mean_ns": 329204999.6,
+        "relative_half_width": 0.0012857711686021494,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:undine-client_total_ns",
+        "n": 10,
+        "mean_ns": 378144926.6,
+        "relative_half_width": 0.001231543574516403,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:undine-combine_verify_ns",
+        "n": 10,
+        "mean_ns": 1050996.3,
+        "relative_half_width": 0.01362334756644649,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:treepir-index_ns",
+        "n": 10,
+        "mean_ns": 12744.7,
+        "relative_half_width": 0.08009010200482425,
+        "stable": false
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:treepir-keygen_ns",
+        "n": 10,
+        "mean_ns": 1280957.3,
+        "relative_half_width": 0.018102114936695377,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:treepir-query_ns",
+        "n": 10,
+        "mean_ns": 1555467195.9,
+        "relative_half_width": 0.001894482143936949,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:treepir-serialize_ns",
+        "n": 10,
+        "mean_ns": 11990003.7,
+        "relative_half_width": 0.023662783448728703,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:treepir-decrypt_ns",
+        "n": 10,
+        "mean_ns": 327574687.3,
+        "relative_half_width": 0.00203742351448305,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:treepir-verify_ns",
+        "n": 10,
+        "mean_ns": 14154.8,
+        "relative_half_width": 0.06355699330724549,
+        "stable": false
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:treepir-request_total_ns",
+        "n": 10,
+        "mean_ns": 1564925803.8,
+        "relative_half_width": 0.0016328259864156393,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:treepir-process_total_ns",
+        "n": 10,
+        "mean_ns": 327511321.4,
+        "relative_half_width": 0.00241071811749372,
+        "stable": true
+      },
+      {
+        "metric": "output:treepir-client-h32-generated:treepir-client_total_ns",
+        "n": 10,
+        "mean_ns": 1892437125.6,
+        "relative_half_width": 0.00172798136803857,
+        "stable": true
+      }
+    ]
+  }
+]

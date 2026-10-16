@@ -11,6 +11,13 @@
 //! transmission, or timed helper work is included in Combine+Verify. The older
 //! localhost client benchmark is only a broad workflow smoke.
 
+#[path = "support/auth_fixture.rs"]
+mod auth_fixture;
+#[path = "support/fixture_cache.rs"]
+mod fixture_cache;
+use auth_fixture::AuthFixture;
+use fixture_cache::FixtureCache;
+
 use append_only_log_demo::codec::{bulk_updates_bytes_as_leaves, leaves_to_bulk_updates_bytes};
 use append_only_log_demo::frontier::PreparedBulkUpdatesAppend;
 use append_only_log_demo::layout::{
@@ -333,6 +340,7 @@ struct MetricStats {
     p95: u64,
     trials: u64,
     samples: Vec<u64>,
+    inner_repetitions: usize,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -451,6 +459,7 @@ fn stats_from_samples(mut samples: Vec<u64>) -> MetricStats {
             p95: 0,
             trials: 0,
             samples: Vec::new(),
+            inner_repetitions: 1,
         };
     }
     let sum: u128 = samples.iter().map(|&v| v as u128).sum();
@@ -463,6 +472,7 @@ fn stats_from_samples(mut samples: Vec<u64>) -> MetricStats {
         p95: percentile(&samples, 95),
         trials: samples.len() as u64,
         samples: raw_samples,
+        inner_repetitions: 1,
     }
 }
 
@@ -474,6 +484,23 @@ fn bench_metric<T>(trials: usize, mut f: impl FnMut() -> T) -> MetricStats {
         samples.push(start.elapsed().as_nanos() as u64);
     }
     stats_from_samples(samples)
+}
+
+/// Each batch mean is one sample; inner calls never increase the CI's n.
+fn bench_helper_metric<T>(trials: usize, mut f: impl FnMut() -> T) -> MetricStats {
+    const INNER: usize = 32;
+    let mut samples = Vec::with_capacity(trials);
+    for _ in 0..trials {
+        let start = Instant::now();
+        for _ in 0..INNER {
+            // Keep response destruction in the scope, as in bench_metric.
+            black_box(f());
+        }
+        samples.push((start.elapsed().as_nanos() / INNER as u128).max(1) as u64);
+    }
+    let mut metric = stats_from_samples(samples);
+    metric.inner_repetitions = INNER;
+    metric
 }
 
 fn git_sha() -> Option<String> {
@@ -593,6 +620,15 @@ fn make_full_server(setup: &BenchSetup) -> LocalServer {
 fn build_warmed_helper(setup: &BenchSetup, committed_bulk_update_batches: usize) -> AuthServer {
     let claim = ClaimBundle::exact_for_registry_index(&setup.params, 0)
         .expect("exact claim should exist for registry index 0");
+    let cache = range_fixture_cache(setup, committed_bulk_update_batches, "helper");
+    if let Some(fixture) = cache.load::<AuthFixture>() {
+        return fixture.restore(
+            &setup.params,
+            &setup.auth,
+            setup.cfg.auth.node_linearization,
+            Some(vec![claim]),
+        );
+    }
     let server = AuthServer::new_with_assignments_and_claims(
         setup.params.clone(),
         setup.auth.clone(),
@@ -621,6 +657,9 @@ fn build_warmed_helper(setup: &BenchSetup, committed_bulk_update_batches: usize)
         frontier = Some(next_frontier);
     }
     let helper = servers[0].inner.lock().expect("helper lock").clone();
+    if cache.enabled() {
+        cache.store(&AuthFixture::capture(&helper));
+    }
     helper
 }
 
@@ -868,8 +907,41 @@ fn assert_verified_range_shape(
     assert_eq!(leaves.len(), warmed.query_leaf_count);
 }
 
+fn range_fixture_cache(setup: &BenchSetup, batches: usize, role: &str) -> FixtureCache {
+    FixtureCache::new(
+        "public-range",
+        &(
+            role,
+            BENCH_SEED,
+            setup.auth.tree_height,
+            setup.params.need,
+            setup.params.segment_len,
+            setup.params.shard_registry.len(),
+            BULK_UPDATES_BYTES,
+            batches,
+        ),
+    )
+}
+
 fn build_warmed_cluster(setup: &BenchSetup, committed_bulk_update_batches: usize) -> WarmedCluster {
     assert!(committed_bulk_update_batches > 0);
+    let cache = range_fixture_cache(setup, committed_bulk_update_batches, "cluster");
+    if let Some(fixture) = cache.load::<AuthFixture>() {
+        let server = fixture.restore(
+            &setup.params,
+            &setup.auth,
+            setup.cfg.auth.node_linearization,
+            None,
+        );
+        return WarmedCluster {
+            allocated_leaves: server.allocated_leaves() as usize,
+            trusted_root: server.store.root,
+            servers: vec![LocalServer {
+                label: "full-local".into(),
+                inner: Arc::new(Mutex::new(server)),
+            }],
+        };
+    }
     let servers = vec![make_full_server(setup)];
     let mut client = make_client(&servers, setup, None);
     let mut planner = PreparedBulkUpdatesAppend::new(setup.cfg.auth.tree_height).expect("planner");
@@ -892,6 +964,11 @@ fn build_warmed_cluster(setup: &BenchSetup, committed_bulk_update_batches: usize
         .current_len()
         .expect("allocated length after appends") as usize;
 
+    if cache.enabled() {
+        cache.store(&AuthFixture::capture(
+            &servers[0].inner.lock().expect("cluster fixture"),
+        ));
+    }
     WarmedCluster {
         servers,
         allocated_leaves,
@@ -1053,12 +1130,12 @@ fn bench_range_open(
         "the helper's answer differs from its share of the full answer"
     );
     let helper_range_share_core_ns = if metrics.contains("core") {
-        bench_metric(trials, || helper.handle_optimized_read(&warmed.request))
+        bench_helper_metric(trials, || helper.handle_optimized_read(&warmed.request))
     } else {
         stats_from_samples(Vec::new())
     };
     let helper_range_share_serialized_ns = if metrics.contains("serialized") {
-        bench_metric(trials, || {
+        bench_helper_metric(trials, || {
             serialized_helper_response(helper, &warmed.request)
         })
     } else {

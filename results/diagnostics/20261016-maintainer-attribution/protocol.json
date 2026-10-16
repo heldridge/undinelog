@@ -1,0 +1,20 @@
+{
+  "old_snapshot": "9de75e447cf9fe7e91635e4e100eb4afc8e7653706f65338dbb7dd842dce9087",
+  "new_snapshot": "2e1033e8d839db8501aca3d9700a1614e822074558d5902caae3cb20fa76fbd2",
+  "source_hash_checks": "all measured undine files matched before adding identical diagnostic harness",
+  "harness_sha256": "05c72a129d2498a3bb16269d030cbfdcfbfe18b590755e1058d565c3e285e171",
+  "cpu": 2,
+  "order": [
+    "old",
+    "new",
+    "new",
+    "old"
+  ],
+  "retained_samples_per_process_per_case": 20,
+  "discarded_warmup_trials_per_case": 3,
+  "cases": [
+    "full answer with 0, 1 or 2 preceding scans",
+    "standalone first pass with 0 or 1 preceding scans"
+  ],
+  "data": "same seeded pseudorandom primary column entries at the 4 GiB, kappa 64 shape; this isolates PIR computation, not Merkle-tree construction"
+}

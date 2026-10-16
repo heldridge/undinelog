@@ -1,0 +1,2668 @@
+diff --git a/README.md b/README.md
+index 27994c1..6a9cdfe 100644
+--- a/README.md
++++ b/README.md
+@@ -611,6 +611,29 @@ Override the default sweeps with:
+ - `BENCH_UNAUTH_BLOCK_UPDATE_KAPPAS`
+ - `BENCH_UNAUTH_BLOCK_UPDATE_TRIALS`
+ 
++### Reusing untimed benchmark inputs
++
++The private-opening and range-opening benchmarks accept `BENCH_FIXTURE_DIR`
++for optional immutable setup caches. Each cache key includes the executable
++hash and all input parameters; a complete-file checksum is verified before
++loading. Partial writes are ignored, and a damaged completed fixture fails
++the run. Public range fixtures include primary columns, auxiliary rows and
++the trusted root. Private fixtures preserve the bulk builder's append state,
++so each process restores its own mutable baseline. No measured operation,
++PIR hint or response-packing table is cached. The publication artifact sets
++this directory inside the run so adaptive batches and range helper/client
++jobs can share their identical setup.
++
++The private-client benchmark builds only the records touched by its opening,
++including records holding the upper nodes. Its replies, corruption cases and
++client timers are unchanged. The materialized-opening baseline uses the same
++tiled dense builder and compact packing preprocessing as TreePIR, with an
++independent bitwise reference packer and checked replies. See the
++[comparison documentation](documentation/treepir-ypir.md#the-artifact-comparison)
++for independent sampling groups and server warmups. Public range
++helper timings similarly average 32 calls per independent sample, preserving
++response destruction inside their existing timing boundary.
++
+ ### Compile-only benchmark check
+ ```bash
+ cargo check --features bench --benches
+diff --git a/benches/bench_append_only_log_on_the_fly_open_local.rs b/benches/bench_append_only_log_on_the_fly_open_local.rs
+index d63e1eb..7c41f1c 100644
+--- a/benches/bench_append_only_log_on_the_fly_open_local.rs
++++ b/benches/bench_append_only_log_on_the_fly_open_local.rs
+@@ -62,6 +62,9 @@ const DEFAULT_MAX_LEVELS: usize = 3;
+ const DEFAULT_COMMITTED_BULK_UPDATE_BATCHES: usize = 3;
+ const DEFAULT_RANGE_BYTE_LENS: [usize; 2] = [1 << 20, 4 << 20];
+ const ENV_PREFIX: &str = "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN";
++/// A point answer lasts only a few microseconds. Each retained sample is the
++/// mean of this many calls; inner calls are not independent observations.
++const POINT_CALLS_PER_SAMPLE: usize = 32;
+ 
+ #[derive(Clone)]
+ struct LocalServer {
+@@ -296,6 +299,7 @@ struct BenchResults {
+ 
+ #[derive(Clone, Debug, Serialize)]
+ struct BenchMeta {
++    point_calls_per_sample: usize,
+     seed: u64,
+     trials: usize,
+     stored_kappa: usize,
+@@ -411,12 +415,13 @@ impl Timed<'_> {
+     fn sample(&self) -> u64 {
+         match self {
+             Timed::Point { server, req } => {
+-                // One untimed answer first: the trials of all operations are
+-                // interleaved, so each visit starts on a cold request.
++                // Warm the request once, then batch these short operations.
+                 black_box(serialized_point_response(server, req));
+                 let start = Instant::now();
+-                black_box(serialized_point_response(server, req));
+-                start.elapsed().as_nanos() as u64
++                for _ in 0..POINT_CALLS_PER_SAMPLE {
++                    black_box(serialized_point_response(black_box(server), black_box(req)));
++                }
++                (start.elapsed().as_nanos() / POINT_CALLS_PER_SAMPLE as u128) as u64
+             }
+             Timed::Range { server, request } => {
+                 black_box(serialized_range_response(server, request));
+@@ -879,6 +884,7 @@ fn run_benchmark() {
+         .as_millis() as u64;
+     let results = BenchResults {
+         meta: BenchMeta {
++            point_calls_per_sample: POINT_CALLS_PER_SAMPLE,
+             seed: BENCH_SEED,
+             trials,
+             stored_kappa: kappa,
+diff --git a/benches/bench_append_only_log_range_open_local.rs b/benches/bench_append_only_log_range_open_local.rs
+index bd03f28..225af2e 100644
+--- a/benches/bench_append_only_log_range_open_local.rs
++++ b/benches/bench_append_only_log_range_open_local.rs
+@@ -11,6 +11,13 @@
+ //! transmission, or timed helper work is included in Combine+Verify. The older
+ //! localhost client benchmark is only a broad workflow smoke.
+ 
++#[path = "support/auth_fixture.rs"]
++mod auth_fixture;
++#[path = "support/fixture_cache.rs"]
++mod fixture_cache;
++use auth_fixture::AuthFixture;
++use fixture_cache::FixtureCache;
++
+ use append_only_log_demo::codec::{bulk_updates_bytes_as_leaves, leaves_to_bulk_updates_bytes};
+ use append_only_log_demo::frontier::PreparedBulkUpdatesAppend;
+ use append_only_log_demo::layout::{
+@@ -333,6 +340,7 @@ struct MetricStats {
+     p95: u64,
+     trials: u64,
+     samples: Vec<u64>,
++    inner_repetitions: usize,
+ }
+ 
+ #[derive(Clone, Debug, Serialize)]
+@@ -451,6 +459,7 @@ fn stats_from_samples(mut samples: Vec<u64>) -> MetricStats {
+             p95: 0,
+             trials: 0,
+             samples: Vec::new(),
++            inner_repetitions: 1,
+         };
+     }
+     let sum: u128 = samples.iter().map(|&v| v as u128).sum();
+@@ -463,6 +472,7 @@ fn stats_from_samples(mut samples: Vec<u64>) -> MetricStats {
+         p95: percentile(&samples, 95),
+         trials: samples.len() as u64,
+         samples: raw_samples,
++        inner_repetitions: 1,
+     }
+ }
+ 
+@@ -476,6 +486,23 @@ fn bench_metric<T>(trials: usize, mut f: impl FnMut() -> T) -> MetricStats {
+     stats_from_samples(samples)
+ }
+ 
++/// Each batch mean is one sample; inner calls never increase the CI's n.
++fn bench_helper_metric<T>(trials: usize, mut f: impl FnMut() -> T) -> MetricStats {
++    const INNER: usize = 32;
++    let mut samples = Vec::with_capacity(trials);
++    for _ in 0..trials {
++        let start = Instant::now();
++        for _ in 0..INNER {
++            // Keep response destruction in the scope, as in bench_metric.
++            black_box(f());
++        }
++        samples.push((start.elapsed().as_nanos() / INNER as u128).max(1) as u64);
++    }
++    let mut metric = stats_from_samples(samples);
++    metric.inner_repetitions = INNER;
++    metric
++}
++
+ fn git_sha() -> Option<String> {
+     let output = Command::new("git")
+         .args(["rev-parse", "HEAD"])
+@@ -593,6 +620,15 @@ fn make_full_server(setup: &BenchSetup) -> LocalServer {
+ fn build_warmed_helper(setup: &BenchSetup, committed_bulk_update_batches: usize) -> AuthServer {
+     let claim = ClaimBundle::exact_for_registry_index(&setup.params, 0)
+         .expect("exact claim should exist for registry index 0");
++    let cache = range_fixture_cache(setup, committed_bulk_update_batches, "helper");
++    if let Some(fixture) = cache.load::<AuthFixture>() {
++        return fixture.restore(
++            &setup.params,
++            &setup.auth,
++            setup.cfg.auth.node_linearization,
++            Some(vec![claim]),
++        );
++    }
+     let server = AuthServer::new_with_assignments_and_claims(
+         setup.params.clone(),
+         setup.auth.clone(),
+@@ -621,6 +657,9 @@ fn build_warmed_helper(setup: &BenchSetup, committed_bulk_update_batches: usize)
+         frontier = Some(next_frontier);
+     }
+     let helper = servers[0].inner.lock().expect("helper lock").clone();
++    if cache.enabled() {
++        cache.store(&AuthFixture::capture(&helper));
++    }
+     helper
+ }
+ 
+@@ -868,8 +907,41 @@ fn assert_verified_range_shape(
+     assert_eq!(leaves.len(), warmed.query_leaf_count);
+ }
+ 
++fn range_fixture_cache(setup: &BenchSetup, batches: usize, role: &str) -> FixtureCache {
++    FixtureCache::new(
++        "public-range",
++        &(
++            role,
++            BENCH_SEED,
++            setup.auth.tree_height,
++            setup.params.need,
++            setup.params.segment_len,
++            setup.params.shard_registry.len(),
++            BULK_UPDATES_BYTES,
++            batches,
++        ),
++    )
++}
++
+ fn build_warmed_cluster(setup: &BenchSetup, committed_bulk_update_batches: usize) -> WarmedCluster {
+     assert!(committed_bulk_update_batches > 0);
++    let cache = range_fixture_cache(setup, committed_bulk_update_batches, "cluster");
++    if let Some(fixture) = cache.load::<AuthFixture>() {
++        let server = fixture.restore(
++            &setup.params,
++            &setup.auth,
++            setup.cfg.auth.node_linearization,
++            None,
++        );
++        return WarmedCluster {
++            allocated_leaves: server.allocated_leaves() as usize,
++            trusted_root: server.store.root,
++            servers: vec![LocalServer {
++                label: "full-local".into(),
++                inner: Arc::new(Mutex::new(server)),
++            }],
++        };
++    }
+     let servers = vec![make_full_server(setup)];
+     let mut client = make_client(&servers, setup, None);
+     let mut planner = PreparedBulkUpdatesAppend::new(setup.cfg.auth.tree_height).expect("planner");
+@@ -892,6 +964,11 @@ fn build_warmed_cluster(setup: &BenchSetup, committed_bulk_update_batches: usize
+         .current_len()
+         .expect("allocated length after appends") as usize;
+ 
++    if cache.enabled() {
++        cache.store(&AuthFixture::capture(
++            &servers[0].inner.lock().expect("cluster fixture"),
++        ));
++    }
+     WarmedCluster {
+         servers,
+         allocated_leaves,
+@@ -1053,12 +1130,12 @@ fn bench_range_open(
+         "the helper's answer differs from its share of the full answer"
+     );
+     let helper_range_share_core_ns = if metrics.contains("core") {
+-        bench_metric(trials, || helper.handle_optimized_read(&warmed.request))
++        bench_helper_metric(trials, || helper.handle_optimized_read(&warmed.request))
+     } else {
+         stats_from_samples(Vec::new())
+     };
+     let helper_range_share_serialized_ns = if metrics.contains("serialized") {
+-        bench_metric(trials, || {
++        bench_helper_metric(trials, || {
+             serialized_helper_response(helper, &warmed.request)
+         })
+     } else {
+diff --git a/benches/bench_private_opening_local.rs b/benches/bench_private_opening_local.rs
+index 51a5034..0f5486d 100644
+--- a/benches/bench_private_opening_local.rs
++++ b/benches/bench_private_opening_local.rs
+@@ -20,12 +20,25 @@
+ //!   per pattern. First pass and complete answer.
+ //! - `client`: a client that opens one position from `kappa` replies and from
+ //!   `3 kappa` replies of which `kappa` lie, privately and publicly. Every
+-//!   reply comes from the PIR database of its own claim.
++//!   reply encrypts exactly the selected records of its own claim; untimed
++//!   setup encodes only those records, including the upper-node records.
+ //!
+ //! Setup runs on `SETUP_THREADS` threads over all online CPUs; the timed
+ //! operations run on the calling thread with the CPU set the process was
+ //! started with.
+ 
++#[path = "support/sampling.rs"]
++mod sampling;
++use sampling::Sampling;
++
++#[path = "support/fixture_cache.rs"]
++mod fixture_cache;
++use fixture_cache::FixtureCache;
++
++#[path = "support/private_records.rs"]
++mod private_records;
++use private_records::ClaimRecords;
++
+ use paper_a_optimized::auth::client::{AuthClient, AuthTransport, ClientError as AuthClientError};
+ use paper_a_optimized::auth::mapping::NodeLinearization;
+ use paper_a_optimized::auth::service::{
+@@ -39,16 +52,14 @@ use paper_a_optimized::net::wire::{
+     decode_binary, encode_binary,
+ };
+ use paper_a_optimized::private::bulk::CHUNK_BITS;
+-use paper_a_optimized::private::pir::{
+-    HINT_COLUMN_BATCH, UPPER_CELLS, bytes_from_cells, bytes_to_cells,
+-};
++use paper_a_optimized::private::pir::{HINT_COLUMN_BATCH, UPPER_CELLS};
+ use paper_a_optimized::private::wire::{
+     WORD_BYTES, pack_words, request_to_net, response_from_net, unpack_words,
+ };
+ use paper_a_optimized::private::{
+     BulkLog, Grouping, PackKeys, PirClient, PirDatabase, PirError, PirShape, PlannedEntry,
+-    PrivateLayout, PrivateOpening, PrivateReadResponse, TableDatabase, build_primary_columns,
+-    build_tree_cells, bulk_leaf_value, entries_to_cells, entry_from_cells, pattern_bits,
++    PrivateLayout, PrivateOpening, PrivateReadResponse, TableDatabase, build_tree_cells,
++    bulk_leaf_value, entries_to_cells, entry_from_cells, pattern_bits,
+ };
+ use paper_a_optimized::unauth::error_correcting_share_target;
+ use paper_a_optimized::{
+@@ -73,7 +84,6 @@ const DEFAULT_TREE_HEIGHT: usize = 50;
+ const DEFAULT_CELLS_PER_RECORD: usize = 64;
+ const DEFAULT_APPEND_LEAVES: usize = 1 << 10;
+ const DEFAULT_HINT_CHECK_COLUMNS: usize = 4 * HINT_COLUMN_BATCH;
+-const DEFAULT_CLIENT_SETUP_MEMORY_MIB: usize = 12 * 1024;
+ const FIELD_BYTES: u64 = 32;
+ const ORDER: NodeLinearization = NodeLinearization::Preorder;
+ 
+@@ -94,6 +104,9 @@ struct BenchResults {
+ 
+ #[derive(Clone, Debug, Serialize)]
+ struct BenchMeta {
++    first_pass_warmup_calls: usize,
++    #[serde(skip_serializing_if = "Option::is_none")]
++    sample_groups: Option<std::collections::BTreeMap<String, usize>>,
+     seed: u64,
+     trials: usize,
+     role: String,
+@@ -628,13 +641,14 @@ struct ServerSamples {
+     client_decode: Vec<u64>,
+ }
+ 
+-/// Rebuild all preprocessing on one core in each trial, then time an opening
+-/// against that build and check it against `expected`. Reuse only the input
+-/// cells; discard the previous hint, packing tables, row table and upper cache.
++/// Rebuild preprocessing for each requested preprocessing sample, checking
++/// every build against `expected`. Online samples can continue on the last
++/// checked build; an online-only batch makes one untimed build. Rebuilds reuse
++/// only the input cells, never the old hint, packing tables or upper cache.
+ fn server_trials(
+     common: &Common,
+     layout: &PrivateLayout,
+-    mut cells: Vec<u16>,
++    cells: Vec<u16>,
+     kappa: usize,
+     registry_index: usize,
+     fields: &ShapeFields,
+@@ -650,56 +664,75 @@ fn server_trials(
+         answer: Vec::with_capacity(common.trials),
+         client_decode: Vec::with_capacity(common.trials),
+     };
+-    for trial in 0..common.trials {
+-        let (database, times) = PirDatabase::from_cells_timed(layout, cells, 1);
+-        samples.hint.push(times.hint.as_nanos() as u64);
+-        samples.packing.push(times.packing.as_nanos() as u64);
+-        samples
+-            .preprocess
+-            .push((times.hint + times.packing).as_nanos() as u64);
+-
++    let preprocessing = common.sampling.count("preprocess");
++    let online = common.sampling.count("online");
++    let mut database: Option<PirDatabase> = None;
++    let mut input = Some(cells);
++    for trial in 0..preprocessing.max(online).max(1) {
++        if trial == 0 || trial < preprocessing {
++            let cells = input
++                .take()
++                .unwrap_or_else(|| database.take().unwrap().into_cells());
++            let (built, times) = PirDatabase::from_cells_timed(layout, cells, 1);
++            if trial < preprocessing {
++                samples.hint.push(times.hint.as_nanos() as u64);
++                samples.packing.push(times.packing.as_nanos() as u64);
++                samples
++                    .preprocess
++                    .push((times.hint + times.packing).as_nanos() as u64);
++            }
++            database = Some(built);
++        }
++        let current = database.as_ref().unwrap();
+         let leaf = trial_leaf(layout, trial);
+         let pattern = layout.pattern_of(leaf);
+         let plan = layout.opening_plan(leaf);
+ 
+         let ((client, request), request_ns) = timed(|| client_request(layout, kappa, pattern));
+         assert_eq!(request.len() as u64, fields.request_bytes, "request bytes");
+-        samples.client_request.push(request_ns);
++        if trial < online {
++            samples.client_request.push(request_ns);
++        }
+ 
+         let (query, _) = parse_request(&request);
+-        let (_, first_pass_ns) = timed(|| database.first_pass(&query).expect("first pass"));
+-        samples.first_pass.push(first_pass_ns);
++        // Give fresh and reused databases the same warmup before the scan.
++        black_box(current.first_pass(&query).expect("warm first pass"));
++        let (_, first_pass_ns) = timed(|| current.first_pass(&query).expect("first pass"));
++        if trial < online {
++            samples.first_pass.push(first_pass_ns);
++        }
+         drop(query);
+ 
+         let (reply, answer_ns) = timed(|| {
+             serve(
+-                &|query, keys| database.answer(query, keys),
++                &|query, keys| current.answer(query, keys),
+                 registry_index,
+                 &request,
+             )
+         });
+         assert_eq!(reply.len() as u64, fields.reply_bytes, "reply bytes");
+-        samples.answer.push(answer_ns);
++        if trial < online {
++            samples.answer.push(answer_ns);
++        }
+         drop(request);
+ 
+         let (entries, decode_ns) = timed(|| client_decode(&client, &plan, &reply));
+-        samples.client_decode.push(decode_ns);
++        if trial < online {
++            samples.client_decode.push(decode_ns);
++        }
+         assert!(
+-            entries == expected(&database, leaf),
++            entries == expected(current, leaf),
+             "trial {trial}: the opening of leaf {leaf}"
+         );
+-        if trial + 1 == common.trials {
+-            return (database, samples);
+-        }
+-        cells = database.into_cells();
+     }
+-    unreachable!("the last trial returns the database and samples")
++    (database.expect("at least one checked build"), samples)
+ }
+ 
+ // ---------------------------------------------------------------------------
+ // Roles.
+ 
+ struct Common {
++    sampling: Sampling,
+     trials: usize,
+     kappa: usize,
+     leaves: u64,
+@@ -739,6 +772,49 @@ fn single_pattern_bits(common: &Common, cells_per_record: usize) -> u32 {
+     }
+ }
+ 
++/// Reuse an immutable seeded fragment across pattern sweeps and sampling
++/// batches. Loading gives update trials a separate, unmodified BulkLog.
++fn cached_primary<'a>(
++    common: &Common,
++    cpus: &CpuPlan,
++    params: &'a CodedArrayParams,
++    auth: &'a AuthParams,
++    defaults: u64,
++    claim: usize,
++) -> BulkLog<'a> {
++    let cache = FixtureCache::new(
++        "private-primary",
++        &(
++            BENCH_SEED,
++            common.tree_height,
++            common.leaves,
++            defaults,
++            common.kappa,
++            params.shard_registry.len(),
++            claim,
++            CHUNK_BITS,
++        ),
++    );
++    if let Some(bulk) =
++        cache.load_with(|input| BulkLog::read_benchmark_fixture(params, auth, ORDER, input))
++    {
++        return bulk;
++    }
++    let bulk = BulkLog::build_with_default_prefix(
++        params,
++        auth,
++        ORDER,
++        common.leaves,
++        defaults,
++        BENCH_SEED,
++        claim,
++        cpus.setup_threads,
++        CHUNK_BITS,
++    );
++    cache.store_with(|output| bulk.write_benchmark_fixture(output));
++    bulk
++}
++
+ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
+     let grouping = grouping_of_env(common);
+     let segments_per_record = grouping.segments_per_group;
+@@ -756,24 +832,14 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
+     } else {
+         0
+     };
+-    let mut bulk = BulkLog::build_with_default_prefix(
+-        &params,
+-        &auth,
+-        ORDER,
+-        common.leaves,
+-        default_leaves,
+-        BENCH_SEED,
+-        registry_index,
+-        cpus.setup_threads,
+-        CHUNK_BITS,
+-    );
++    let mut bulk = cached_primary(common, cpus, &params, &auth, default_leaves, registry_index);
+     let layout = layout_at(common.leaves);
+     let cells = PirDatabase::cells_from_entries(&layout, bulk.entries());
+     cpus.restore();
+ 
+     let fields = shape_fields(&layout, common.kappa, registry_index);
+ 
+-    // A full preprocessing rebuild and a verified opening in every trial.
++    // Fresh preprocessing samples and checked openings, with independent counts.
+     let (mut database, samples) = server_trials(
+         common,
+         &layout,
+@@ -796,7 +862,7 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
+     let mut update_hint = Vec::with_capacity(common.trials);
+     let mut update_packing = Vec::with_capacity(common.trials);
+     let mut leaves = common.leaves;
+-    for _ in 0..common.trials {
++    for _ in 0..common.sampling.count("update") {
+         let old_leaves = leaves;
+         leaves += append_leaves;
+         bulk.extend(leaves, 1);
+@@ -809,61 +875,64 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
+         update_packing.push(times.packing.as_nanos() as u64);
+     }
+ 
+-    // The updated database equals the database of the longer log: its cells,
+-    // the hint of the sample columns, and openings across the log.
+-    let final_layout = layout_at(leaves);
+-    {
+-        // Record by record, so that the fresh cells are never held whole
+-        // next to the database's.
+-        let record_cells = database.shape().record_cells;
+-        let per_record = final_layout.entries_per_record();
+-        let entries = bulk.entries();
+-        let mut padded = vec![fp_zero(); per_record];
+-        let mut fresh = vec![0u16; record_cells];
+-        for record in 0..final_layout.records() {
+-            let start = (record * per_record).min(entries.len());
+-            let end = ((record + 1) * per_record).min(entries.len());
+-            padded[..end - start].copy_from_slice(&entries[start..end]);
+-            padded[end - start..].fill(fp_zero());
+-            entries_to_cells(&padded, &mut fresh);
+-            assert!(
+-                database.record_cells(record) == fresh.as_slice(),
+-                "block {record} after the updates"
+-            );
+-        }
+-        // The records equal the fresh ones, so the upper nodes read from
+-        // them are the fresh upper nodes.
+-        let fresh_upper = PirDatabase::upper_from_cells(&final_layout, database.cells());
+-        for (level, cells) in fresh_upper.iter().enumerate() {
+-            for pos in 0..final_layout.upper_count(level) {
++    if common.sampling.count("update") > 0 {
++        // The updated database equals the database of the longer log: its cells,
++        // the hint of the sample columns, and openings across the log.
++        let final_layout = layout_at(leaves);
++        {
++            // Record by record, so that the fresh cells are never held whole
++            // next to the database's.
++            let record_cells = database.shape().record_cells;
++            let per_record = final_layout.entries_per_record();
++            let entries = bulk.entries();
++            let mut padded = vec![fp_zero(); per_record];
++            let mut fresh = vec![0u16; record_cells];
++            for record in 0..final_layout.records() {
++                let start = (record * per_record).min(entries.len());
++                let end = ((record + 1) * per_record).min(entries.len());
++                padded[..end - start].copy_from_slice(&entries[start..end]);
++                padded[end - start..].fill(fp_zero());
++                entries_to_cells(&padded, &mut fresh);
+                 assert!(
+-                    database.upper_cells(level, pos)
+-                        == &cells[pos * UPPER_CELLS..(pos + 1) * UPPER_CELLS],
+-                    "upper node {pos} at level {level} after the updates"
++                    database.record_cells(record) == fresh.as_slice(),
++                    "block {record} after the updates"
+                 );
+             }
++            // The records equal the fresh ones, so the upper nodes read from
++            // them are the fresh upper nodes.
++            let fresh_upper = PirDatabase::upper_from_cells(&final_layout, database.cells());
++            for (level, cells) in fresh_upper.iter().enumerate() {
++                for pos in 0..final_layout.upper_count(level) {
++                    assert!(
++                        database.upper_cells(level, pos)
++                            == &cells[pos * UPPER_CELLS..(pos + 1) * UPPER_CELLS],
++                        "upper node {pos} at level {level} after the updates"
++                    );
++                }
++            }
++        }
++        let cols = sample_columns(&database.shape(), common.hint_check_columns);
++        for (col, values) in cols.iter().zip(database.hint_of_columns(&cols)) {
++            assert!(
++                values == database.stored_hint_column(*col),
++                "updated hint of column {col}"
++            );
++        }
++        for leaf in [0, common.leaves - 1, common.leaves, leaves - 1] {
++            let plan = final_layout.opening_plan(leaf);
++            let (client, request) =
++                client_request(&final_layout, common.kappa, final_layout.pattern_of(leaf));
++            let reply = serve(
++                &|query, pack_keys| database.answer(query, pack_keys),
++                registry_index,
++                &request,
++            );
++            assert!(
++                client_decode(&client, &plan, &reply)
++                    == stored_opening(&database, &final_layout, leaf),
++                "opening of leaf {leaf} after the updates"
++            );
+         }
+-    }
+-    let cols = sample_columns(&database.shape(), common.hint_check_columns);
+-    for (col, values) in cols.iter().zip(database.hint_of_columns(&cols)) {
+-        assert!(
+-            values == database.stored_hint_column(*col),
+-            "updated hint of column {col}"
+-        );
+-    }
+-    for leaf in [0, common.leaves - 1, common.leaves, leaves - 1] {
+-        let plan = final_layout.opening_plan(leaf);
+-        let (client, request) =
+-            client_request(&final_layout, common.kappa, final_layout.pattern_of(leaf));
+-        let reply = serve(
+-            &|query, pack_keys| database.answer(query, pack_keys),
+-            registry_index,
+-            &request,
+-        );
+-        assert!(
+-            client_decode(&client, &plan, &reply) == stored_opening(&database, &final_layout, leaf),
+-            "opening of leaf {leaf} after the updates"
+-        );
+     }
+ 
+     vec![BenchEntry::Server(Box::new(ServerEntry {
+@@ -986,16 +1055,8 @@ fn run_table(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
+     let layout = PrivateLayout::with_grouping(&params, &auth, ORDER, common.leaves, grouping)
+         .expect("layout");
+ 
+-    let bulk = build_primary_columns(
+-        &params,
+-        &auth,
+-        ORDER,
+-        common.leaves,
+-        BENCH_SEED,
+-        registry_index,
+-        cpus.setup_threads,
+-    );
+-    let cells = PirDatabase::cells_from_entries(&layout, &bulk.entries);
++    let bulk = cached_primary(common, cpus, &params, &auth, 0, registry_index);
++    let cells = PirDatabase::cells_from_entries(&layout, bulk.entries());
+     drop(bulk);
+     let (database, _) = PirDatabase::from_cells_timed(&layout, cells, cpus.setup_threads);
+     let table = TableDatabase::from_database(&database);
+@@ -1025,6 +1086,7 @@ fn run_table(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
+         let plan = layout.opening_plan(leaf);
+         let (client, request) = client_request(&layout, common.kappa, layout.pattern_of(leaf));
+         let (query, _) = parse_request(&request);
++        black_box(table.first_pass(&query).expect("warm first pass"));
+         first_pass.push(timed(|| table.first_pass(&query).expect("first pass")).1);
+         let (reply, answer_ns) = timed(|| {
+             serve(
+@@ -1168,7 +1230,6 @@ fn same_replies(left: &AuthReadResponse, right: &AuthReadResponse) -> bool {
+ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
+     let grouping = grouping_of_env(common);
+     let segments_per_record = grouping.segments_per_group;
+-    let memory_mib = parse_usize_env("CLIENT_SETUP_MEMORY_MIB", DEFAULT_CLIENT_SETUP_MEMORY_MIB);
+     let kappa = common.kappa;
+     let claims = error_correcting_share_target(kappa, kappa);
+     let params = build_params(kappa, claims);
+@@ -1183,68 +1244,43 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
+     let plan = layout.opening_plan(index);
+     let fields = shape_fields(&layout, kappa, claims - 1);
+ 
+-    // Each claim answers the request honestly, and the first `kappa` claims
+-    // answer a second time with a lie about one node of the path each, so
+-    // that the same registry is timed with and without lies. The client's
+-    // work does not depend on the stored values or on how a reply was
+-    // formed, so the claims hold the columns of a log of allocated, unwritten
+-    // leaves, which the bulk builder writes without hashing the tree for as
+-    // many claims per walk as two thirds of the memory hold, and a claim's
+-    // reply is the row the query selects encrypted under the client's key,
+-    // in place of the server's preprocessing and answer.
+-    let column_mib = (fields.database_bytes as usize >> 20).max(1);
+-    let claims_per_walk = (memory_mib * 2 / 3 / column_mib).clamp(1, claims);
++    // Construct exactly the records this opening reads, for every claim.
++    // The allocated, unwritten workload is unchanged: inner cells are
++    // level defaults and leaf cells are zero. No full fragments are built.
++    let registry_indices = (0..claims).collect::<Vec<_>>();
++    let records = ClaimRecords::new(
++        &params,
++        &auth,
++        &layout,
++        &registry_indices,
++        [index],
++        &|level, _| {
++            if level as usize == common.tree_height {
++                fp_zero()
++            } else {
++                decode_value(default_hash(&auth.defaults, level as usize))
++            }
++        },
++    );
++    let root = default_hash(&auth.defaults, 0);
+     let workers = cpus.setup_threads.clamp(1, claims);
+-    let shape = PirShape::of(&layout);
+     let pattern = layout.pattern_of(index);
+-    let row = layout.row(pattern);
+-    let per_record = layout.entries_per_record();
+     let honest: Mutex<Vec<Option<(Vec<u8>, AuthReadResponse, Value256)>>> =
+         Mutex::new(vec![None; claims]);
+     let lying: Mutex<Vec<Option<(Vec<u8>, AuthReadResponse, Value256)>>> =
+         Mutex::new(vec![None; kappa]);
+-    // The cells of one record of `entries`, as the database holds them.
+-    let record_cells = |entries: &[Fp], record: usize| -> Vec<u16> {
+-        let start = (record * per_record).min(entries.len());
+-        let end = ((record + 1) * per_record).min(entries.len());
+-        let mut padded = vec![fp_zero(); per_record];
+-        padded[..end - start].copy_from_slice(&entries[start..end]);
+-        let mut cells = vec![0u16; shape.record_cells];
+-        entries_to_cells(&padded, &mut cells);
+-        cells
+-    };
+-    let answer = |claim: usize, entries: &[Fp], root: Value256| {
++    let answer = |claim: usize, patch: Option<(usize, Fp)>| {
+         let stored = plan
+             .iter()
+-            .map(|entry| entries[layout.entry_index(entry.array_index)])
+-            .collect::<Vec<_>>();
+-        // The row the query selects: the record of each group slot and the
+-        // entry of each upper slot, as `PirDatabase` lays them out.
+-        let slots = row
+-            .iter()
+-            .enumerate()
+-            .map(|(slot, id)| {
+-                let mut cells = vec![0u16; shape.slot_width(slot)];
+-                match id {
+-                    Some(record) if slot < shape.group_slots => {
+-                        cells = record_cells(entries, *record);
+-                    }
+-                    Some(pos) => {
+-                        let entry_index = layout.upper_entry_index(slot - shape.group_slots, *pos);
+-                        let block = record_cells(entries, entry_index / per_record)
+-                            .into_iter()
+-                            .map(u64::from)
+-                            .collect::<Vec<_>>();
+-                        bytes_to_cells(
+-                            bytes_from_cells(&block, entry_index % per_record),
+-                            &mut cells,
+-                        );
+-                    }
+-                    None => {}
++            .map(|entry| {
++                let index = layout.entry_index(entry.array_index);
++                match patch {
++                    Some((changed, value)) if changed == index => value,
++                    _ => records.entry(claim, index),
+                 }
+-                cells.into_iter().map(u64::from).collect::<Vec<_>>()
+             })
+             .collect::<Vec<_>>();
++        let slots = records.slots_with_patch(&layout, claim, pattern, patch);
+         let reply = encode_binary(&net::Response::AuthReadPrivate {
+             resp: AuthPrivateReadResponse {
+                 replies: vec![AuthPrivateReadReply {
+@@ -1261,48 +1297,28 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
+         let public = public_reply(common.tree_height, index, claim, &plan, &stored);
+         (reply, public, root)
+     };
+-    for first in (0..claims).step_by(claims_per_walk) {
+-        let group = (first..(first + claims_per_walk).min(claims)).collect::<Vec<_>>();
+-        let columns = BulkLog::build_for_claims(
+-            &params,
+-            &auth,
+-            ORDER,
+-            common.leaves,
+-            common.leaves,
+-            BENCH_SEED,
+-            &group,
+-            cpus.setup_threads,
+-            CHUNK_BITS,
+-        )
+-        .into_claim_columns();
+-        let columns = columns.into_iter().map(Mutex::new).collect::<Vec<_>>();
+-        let next = AtomicUsize::new(0);
+-        std::thread::scope(|scope| {
+-            for _ in 0..workers {
+-                scope.spawn(|| {
+-                    loop {
+-                        let position = next.fetch_add(1, Ordering::Relaxed);
+-                        if position >= group.len() {
+-                            break;
+-                        }
+-                        let claim = group[position];
+-                        let mut bulk = columns[position].lock().expect("columns");
+-                        let bulk = &mut *bulk;
+-                        honest.lock().expect("honest replies")[claim] =
+-                            Some(answer(claim, &bulk.entries, bulk.root));
+-                        if claim < kappa {
+-                            let entry = &plan[claim % plan.len()];
+-                            bulk.entries[layout.entry_index(entry.array_index)] += fp_one();
+-                            lying.lock().expect("lying replies")[claim] =
+-                                Some(answer(claim, &bulk.entries, bulk.root));
+-                        }
+-                        // The columns are not needed again.
+-                        bulk.entries = Vec::new();
++    let next = AtomicUsize::new(0);
++    std::thread::scope(|scope| {
++        for _ in 0..workers {
++            scope.spawn(|| {
++                loop {
++                    let claim = next.fetch_add(1, Ordering::Relaxed);
++                    if claim >= claims {
++                        break;
+                     }
+-                });
+-            }
+-        });
+-    }
++                    honest.lock().expect("honest replies")[claim] = Some(answer(claim, None));
++                    if claim < kappa {
++                        let entry = &plan[claim % plan.len()];
++                        let index = layout.entry_index(entry.array_index);
++                        lying.lock().expect("lying replies")[claim] = Some(answer(
++                            claim,
++                            Some((index, records.entry(claim, index) + fp_one())),
++                        ));
++                    }
++                }
++            });
++        }
++    });
+     cpus.restore();
+     let collect = |replies: Mutex<Vec<Option<(Vec<u8>, AuthReadResponse, Value256)>>>| {
+         replies
+@@ -1469,6 +1485,7 @@ fn run_benchmark() {
+     let role =
+         std::env::var(format!("{ENV_PREFIX}_ROLE")).unwrap_or_else(|_| "maintainer".to_string());
+     let common = Common {
++        sampling: Sampling::new(parse_usize_env("TRIALS", DEFAULT_TRIALS)),
+         trials: parse_usize_env("TRIALS", DEFAULT_TRIALS),
+         kappa: parse_usize_env("KAPPA", DEFAULT_KAPPA),
+         leaves: parse_usize_env("LEAVES", DEFAULT_LEAVES) as u64,
+@@ -1495,6 +1512,8 @@ fn run_benchmark() {
+         .as_millis() as u64;
+     let results = BenchResults {
+         meta: BenchMeta {
++            first_pass_warmup_calls: usize::from(role != "client"),
++            sample_groups: common.sampling.groups.clone(),
+             seed: BENCH_SEED,
+             trials: common.trials,
+             role,
+@@ -1519,7 +1538,7 @@ fn run_benchmark() {
+             peak_rss_bytes: peak_rss_bytes(),
+             timestamp_unix_ms: timestamp_ms,
+             git: git_sha(),
+-            notes: "private openings of one position: one server's first pass and answer to a serialized request, the client's request and decoding, complete single-core hint and packing-table rebuilds in every server trial, and the preprocessing update after appends; preprocessing totals exclude tree construction, encoding and conversion to PIR cells; sampled hint columns are only an untimed update correctness check; or one client's Combine and Verify from private and from public replies".to_string(),
++            notes: "private openings of one position: one server's first pass and answer to a serialized request, the client's request and decoding, complete single-core hint and packing-table rebuilds in every preprocessing sample, and the preprocessing update after appends; preprocessing totals exclude tree construction, encoding and conversion to PIR cells; sampled hint columns are only an untimed update correctness check; or one client's Combine and Verify from private and from public replies".to_string(),
+         },
+         entries,
+     };
+diff --git a/benches/bench_treepir_comparison_local.rs b/benches/bench_treepir_comparison_local.rs
+index ee6f865..25af8d9 100644
+--- a/benches/bench_treepir_comparison_local.rs
++++ b/benches/bench_treepir_comparison_local.rs
+@@ -4,7 +4,7 @@
+ //! - `server`: the preparation and the answer of one UndineLog maintainer
+ //!   (claim `MAINTAINER`) and one TreePIR server (color `COLOR`), alternated
+ //!   trial by trial. The maintainer's fragment is built once per process
+-//!   and kept in a temporary file; every trial reloads it untimed and
++//!   and kept in a temporary file; each preprocessing sample reloads it untimed and
+ //!   rebuilds both PIR servers from the start: UndineLog gathers its primary
+ //!   columns into PIR cells, reads the row table and the upper nodes, and
+ //!   builds the hint and the packing tables; TreePIR enumerates its class,
+@@ -29,11 +29,21 @@
+ //!   the client's key; the process then also builds one real server of each
+ //!   system and times its replies and the generated ones in pairs.
+ //!
+-//! Each component timing is its own measurement of the same opening, and
+-//! each total is timed directly on a second opening.
++//! Each component is timed once in a complete opening, and each total is timed
++//! directly on a second opening with fresh keys. One independent sample averages
++//! eight such pairs. Small components retain their normal allocation/cache
++//! history; no component is repeatedly timed in isolation. All per-opening
++//! timings are retained alongside the batch means.
++
++#[path = "support/private_records.rs"]
++mod private_records;
++use private_records::ClaimRecords;
++#[path = "support/sampling.rs"]
++mod sampling;
++use sampling::Sampling;
+ 
+ use paper_a_optimized::auth::client::{AuthClient, AuthTransport, ClientError as AuthClientError};
+-use paper_a_optimized::auth::mapping::{self, NodeLinearization};
++use paper_a_optimized::auth::mapping::NodeLinearization;
+ use paper_a_optimized::auth::service::{
+     AuthBatchWriteRequest, AuthBatchWriteResponse, AuthReadResponse, AuthSubtreeReadResponse,
+     AuthWriteRequest, AuthWriteResponse,
+@@ -45,7 +55,6 @@ use paper_a_optimized::net::wire::{
+     decode_binary, encode_binary,
+ };
+ use paper_a_optimized::private::bulk::CHUNK_BITS;
+-use paper_a_optimized::private::pir::{bytes_from_cells, bytes_to_cells};
+ use paper_a_optimized::private::treepir::{
+     BalancedColoring, NodeLocation, TreePirLayout, TreePirQuery, TreePirRequest, TreePirServer,
+     root_from_labels,
+@@ -53,15 +62,14 @@ use paper_a_optimized::private::treepir::{
+ use paper_a_optimized::private::wire::{WORD_BYTES, pack_words, response_from_net, unpack_words};
+ use paper_a_optimized::private::{
+     BulkLog, PackKeys, PirClient, PirDatabase, PirShape, PlannedEntry, PrivateLayout,
+-    PrivateOpening, SuffixTree, entries_to_cells, entry_from_cells,
+-    suffix_segment_entries,
++    PrivateOpening, SuffixTree, entry_from_cells,
+ };
+ use paper_a_optimized::{
+     AuthParams, CodedArrayConfig, CodedArrayParams, Fp, ShardShare, Value256, build_coded_params,
+-    build_shard_registry_deterministic, decode_value, encode_value, fp_zero,
++    build_shard_registry_deterministic, decode_value, encode_value,
+ };
+ use serde::Serialize;
+-use std::collections::{BTreeSet, HashMap};
++use std::collections::HashMap;
+ use std::fs;
+ use std::hint::black_box;
+ use std::path::Path;
+@@ -83,6 +91,9 @@ struct MetricStats {
+     p95: u64,
+     trials: u64,
+     samples: Vec<u64>,
++    inner_repetitions: usize,
++    #[serde(skip_serializing_if = "Option::is_none")]
++    raw_call_samples: Option<Vec<u64>>,
+ }
+ 
+ fn percentile(sorted: &[u64], pct: usize) -> u64 {
+@@ -90,7 +101,17 @@ fn percentile(sorted: &[u64], pct: usize) -> u64 {
+ }
+ 
+ fn stats(samples: Vec<u64>) -> MetricStats {
+-    assert!(!samples.is_empty(), "a metric without samples");
++    if samples.is_empty() {
++        return MetricStats {
++            mean: 0,
++            p50: 0,
++            p95: 0,
++            trials: 0,
++            samples,
++            inner_repetitions: 1,
++            raw_call_samples: None,
++        };
++    }
+     let sum: u128 = samples.iter().map(|&v| v as u128).sum();
+     let mut sorted = samples.clone();
+     sorted.sort_unstable();
+@@ -100,6 +121,8 @@ fn stats(samples: Vec<u64>) -> MetricStats {
+         p95: percentile(&sorted, 95),
+         trials: samples.len() as u64,
+         samples,
++        inner_repetitions: 1,
++        raw_call_samples: None,
+     }
+ }
+ 
+@@ -110,18 +133,46 @@ fn timed<T>(f: impl FnOnce() -> T) -> (T, u64) {
+     (out, (start.elapsed().as_nanos() as u64).max(1))
+ }
+ 
++const CLIENT_OPENINGS_PER_SAMPLE: usize = 8;
++
++fn client_stats(calls: Vec<u64>) -> MetricStats {
++    assert_eq!(
++        calls.len() % CLIENT_OPENINGS_PER_SAMPLE,
++        0,
++        "complete opening batches"
++    );
++    let samples = calls
++        .chunks_exact(CLIENT_OPENINGS_PER_SAMPLE)
++        .map(|chunk| {
++            (chunk.iter().map(|&ns| u128::from(ns)).sum::<u128>()
++                / CLIENT_OPENINGS_PER_SAMPLE as u128) as u64
++        })
++        .collect();
++    let mut result = stats(samples);
++    result.inner_repetitions = CLIENT_OPENINGS_PER_SAMPLE;
++    result.raw_call_samples = Some(calls);
++    result
++}
++
+ fn env_string(suffix: &str) -> Option<String> {
+     std::env::var(format!("{ENV_PREFIX}_{suffix}")).ok()
+ }
+ 
+ fn env_usize(suffix: &str, default: usize) -> usize {
+     env_string(suffix)
+-        .map(|raw| raw.trim().parse::<usize>().expect("integer benchmark option"))
++        .map(|raw| {
++            raw.trim()
++                .parse::<usize>()
++                .expect("integer benchmark option")
++        })
+         .unwrap_or(default)
+ }
+ 
+ fn git_sha() -> Option<String> {
+-    let output = Command::new("git").args(["rev-parse", "HEAD"]).output().ok()?;
++    let output = Command::new("git")
++        .args(["rev-parse", "HEAD"])
++        .output()
++        .ok()?;
+     let sha = String::from_utf8_lossy(&output.stdout).trim().to_string();
+     (output.status.success() && !sha.is_empty()).then_some(sha)
+ }
+@@ -140,8 +191,15 @@ fn allowed_cpus() -> Option<String> {
+ 
+ fn peak_rss_bytes() -> Option<u64> {
+     let status = fs::read_to_string("/proc/self/status").ok()?;
+-    let line = status.lines().find_map(|line| line.strip_prefix("VmHWM:"))?;
+-    let kib = line.trim().trim_end_matches("kB").trim().parse::<u64>().ok()?;
++    let line = status
++        .lines()
++        .find_map(|line| line.strip_prefix("VmHWM:"))?;
++    let kib = line
++        .trim()
++        .trim_end_matches("kB")
++        .trim()
++        .parse::<u64>()
++        .ok()?;
+     Some(kib * 1024)
+ }
+ 
+@@ -232,6 +290,7 @@ fn cpu_count(list: &str) -> usize {
+ // Parameters.
+ 
+ struct Common {
++    sampling: Sampling,
+     trials: usize,
+     height: u8,
+     kappa: usize,
+@@ -246,6 +305,7 @@ impl Common {
+             "h = kappa needs a power-of-two height"
+         );
+         Common {
++            sampling: Sampling::new(env_usize("TRIALS", DEFAULT_TRIALS).max(1)),
+             trials: env_usize("TRIALS", DEFAULT_TRIALS).max(1),
+             height: height as u8,
+             kappa: height,
+@@ -258,8 +318,8 @@ impl Common {
+     }
+ 
+     fn seeded_leaves(&self) -> u64 {
+-        let seeded = (env_usize("SEEDED_LEAVES", DEFAULT_SEEDED_LEAVES as usize) as u64)
+-            .min(self.leaves);
++        let seeded =
++            (env_usize("SEEDED_LEAVES", DEFAULT_SEEDED_LEAVES as usize) as u64).min(self.leaves);
+         assert!(seeded > 0, "at least one seeded leaf");
+         seeded
+     }
+@@ -278,7 +338,11 @@ impl Common {
+ 
+ /// Leaf `trial` of `count` leaves starting at `first`, spread over them.
+ fn spread_leaf(first: u64, count: u64, trial: usize) -> u64 {
+-    first + (trial as u64).wrapping_mul(2_654_435_761).wrapping_add(count / 3) % count
++    first
++        + (trial as u64)
++            .wrapping_mul(2_654_435_761)
++            .wrapping_add(count / 3)
++            % count
+ }
+ 
+ /// Serialized sizes of one request: the blob of the query, the blob of the
+@@ -348,7 +412,10 @@ fn undine_serve(database: &PirDatabase, registry_index: usize, request: &[u8]) -
+     let keys = PackKeys {
+         words: unpack_words(&req.pack_keys.0).expect("packing-key words"),
+     };
+-    undine_reply_message(registry_index, database.answer(&query, &keys).expect("answer"))
++    undine_reply_message(
++        registry_index,
++        database.answer(&query, &keys).expect("answer"),
++    )
+ }
+ 
+ /// Parse one maintainer's reply and decode it into the shares of the path.
+@@ -369,7 +436,10 @@ fn undine_slots(opening: &PrivateOpening, reply: &[u8]) -> Vec<Vec<u64>> {
+         panic!("the reply is a private opening");
+     };
+     let response = response_from_net(resp);
+-    opening.client().decode(&response.replies[0].response).expect("decode the reply")
++    opening
++        .client()
++        .decode(&response.replies[0].response)
++        .expect("decode the reply")
+ }
+ 
+ fn request_bytes_of(query_words: usize, key_words: usize, request: &[u8]) -> RequestBytes {
+@@ -520,7 +590,8 @@ impl FragmentFile {
+             fs::File::create(&path).expect("create the fragment file"),
+         );
+         for entry in entries {
+-            out.write_all(&encode_value(*entry)).expect("write the fragment");
++            out.write_all(&encode_value(*entry))
++                .expect("write the fragment");
+         }
+         out.flush().expect("write the fragment");
+         Self {
+@@ -560,7 +631,11 @@ impl Samples {
+     }
+ 
+     fn take(&mut self, name: &'static str) -> MetricStats {
+-        stats(self.0.remove(name).unwrap_or_else(|| panic!("no samples of {name}")))
++        stats(self.0.remove(name).unwrap_or_default())
++    }
++
++    fn take_client(&mut self, name: &'static str) -> MetricStats {
++        client_stats(self.0.remove(name).unwrap_or_default())
+     }
+ }
+ 
+@@ -577,8 +652,14 @@ struct ServerSizes {
+ fn run_server(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
+     let registry_index = env_usize("MAINTAINER", 0);
+     let color = env_usize("COLOR", 0);
+-    assert!(registry_index < common.kappa, "MAINTAINER is a claim of the threshold");
+-    assert!(color < usize::from(common.height), "COLOR is a class of the tree");
++    assert!(
++        registry_index < common.kappa,
++        "MAINTAINER is a claim of the threshold"
++    );
++    assert!(
++        color < usize::from(common.height),
++        "COLOR is a class of the tree"
++    );
+     let params = common.params();
+     let auth = common.auth();
+     let layout = PrivateLayout::for_log(&params, &auth, ORDER, common.leaves).expect("layout");
+@@ -597,7 +678,7 @@ fn run_server(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
+ 
+     // The maintainer's fragment is built once. It is kept on disk between
+     // repetitions, so that neither server's preparation shares the memory
+-    // with it, and every repetition reloads it untimed.
++    // with it, and every build reloads it untimed.
+     let (bulk, fragment_build_ns) = cpus.on_setup_cpus(|| {
+         timed(|| {
+             BulkLog::build_with_default_prefix(
+@@ -613,7 +694,11 @@ fn run_server(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
+             )
+         })
+     });
+-    assert_eq!(bulk.root(), tree.root(), "the maintainer and TreePIR tree roots");
++    assert_eq!(
++        bulk.root(),
++        tree.root(),
++        "the maintainer and TreePIR tree roots"
++    );
+     let fragment = FragmentFile::write(bulk.entries());
+     {
+         // The reloaded fragment is the built one. Both are held here, before
+@@ -623,15 +708,34 @@ fn run_server(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
+     }
+     drop(bulk);
+ 
+-    let undine_trial = |trial: usize, samples: &mut Samples| -> ServerSizes {
++    let preprocess_count = common.sampling.count("preprocess");
++    let online_count = common.sampling.count("online");
++    let builds = preprocess_count.max(1);
++    // Distribute online samples over the fresh builds. Once preprocessing
++    // has converged, one untimed build suffices for an online-only batch.
++    // Keep just one server resident, even at the 128 GiB operating point.
++    let undine_trial = |trial: usize,
++                        online: std::ops::Range<usize>,
++                        samples: &mut Samples|
++     -> ServerSizes {
+         let entries = fragment.read();
+-        let leaf = spread_leaf(default_leaves, seeded, trial);
+-        let plan = layout.opening_plan(leaf);
+-        let expected = plan
++        let database_bytes = entries.len() as u64 * FIELD_BYTES;
++        let indices: Vec<_> = if online.is_empty() {
++            vec![trial]
++        } else {
++            online.clone().collect()
++        };
++        let expected_rows = indices
+             .iter()
+-            .map(|entry| entries[layout.entry_index(entry.array_index)])
++            .map(|&index| {
++                let leaf = spread_leaf(default_leaves, seeded, index);
++                layout
++                    .opening_plan(leaf)
++                    .iter()
++                    .map(|entry| entries[layout.entry_index(entry.array_index)])
++                    .collect::<Vec<_>>()
++            })
+             .collect::<Vec<_>>();
+-        let database_bytes = entries.len() as u64 * FIELD_BYTES;
+         let (cells, gather_cells_ns) = timed(|| PirDatabase::cells_from_entries(&layout, &entries));
+         drop(entries);
+         let (database, times) = PirDatabase::from_cells_timed(&layout, cells, 1);
+@@ -641,108 +745,141 @@ fn run_server(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
+             times.hint.as_nanos() as u64,
+             times.packing.as_nanos() as u64,
+         ];
+-        samples.push("gather_cells", stages[0]);
+-        samples.push("gather_upper", stages[1].max(1));
+-        samples.push("hint", stages[2]);
+-        samples.push("packing", stages[3]);
+-        samples.push("prepare", stages.iter().sum());
+-
+-        let client = PirClient::generate(shape);
+-        let query = client.query(layout.pattern_of(leaf));
+-        let keys = client.pack_keys();
+-        let request = undine_request_message(&layout, &query, &keys);
+-        let (_, first_pass_ns) = timed(|| database.first_pass(&query).expect("first pass"));
+-        samples.push("first_pass", first_pass_ns);
+-        let (reply, answer_ns) = timed(|| undine_serve(&database, registry_index, &request));
+-        samples.push("answer", answer_ns);
+-        let net::Response::AuthReadPrivate { resp } =
+-            decode_binary::<net::Response>(&reply).expect("parse the reply")
+-        else {
+-            panic!("the reply is a private opening");
+-        };
+-        let slots = client
+-            .decode(&response_from_net(resp).replies[0].response)
+-            .expect("decode the reply");
+-        let decoded = plan
+-            .iter()
+-            .map(|entry| entry_from_cells(&slots[entry.slot], entry.entry_in_record))
+-            .collect::<Vec<_>>();
+-        assert!(decoded == expected, "trial {trial}: the opening of leaf {leaf}");
+-        // Counted once, after every timer of the trial.
++        if trial < preprocess_count {
++            samples.push("gather_cells", stages[0]);
++            samples.push("gather_upper", stages[1].max(1));
++            samples.push("hint", stages[2]);
++            samples.push("packing", stages[3]);
++            samples.push("prepare", stages.iter().sum());
++        }
++        // Every build is checked, including a preprocessing-only build.
++        let mut messages = None;
++        for (index, expected) in indices.into_iter().zip(expected_rows) {
++            let leaf = spread_leaf(default_leaves, seeded, index);
++            let plan = layout.opening_plan(leaf);
++            let client = PirClient::generate(shape);
++            let query = client.query(layout.pattern_of(leaf));
++            let keys = client.pack_keys();
++            let request = undine_request_message(&layout, &query, &keys);
++            // The same warmup whether this build serves one query or many.
++            black_box(database.first_pass(&query).expect("warm first pass"));
++            let (_, first_pass_ns) = timed(|| database.first_pass(&query).expect("first pass"));
++            let (reply, answer_ns) = timed(|| undine_serve(&database, registry_index, &request));
++            if online.contains(&index) {
++                samples.push("first_pass", first_pass_ns);
++                samples.push("answer", answer_ns);
++            }
++            let net::Response::AuthReadPrivate { resp } =
++                decode_binary::<net::Response>(&reply).expect("parse the reply")
++            else {
++                panic!("the reply is a private opening");
++            };
++            let slots = client
++                .decode(&response_from_net(resp).replies[0].response)
++                .expect("decode the reply");
++            let decoded = plan
++                .iter()
++                .map(|entry| entry_from_cells(&slots[entry.slot], entry.entry_in_record))
++                .collect::<Vec<_>>();
++            assert!(
++                decoded == expected,
++                "trial {trial}: the opening of leaf {leaf}"
++            );
++            messages.get_or_insert((
++                request_bytes_of(query.len(), keys.words.len(), &request),
++                reply.len() as u64,
++            ));
++        }
+         let blocks = (trial == 0).then(|| HintBlocks::of(&shape, database.zero_hint_blocks()));
++        let (request, reply_bytes) = messages.expect("one checked opening");
+         ServerSizes {
+             database_bytes,
+             pir_bytes: database.record_state_bytes() as u64,
+             hint_bytes: database.hint_bytes() as u64,
+             packing_bytes: database.packing_bytes() as u64,
+             blocks,
+-            request: request_bytes_of(query.len(), keys.words.len(), &request),
+-            reply_bytes: reply.len() as u64,
+-        }
+-    };
+-
+-    let treepir_trial = |trial: usize, samples: &mut Samples| -> ServerSizes {
+-        let (nodes, enumerate_ns) = timed(|| coloring.class_nodes(color));
+-        samples.push("enumerate", enumerate_ns);
+-        let (server, columns, times) =
+-            TreePirServer::new(tree_layout, color, &nodes, |node| tree.label_of_heap(node));
+-        drop(nodes);
+-        let stages = [
+-            enumerate_ns,
+-            columns.as_nanos() as u64,
+-            times.hint.as_nanos() as u64,
+-            times.packing.as_nanos() as u64,
+-        ];
+-        samples.push("columns", stages[1]);
+-        samples.push("hint", stages[2]);
+-        samples.push("packing", stages[3]);
+-        samples.push("prepare", stages.iter().sum());
+-
+-        // A leaf whose path has a node of this class.
+-        let leaf = spread_leaf(default_leaves, seeded, trial);
+-        let location = *coloring
+-            .locate(leaf)
+-            .iter()
+-            .find(|item| item.color == color)
+-            .expect("every path has one node of every class");
+-        let (query, request) = tree_layout.request(location).expect("request");
+-        let parsed: TreePirRequest = decode_binary(&request).expect("parse the request");
+-        let words = unpack_words(&parsed.query.0).expect("query words");
+-        let key_words = unpack_words(&parsed.pack_keys.0).expect("key words").len();
+-        let (_, first_pass_ns) = timed(|| server.database.first_pass(&words).expect("first pass"));
+-        samples.push("first_pass", first_pass_ns);
+-        let (reply, answer_ns) = timed(|| server.answer(&request).expect("answer"));
+-        samples.push("answer", answer_ns);
+-        assert_eq!(
+-            query.decode(&reply).expect("decode"),
+-            tree.label_of_heap(location.sibling()),
+-            "trial {trial}: the node of leaf {leaf}"
+-        );
+-        let blocks = (trial == 0)
+-            .then(|| HintBlocks::of(&tree_layout.shape, server.database.zero_hint_blocks()));
+-        ServerSizes {
+-            database_bytes: class_size * FIELD_BYTES,
+-            pir_bytes: server.database.database_bytes() as u64,
+-            hint_bytes: server.database.hint_bytes() as u64,
+-            packing_bytes: server.database.packing_bytes() as u64,
+-            blocks,
+-            request: request_bytes_of(words.len(), key_words, &request),
+-            reply_bytes: reply.len() as u64,
++            request,
++            reply_bytes,
+         }
+     };
+ 
+-    for trial in 0..common.trials {
+-        // The order alternates, so that a drift of the machine affects both.
++    let treepir_trial =
++        |trial: usize, online: std::ops::Range<usize>, samples: &mut Samples| -> ServerSizes {
++            let (nodes, enumerate_ns) = timed(|| coloring.class_nodes(color));
++            let (server, columns, times) =
++                TreePirServer::new(tree_layout, color, &nodes, |node| tree.label_of_heap(node));
++            drop(nodes);
++            let stages = [
++                enumerate_ns,
++                columns.as_nanos() as u64,
++                times.hint.as_nanos() as u64,
++                times.packing.as_nanos() as u64,
++            ];
++            if trial < preprocess_count {
++                samples.push("enumerate", stages[0]);
++                samples.push("columns", stages[1]);
++                samples.push("hint", stages[2]);
++                samples.push("packing", stages[3]);
++                samples.push("prepare", stages.iter().sum());
++            }
++            let indices: Vec<_> = if online.is_empty() {
++                vec![trial]
++            } else {
++                online.clone().collect()
++            };
++            let mut messages = None;
++            for index in indices {
++                let leaf = spread_leaf(default_leaves, seeded, index);
++                let location = *coloring
++                    .locate(leaf)
++                    .iter()
++                    .find(|item| item.color == color)
++                    .expect("every path has one node of every class");
++                let (query, request) = tree_layout.request(location).expect("request");
++                let parsed: TreePirRequest = decode_binary(&request).expect("parse the request");
++                let words = unpack_words(&parsed.query.0).expect("query words");
++                let key_words = unpack_words(&parsed.pack_keys.0).expect("key words").len();
++                black_box(server.database.first_pass(&words).expect("warm first pass"));
++                let (_, first_pass_ns) =
++                    timed(|| server.database.first_pass(&words).expect("first pass"));
++                let (reply, answer_ns) = timed(|| server.answer(&request).expect("answer"));
++                if online.contains(&index) {
++                    samples.push("first_pass", first_pass_ns);
++                    samples.push("answer", answer_ns);
++                }
++                assert_eq!(
++                    query.decode(&reply).expect("decode"),
++                    tree.label_of_heap(location.sibling()),
++                    "trial {trial}: the node of leaf {leaf}"
++                );
++                messages.get_or_insert((
++                    request_bytes_of(words.len(), key_words, &request),
++                    reply.len() as u64,
++                ));
++            }
++            let blocks = (trial == 0)
++                .then(|| HintBlocks::of(&tree_layout.shape, server.database.zero_hint_blocks()));
++            let (request, reply_bytes) = messages.expect("one checked opening");
++            ServerSizes {
++                database_bytes: class_size * FIELD_BYTES,
++                pir_bytes: server.database.database_bytes() as u64,
++                hint_bytes: server.database.hint_bytes() as u64,
++                packing_bytes: server.database.packing_bytes() as u64,
++                blocks,
++                request,
++                reply_bytes,
++            }
++        };
++    for trial in 0..builds {
++        let online = (trial * online_count / builds)..((trial + 1) * online_count / builds);
+         for system in if trial % 2 == 0 { [0, 1] } else { [1, 0] } {
+             if system == 0 {
+-                let sizes = undine_trial(trial, &mut undine);
+-                undine_sizes.get_or_insert(sizes);
++                undine_sizes.get_or_insert(undine_trial(trial, online.clone(), &mut undine));
+             } else {
+-                let sizes = treepir_trial(trial, &mut treepir);
+-                treepir_sizes.get_or_insert(sizes);
++                treepir_sizes.get_or_insert(treepir_trial(trial, online.clone(), &mut treepir));
+             }
+         }
+-        eprintln!("trial {}/{} complete", trial + 1, common.trials);
++        eprintln!("build {}/{} complete", trial + 1, builds);
+     }
+ 
+     let sizes = undine_sizes.expect("one trial");
+@@ -828,7 +965,9 @@ impl AuthTransport for NoopTransport {
+     }
+ 
+     fn auth_get_len(&self, _server: &Self::Server) -> Result<u64, AuthClientError> {
+-        Err(AuthClientError::Net("collected replies carry no length".to_string()))
++        Err(AuthClientError::Net(
++            "collected replies carry no length".to_string(),
++        ))
+     }
+ 
+     fn auth_read(
+@@ -837,7 +976,9 @@ impl AuthTransport for NoopTransport {
+         _index: u64,
+         _kappa: usize,
+     ) -> Result<AuthReadResponse, AuthClientError> {
+-        Err(AuthClientError::Net("replies are collected in the setup".to_string()))
++        Err(AuthClientError::Net(
++            "replies are collected in the setup".to_string(),
++        ))
+     }
+ 
+     fn auth_read_subtree(
+@@ -846,7 +987,9 @@ impl AuthTransport for NoopTransport {
+         _start_index: u64,
+         _leaf_count: usize,
+     ) -> Result<AuthSubtreeReadResponse, AuthClientError> {
+-        Err(AuthClientError::Net("replies are collected in the setup".to_string()))
++        Err(AuthClientError::Net(
++            "replies are collected in the setup".to_string(),
++        ))
+     }
+ 
+     fn unauth_multi_read(
+@@ -854,7 +997,9 @@ impl AuthTransport for NoopTransport {
+         _server: &Self::Server,
+         _indices: &[u64],
+     ) -> Result<Vec<Vec<ShardShare>>, AuthClientError> {
+-        Err(AuthClientError::Net("replies are collected in the setup".to_string()))
++        Err(AuthClientError::Net(
++            "replies are collected in the setup".to_string(),
++        ))
+     }
+ 
+     fn auth_write(
+@@ -880,108 +1025,6 @@ impl AuthTransport for NoopTransport {
+ 
+ /// The records of every claim that the openings of a set of leaves read,
+ /// encoded from the tree without the claims' columns.
+-struct ClaimRecords {
+-    per_record: usize,
+-    /// `records[record][claim]`: the claim's entries of the record.
+-    records: HashMap<usize, Vec<Vec<Fp>>>,
+-}
+-
+-impl ClaimRecords {
+-    fn new(
+-        params: &CodedArrayParams,
+-        tree: &SuffixTree<'_>,
+-        layout: &PrivateLayout,
+-        claims: &[usize],
+-        leaves: impl IntoIterator<Item = u64>,
+-    ) -> Self {
+-        let per_record = layout.entries_per_record();
+-        let kappa = layout.kappa();
+-        let shape = PirShape::of(layout);
+-        let mut wanted = BTreeSet::new();
+-        for leaf in leaves {
+-            for (slot, id) in layout.row(layout.pattern_of(leaf)).into_iter().enumerate() {
+-                match id {
+-                    Some(record) if slot < shape.group_slots => {
+-                        wanted.insert(record);
+-                    }
+-                    Some(pos) => {
+-                        let index = layout.upper_entry_index(slot - shape.group_slots, pos);
+-                        wanted.insert(index / per_record);
+-                    }
+-                    None => {}
+-                }
+-            }
+-        }
+-        let height = tree.height() as u16;
+-        let segments_total = mapping::cursor(ORDER, height, 1u64 << height)
+-            .div_ceil(params.n_grid as u64) as usize;
+-        let segments_per_record = layout.segments_per_record();
+-        let segments = wanted
+-            .iter()
+-            .flat_map(|&record| record * segments_per_record..(record + 1) * segments_per_record)
+-            .filter(|&segment| segment < segments_total)
+-            .collect::<Vec<_>>();
+-        let encoded = suffix_segment_entries(params, tree, claims, &segments);
+-        let by_segment = segments.iter().copied().zip(encoded).collect::<HashMap<_, _>>();
+-        let records = wanted
+-            .iter()
+-            .map(|&record| {
+-                let entries = (0..claims.len())
+-                    .map(|claim| {
+-                        let mut values = vec![fp_zero(); per_record];
+-                        for k in 0..segments_per_record {
+-                            if let Some(segment) = by_segment.get(&(record * segments_per_record + k)) {
+-                                values[k * kappa..(k + 1) * kappa].copy_from_slice(&segment[claim]);
+-                            }
+-                        }
+-                        values
+-                    })
+-                    .collect();
+-                (record, entries)
+-            })
+-            .collect();
+-        Self { per_record, records }
+-    }
+-
+-    fn record_cells(&self, shape: &PirShape, claim: usize, record: usize) -> Vec<u16> {
+-        let mut cells = vec![0u16; shape.record_cells];
+-        entries_to_cells(&self.records[&record][claim], &mut cells);
+-        cells
+-    }
+-
+-    /// The row the query of `pattern` selects from claim `claim`: the
+-    /// record of each group slot and the entry of each upper slot, as
+-    /// `PirDatabase` lays them out.
+-    fn slots(&self, layout: &PrivateLayout, claim: usize, pattern: usize) -> Vec<Vec<u64>> {
+-        let shape = PirShape::of(layout);
+-        layout
+-            .row(pattern)
+-            .iter()
+-            .enumerate()
+-            .map(|(slot, id)| {
+-                let mut cells = vec![0u16; shape.slot_width(slot)];
+-                match id {
+-                    Some(record) if slot < shape.group_slots => {
+-                        cells = self.record_cells(&shape, claim, *record);
+-                    }
+-                    Some(pos) => {
+-                        let index = layout.upper_entry_index(slot - shape.group_slots, *pos);
+-                        let block = self
+-                            .record_cells(&shape, claim, index / self.per_record)
+-                            .into_iter()
+-                            .map(u64::from)
+-                            .collect::<Vec<_>>();
+-                        bytes_to_cells(bytes_from_cells(&block, index % self.per_record), &mut cells);
+-                    }
+-                    None => {}
+-                }
+-                assert_eq!(cells.len(), shape.slot_width(slot), "cells of slot {slot}");
+-                cells.into_iter().map(u64::from).collect()
+-            })
+-            .collect()
+-    }
+-}
+-
+ /// The servers whose replies a client job uses.
+ enum Replies {
+     /// Every reply from a real server of each system.
+@@ -1009,7 +1052,9 @@ impl ClientSetup<'_> {
+     /// The cells of the TreePIR row that holds `location`.
+     fn treepir_row(&self, location: NodeLocation) -> Vec<u16> {
+         let row = self.tree_layout.row_of(location.offset);
+-        let offsets = self.tree_layout.row_offsets(row, self.class_sizes[location.color]);
++        let offsets = self
++            .tree_layout
++            .row_offsets(row, self.class_sizes[location.color]);
+         let nodes = self.coloring.class_range(location.color, offsets);
+         let mut cells = vec![0u16; self.tree_layout.shape.record_cells];
+         self.tree_layout
+@@ -1017,12 +1062,24 @@ impl ClientSetup<'_> {
+         cells
+     }
+ 
+-    fn undine_generated_reply(&self, records: &ClaimRecords, opening: &PrivateOpening, leaf: u64, claim: usize) -> Vec<u8> {
++    fn undine_generated_reply(
++        &self,
++        records: &ClaimRecords,
++        opening: &PrivateOpening,
++        leaf: u64,
++        claim: usize,
++    ) -> Vec<u8> {
+         let slots = records.slots(self.layout, claim, self.layout.pattern_of(leaf));
+         undine_reply_message(claim, opening.encrypt_slots(&slots))
+     }
+ 
+-    fn undine_replies(&self, replies: &Replies, opening: &PrivateOpening, request: &[u8], leaf: u64) -> Vec<Vec<u8>> {
++    fn undine_replies(
++        &self,
++        replies: &Replies,
++        opening: &PrivateOpening,
++        request: &[u8],
++        leaf: u64,
++    ) -> Vec<Vec<u8>> {
+         match replies {
+             Replies::Real { maintainers, .. } => maintainers
+                 .iter()
+@@ -1035,16 +1092,29 @@ impl ClientSetup<'_> {
+         }
+     }
+ 
+-    fn treepir_replies(&self, replies: &Replies, queries: &[TreePirQuery], requests: &[Vec<u8>]) -> Vec<Vec<u8>> {
++    fn treepir_replies(
++        &self,
++        replies: &Replies,
++        queries: &[TreePirQuery],
++        requests: &[Vec<u8>],
++    ) -> Vec<Vec<u8>> {
+         match replies {
+             Replies::Real { colors, .. } => queries
+                 .iter()
+                 .zip(requests)
+-                .map(|(query, request)| colors[query.location.color].answer(request).expect("answer"))
++                .map(|(query, request)| {
++                    colors[query.location.color]
++                        .answer(request)
++                        .expect("answer")
++                })
+                 .collect(),
+             Replies::Generated { .. } => queries
+                 .iter()
+-                .map(|query| query.encrypt_row(&self.treepir_row(query.location)).expect("reply"))
++                .map(|query| {
++                    query
++                        .encrypt_row(&self.treepir_row(query.location))
++                        .expect("reply")
++                })
+                 .collect(),
+         }
+     }
+@@ -1064,12 +1134,22 @@ impl ClientSetup<'_> {
+     }
+ 
+     /// UndineLog's request for `leaf` with a fresh key, in its parts.
+-    fn undine_request(&self, leaf: u64, samples: Option<&mut Samples>) -> (PrivateOpening, Vec<u8>, RequestBytes) {
++    fn undine_request(
++        &self,
++        leaf: u64,
++        samples: Option<&mut Samples>,
++    ) -> (PrivateOpening, Vec<u8>, RequestBytes) {
+         let layout = self.layout;
+-        let ((pattern, plan), index_ns) = timed(|| (layout.pattern_of(leaf), layout.opening_plan(leaf)));
++        let ((pattern, plan), index_ns) = timed(|| {
++            (
++                layout.pattern_of(black_box(leaf)),
++                layout.opening_plan(black_box(leaf)),
++            )
++        });
+         let (client, keygen_ns) = timed(|| PirClient::generate(self.shape));
+         let ((query, keys), query_ns) = timed(|| (client.query(pattern), client.pack_keys()));
+-        let (request, serialize_ns) = timed(|| undine_request_message(layout, &query, &keys));
++        let (request, serialize_ns) =
++            timed(|| undine_request_message(layout, black_box(&query), black_box(&keys)));
+         if let Some(samples) = samples {
+             samples.push("index", index_ns);
+             samples.push("keygen", keygen_ns);
+@@ -1109,32 +1189,58 @@ impl ClientSetup<'_> {
+         ((opening, request), ns)
+     }
+ 
+-    fn check_undine(&self, leaf: u64, result: (Value256, paper_a_optimized::AuthPath)) -> (Value256, Vec<Value256>) {
+-        assert_eq!(result.0, self.tree.leaf_value(leaf), "the value of leaf {leaf}");
++    fn check_undine(
++        &self,
++        leaf: u64,
++        result: (Value256, paper_a_optimized::AuthPath),
++    ) -> (Value256, Vec<Value256>) {
++        assert_eq!(
++            result.0,
++            self.tree.leaf_value(leaf),
++            "the value of leaf {leaf}"
++        );
+         assert_eq!(result.1.root, self.tree.root(), "the root of leaf {leaf}");
+         (result.0, result.1.siblings)
+     }
+ 
+     /// TreePIR's `h` requests for `leaf`, with a fresh key each, in parts.
+-    fn treepir_request(&self, leaf: u64, samples: Option<&mut Samples>) -> (Vec<TreePirQuery>, Vec<Vec<u8>>, RequestBytes) {
++    fn treepir_request(
++        &self,
++        leaf: u64,
++        samples: Option<&mut Samples>,
++    ) -> (Vec<TreePirQuery>, Vec<Vec<u8>>, RequestBytes) {
+         let h = usize::from(self.common.height);
+-        let (locations, index_ns) = timed(|| self.coloring.locate(leaf));
+-        let (clients, keygen_ns) =
+-            timed(|| (0..h).map(|_| PirClient::generate(self.tree_layout.shape)).collect::<Vec<_>>());
++        let (locations, index_ns) = timed(|| self.coloring.locate(black_box(leaf)));
++        let (clients, keygen_ns) = timed(|| {
++            (0..h)
++                .map(|_| PirClient::generate(self.tree_layout.shape))
++                .collect::<Vec<_>>()
++        });
+         let ((queries, encrypted), query_ns) = timed(|| {
+             let queries = locations
+                 .iter()
+                 .zip(clients)
+-                .map(|(&location, client)| self.tree_layout.query_with(location, client).expect("query"))
++                .map(|(&location, client)| {
++                    self.tree_layout
++                        .query_with(location, client)
++                        .expect("query")
++                })
++                .collect::<Vec<_>>();
++            let encrypted = queries
++                .iter()
++                .map(|query| query.encrypted_query())
+                 .collect::<Vec<_>>();
+-            let encrypted = queries.iter().map(|query| query.encrypted_query()).collect::<Vec<_>>();
+             (queries, encrypted)
+         });
+         let (requests, serialize_ns) = timed(|| {
+             queries
+                 .iter()
+                 .zip(&encrypted)
+-                .map(|(query, (words, keys))| query.serialize_request(words, keys).expect("request"))
++                .map(|(query, (words, keys))| {
++                    query
++                        .serialize_request(black_box(words), black_box(keys))
++                        .expect("request")
++                })
+                 .collect::<Vec<_>>()
+         });
+         if let Some(samples) = samples {
+@@ -1145,7 +1251,11 @@ impl ClientSetup<'_> {
+         }
+         let (words, keys) = &encrypted[0];
+         let bytes = request_bytes_of(words.len(), keys.words.len(), &requests[0]);
+-        assert!(requests.iter().all(|request| request.len() == requests[0].len()));
++        assert!(
++            requests
++                .iter()
++                .all(|request| request.len() == requests[0].len())
++        );
+         (queries, requests, bytes)
+     }
+ 
+@@ -1264,8 +1374,12 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
+     let coloring = BalancedColoring::new(common.height);
+     let tree_layout = TreePirLayout::new(common.height);
+     let claims = (0..common.kappa).collect::<Vec<_>>();
+-    let (tree, tree_ns) = cpus.on_setup_cpus(|| timed(|| SuffixTree::new(&auth, default_leaves, BENCH_SEED)));
+-    eprintln!("tree of {seeded} seeded leaves in {:.1} s", tree_ns as f64 / 1e9);
++    let (tree, tree_ns) =
++        cpus.on_setup_cpus(|| timed(|| SuffixTree::new(&auth, default_leaves, BENCH_SEED)));
++    eprintln!(
++        "tree of {seeded} seeded leaves in {:.1} s",
++        tree_ns as f64 / 1e9
++    );
+     let setup = ClientSetup {
+         common,
+         params: &params,
+@@ -1283,6 +1397,7 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
+     let component_leaf = |trial: usize| leaf_of(4 * trial);
+     let direct_leaf = |trial: usize| leaf_of(4 * trial + 1);
+     let paired_leaf = |trial: usize| leaf_of(4 * trial + 2);
++    let client_openings = common.sampling.count("client") * CLIENT_OPENINGS_PER_SAMPLE;
+ 
+     let replies = if replies_source == "real" {
+         let (maintainers, colors) = cpus.on_setup_cpus(|| {
+@@ -1307,29 +1422,44 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
+             let colors = (0..usize::from(common.height))
+                 .map(|color| {
+                     let nodes = coloring.class_nodes(color);
+-                    TreePirServer::new(tree_layout, color, &nodes, |node| tree.label_of_heap(node)).0
++                    TreePirServer::new(tree_layout, color, &nodes, |node| tree.label_of_heap(node))
++                        .0
+                 })
+                 .collect::<Vec<_>>();
+             (maintainers, colors)
+         });
+-        Replies::Real { maintainers, colors }
++        Replies::Real {
++            maintainers,
++            colors,
++        }
+     } else {
+-        let leaves = (0..common.trials)
+-            .flat_map(|trial| [component_leaf(trial), direct_leaf(trial), paired_leaf(trial)]);
++        let leaves = (0..client_openings.max(1))
++            .flat_map(|trial| [component_leaf(trial), direct_leaf(trial)])
++            .chain((0..common.sampling.count("paired")).map(paired_leaf));
+         let (records, ns) = cpus.on_setup_cpus(|| {
+-            timed(|| ClaimRecords::new(&params, &tree, &layout, &claims, leaves))
++            timed(|| {
++                ClaimRecords::new(&params, &auth, &layout, &claims, leaves, &|level, pos| {
++                    tree.cell(level, pos)
++                })
++            })
+         });
+-        eprintln!("{} records of {} claims in {:.1} s", records.records.len(), claims.len(), ns as f64 / 1e9);
++        eprintln!(
++            "{} records of {} claims in {:.1} s",
++            records.len(),
++            claims.len(),
++            ns as f64 / 1e9
++        );
+         Replies::Generated { records }
+     };
+     // With real replies, the generated ones are built as well, to compare.
+     let check_records = (replies_source == "real").then(|| {
+         ClaimRecords::new(
+             &params,
+-            &tree,
++            &auth,
+             &layout,
+             &claims,
+-            (0..common.trials).map(component_leaf),
++            (0..client_openings.max(1)).map(component_leaf),
++            &|level, pos| tree.cell(level, pos),
+         )
+     });
+ 
+@@ -1341,99 +1471,154 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
+     let mut treepir_reply_bytes = 0;
+     let mut auth_client = setup.auth_client();
+ 
+-    for trial in 0..common.trials {
++    // Keeping these together prevents adaptive stopping from changing the
++    // allocator history of either opening's measurements.
++    let components = client_openings;
++    let totals = components;
++    for trial in 0..components.max(totals).max(1) {
+         for system in if trial % 2 == 0 { [0, 1] } else { [1, 0] } {
+             if system == 0 {
+-                // Components, on one opening.
+-                let leaf = component_leaf(trial);
+-                let (opening, request, bytes) = setup.undine_request(leaf, Some(&mut undine));
+-                undine_bytes.get_or_insert(bytes);
+-                let replies_now = setup.undine_replies(&replies, &opening, &request, leaf);
+-                if let Replies::Real { .. } = &replies {
+-                    // Every real reply decodes to the generated one.
+-                    let records = check_records.as_ref().expect("records to compare");
+-                    for (claim, reply) in replies_now.iter().enumerate() {
+-                        let generated = setup.undine_generated_reply(records, &opening, leaf, claim);
+-                        assert_eq!(reply.len(), generated.len(), "reply bytes of claim {claim}");
+-                        assert!(
+-                            undine_slots(&opening, reply) == undine_slots(&opening, &generated),
+-                            "trial {trial}: the generated reply of claim {claim}"
+-                        );
++                if trial < components || trial == 0 {
++                    // Components, on one opening.
++                    let leaf = component_leaf(trial);
++                    let (opening, request, bytes) = setup.undine_request(leaf, Some(&mut undine));
++                    undine_bytes.get_or_insert(bytes);
++                    let replies_now = setup.undine_replies(&replies, &opening, &request, leaf);
++                    if let Replies::Real { .. } = &replies {
++                        // Every real reply decodes to the generated one.
++                        let records = check_records.as_ref().expect("records to compare");
++                        for (claim, reply) in replies_now.iter().enumerate() {
++                            let generated =
++                                setup.undine_generated_reply(records, &opening, leaf, claim);
++                            assert_eq!(
++                                reply.len(),
++                                generated.len(),
++                                "reply bytes of claim {claim}"
++                            );
++                            assert!(
++                                undine_slots(&opening, reply) == undine_slots(&opening, &generated),
++                                "trial {trial}: the generated reply of claim {claim}"
++                            );
++                        }
+                     }
++                    undine_reply_bytes = replies_now[0].len() as u64;
++                    assert!(
++                        replies_now
++                            .iter()
++                            .all(|reply| reply.len() as u64 == undine_reply_bytes)
++                    );
++                    let (responses, decrypt_ns) = timed(|| {
++                        replies_now
++                            .iter()
++                            .map(|reply| undine_decode(&opening, reply))
++                            .collect::<Vec<_>>()
++                    });
++                    undine.push("decrypt", decrypt_ns);
++                    let (result, combine_ns) =
++                        timed(|| auth_client.read_with_path_from_responses(leaf, &responses));
++                    undine.push("combine_verify", combine_ns);
++                    let (value, siblings) =
++                        setup.check_undine(leaf, result.expect("UndineLog opening"));
++                    let (root, verify_ns) = timed(|| {
++                        recompute_root(
++                            u32::from(common.height),
++                            leaf,
++                            value,
++                            black_box(&siblings),
++                            &auth.defaults,
++                        )
++                    });
++                    undine.push("verify", verify_ns);
++                    assert_eq!(root, tree.root(), "the recomputed root");
++                }
++                if trial < totals {
++                    // The whole client, on a second opening.
++                    let leaf = direct_leaf(trial);
++                    let ((opening, request), request_ns) = setup.undine_request_direct(leaf);
++                    let replies_now = setup.undine_replies(&replies, &opening, &request, leaf);
++                    let (result, process_ns) = timed(|| {
++                        let responses = replies_now
++                            .iter()
++                            .map(|reply| undine_decode(&opening, reply))
++                            .collect::<Vec<_>>();
++                        auth_client.read_with_path_from_responses(leaf, &responses)
++                    });
++                    setup.check_undine(leaf, result.expect("UndineLog opening"));
++                    undine.push("request_total", request_ns);
++                    undine.push("process_total", process_ns);
++                    undine.push("client_total", request_ns + process_ns);
+                 }
+-                undine_reply_bytes = replies_now[0].len() as u64;
+-                assert!(replies_now.iter().all(|reply| reply.len() as u64 == undine_reply_bytes));
+-                let (responses, decrypt_ns) = timed(|| {
+-                    replies_now
+-                        .iter()
+-                        .map(|reply| undine_decode(&opening, reply))
+-                        .collect::<Vec<_>>()
+-                });
+-                undine.push("decrypt", decrypt_ns);
+-                let (result, combine_ns) =
+-                    timed(|| auth_client.read_with_path_from_responses(leaf, &responses));
+-                undine.push("combine_verify", combine_ns);
+-                let (value, siblings) = setup.check_undine(leaf, result.expect("UndineLog opening"));
+-                let (root, verify_ns) = timed(|| {
+-                    recompute_root(u32::from(common.height), leaf, value, &siblings, &auth.defaults)
+-                });
+-                undine.push("verify", verify_ns);
+-                assert_eq!(root, tree.root(), "the recomputed root");
+-
+-                // The whole client, on a second opening.
+-                let leaf = direct_leaf(trial);
+-                let ((opening, request), request_ns) = setup.undine_request_direct(leaf);
+-                let replies_now = setup.undine_replies(&replies, &opening, &request, leaf);
+-                let (result, process_ns) = timed(|| {
+-                    let responses = replies_now
+-                        .iter()
+-                        .map(|reply| undine_decode(&opening, reply))
+-                        .collect::<Vec<_>>();
+-                    auth_client.read_with_path_from_responses(leaf, &responses)
+-                });
+-                setup.check_undine(leaf, result.expect("UndineLog opening"));
+-                undine.push("request_total", request_ns);
+-                undine.push("process_total", process_ns);
+-                undine.push("client_total", request_ns + process_ns);
+             } else {
+-                let leaf = component_leaf(trial);
+-                let (queries, requests, bytes) = setup.treepir_request(leaf, Some(&mut treepir));
+-                treepir_bytes.get_or_insert(bytes);
+-                let replies_now = setup.treepir_replies(&replies, &queries, &requests);
+-                if let Replies::Real { .. } = &replies {
+-                    for (query, reply) in queries.iter().zip(&replies_now) {
+-                        let generated = query.encrypt_row(&setup.treepir_row(query.location)).expect("reply");
+-                        assert_eq!(reply.len(), generated.len(), "reply bytes");
+-                        assert_eq!(
+-                            query.decode_row(reply).expect("decode"),
+-                            query.decode_row(&generated).expect("decode"),
+-                            "trial {trial}: the generated row of color {}",
+-                            query.location.color
+-                        );
++                if trial < components || trial == 0 {
++                    let leaf = component_leaf(trial);
++                    let (queries, requests, bytes) =
++                        setup.treepir_request(leaf, Some(&mut treepir));
++                    treepir_bytes.get_or_insert(bytes);
++                    let replies_now = setup.treepir_replies(&replies, &queries, &requests);
++                    if let Replies::Real { .. } = &replies {
++                        for (query, reply) in queries.iter().zip(&replies_now) {
++                            let generated = query
++                                .encrypt_row(&setup.treepir_row(query.location))
++                                .expect("reply");
++                            assert_eq!(reply.len(), generated.len(), "reply bytes");
++                            assert_eq!(
++                                query.decode_row(reply).expect("decode"),
++                                query.decode_row(&generated).expect("decode"),
++                                "trial {trial}: the generated row of color {}",
++                                query.location.color
++                            );
++                        }
+                     }
++                    treepir_reply_bytes = replies_now[0].len() as u64;
++                    assert!(
++                        replies_now
++                            .iter()
++                            .all(|reply| reply.len() as u64 == treepir_reply_bytes)
++                    );
++                    let (labels, decrypt_ns) =
++                        timed(|| setup.treepir_decrypt(&queries, &replies_now));
++                    treepir.push("decrypt", decrypt_ns);
++                    let (root, verify_ns) =
++                        timed(|| setup.treepir_verify(black_box(leaf), black_box(&labels)));
++                    treepir.push("verify", verify_ns);
++                    assert_eq!(root, tree.root(), "TreePIR proof of leaf {leaf}");
++                }
++                if trial < totals {
++                    let leaf = direct_leaf(trial);
++                    let ((queries, requests), request_ns) = setup.treepir_request_direct(leaf);
++                    let replies_now = setup.treepir_replies(&replies, &queries, &requests);
++                    let (root, process_ns) = timed(|| {
++                        let labels = setup.treepir_decrypt(&queries, &replies_now);
++                        setup.treepir_verify(leaf, &labels)
++                    });
++                    assert_eq!(root, tree.root(), "TreePIR proof of leaf {leaf}");
++                    treepir.push("request_total", request_ns);
++                    treepir.push("process_total", process_ns);
++                    treepir.push("client_total", request_ns + process_ns);
+                 }
+-                treepir_reply_bytes = replies_now[0].len() as u64;
+-                assert!(replies_now.iter().all(|reply| reply.len() as u64 == treepir_reply_bytes));
+-                let (labels, decrypt_ns) = timed(|| setup.treepir_decrypt(&queries, &replies_now));
+-                treepir.push("decrypt", decrypt_ns);
+-                let (root, verify_ns) = timed(|| setup.treepir_verify(leaf, &labels));
+-                treepir.push("verify", verify_ns);
+-                assert_eq!(root, tree.root(), "TreePIR proof of leaf {leaf}");
+-
+-                let leaf = direct_leaf(trial);
+-                let ((queries, requests), request_ns) = setup.treepir_request_direct(leaf);
+-                let replies_now = setup.treepir_replies(&replies, &queries, &requests);
+-                let (root, process_ns) = timed(|| {
+-                    let labels = setup.treepir_decrypt(&queries, &replies_now);
+-                    setup.treepir_verify(leaf, &labels)
+-                });
+-                assert_eq!(root, tree.root(), "TreePIR proof of leaf {leaf}");
+-                treepir.push("request_total", request_ns);
+-                treepir.push("process_total", process_ns);
+-                treepir.push("client_total", request_ns + process_ns);
+             }
+         }
+-        eprintln!("client trial {}/{} complete", trial + 1, common.trials);
++        eprintln!(
++            "client opening pair {}/{} complete",
++            trial + 1,
++            client_openings.max(1)
++        );
++    }
++
++    if components == 0 {
++        // Drop the single untimed setup check, preserving directly timed totals.
++        for name in [
++            "index",
++            "keygen",
++            "query",
++            "serialize",
++            "decrypt",
++            "combine_verify",
++            "verify",
++        ] {
++            undine.0.remove(name);
++            treepir.0.remove(name);
++        }
+     }
+ 
+     let h = u64::from(common.height);
+@@ -1444,7 +1629,11 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
+         serde_json::to_value(ClientEntry {
+             role: "client",
+             system: "undine",
+-            replies_source: if replies_source == "real" { "real" } else { "generated" },
++            replies_source: if replies_source == "real" {
++                "real"
++            } else {
++                "generated"
++            },
+             height: common.height,
+             kappa: common.kappa,
+             leaves: common.leaves,
+@@ -1457,22 +1646,26 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
+             reply_bytes: undine_reply_bytes,
+             upload_bytes: kappa * undine_request.request_bytes,
+             download_bytes: kappa * undine_reply_bytes,
+-            index_ns: undine.take("index"),
+-            keygen_ns: undine.take("keygen"),
+-            query_ns: undine.take("query"),
+-            serialize_ns: undine.take("serialize"),
+-            decrypt_ns: undine.take("decrypt"),
+-            combine_verify_ns: Some(undine.take("combine_verify")),
+-            verify_ns: undine.take("verify"),
+-            request_total_ns: undine.take("request_total"),
+-            process_total_ns: undine.take("process_total"),
+-            client_total_ns: undine.take("client_total"),
++            index_ns: undine.take_client("index"),
++            keygen_ns: undine.take_client("keygen"),
++            query_ns: undine.take_client("query"),
++            serialize_ns: undine.take_client("serialize"),
++            decrypt_ns: undine.take_client("decrypt"),
++            combine_verify_ns: Some(undine.take_client("combine_verify")),
++            verify_ns: undine.take_client("verify"),
++            request_total_ns: undine.take_client("request_total"),
++            process_total_ns: undine.take_client("process_total"),
++            client_total_ns: undine.take_client("client_total"),
+         })
+         .unwrap(),
+         serde_json::to_value(ClientEntry {
+             role: "client",
+             system: "treepir",
+-            replies_source: if replies_source == "real" { "real" } else { "generated" },
++            replies_source: if replies_source == "real" {
++                "real"
++            } else {
++                "generated"
++            },
+             height: common.height,
+             kappa: common.kappa,
+             leaves: common.leaves,
+@@ -1485,16 +1678,16 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
+             reply_bytes: treepir_reply_bytes,
+             upload_bytes: h * treepir_request.request_bytes,
+             download_bytes: h * treepir_reply_bytes,
+-            index_ns: treepir.take("index"),
+-            keygen_ns: treepir.take("keygen"),
+-            query_ns: treepir.take("query"),
+-            serialize_ns: treepir.take("serialize"),
+-            decrypt_ns: treepir.take("decrypt"),
++            index_ns: treepir.take_client("index"),
++            keygen_ns: treepir.take_client("keygen"),
++            query_ns: treepir.take_client("query"),
++            serialize_ns: treepir.take_client("serialize"),
++            decrypt_ns: treepir.take_client("decrypt"),
+             combine_verify_ns: None,
+-            verify_ns: treepir.take("verify"),
+-            request_total_ns: treepir.take("request_total"),
+-            process_total_ns: treepir.take("process_total"),
+-            client_total_ns: treepir.take("client_total"),
++            verify_ns: treepir.take_client("verify"),
++            request_total_ns: treepir.take_client("request_total"),
++            process_total_ns: treepir.take_client("process_total"),
++            client_total_ns: treepir.take_client("client_total"),
+         })
+         .unwrap(),
+     ];
+@@ -1516,10 +1709,11 @@ fn paired_check(
+     paired_leaf: &dyn Fn(usize) -> u64,
+ ) -> Vec<serde_json::Value> {
+     let common = setup.common;
++    let trials = common.sampling.count("paired");
+     let claim = 0usize;
+-    let mut real = Vec::with_capacity(common.trials);
+-    let mut generated = Vec::with_capacity(common.trials);
+-    {
++    let mut real = Vec::with_capacity(trials);
++    let mut generated = Vec::with_capacity(trials);
++    if trials > 0 {
+         let database = cpus.on_setup_cpus(|| {
+             let bulk = BulkLog::build_with_default_prefix(
+                 setup.params,
+@@ -1537,7 +1731,7 @@ fn paired_check(
+             drop(bulk);
+             PirDatabase::from_cells_timed(setup.layout, cells, cpus.setup_threads).0
+         });
+-        for trial in 0..common.trials {
++        for trial in 0..trials {
+             let leaf = paired_leaf(trial);
+             let (opening, request, _) = setup.undine_request(leaf, None);
+             let real_reply = undine_serve(&database, claim, &request);
+@@ -1550,8 +1744,16 @@ fn paired_check(
+             // One untimed decoding of each, so that neither is timed cold.
+             black_box(undine_decode(&opening, &real_reply));
+             black_box(undine_decode(&opening, &generated_reply));
+-            for first_real in if trial % 2 == 0 { [true, false] } else { [false, true] } {
+-                let reply = if first_real { &real_reply } else { &generated_reply };
++            for first_real in if trial % 2 == 0 {
++                [true, false]
++            } else {
++                [false, true]
++            } {
++                let reply = if first_real {
++                    &real_reply
++                } else {
++                    &generated_reply
++                };
+                 let (_, ns) = timed(|| undine_decode(&opening, reply));
+                 if first_real {
+                     real.push(ns);
+@@ -1571,14 +1773,17 @@ fn paired_check(
+     };
+ 
+     let color = 0usize;
+-    let mut real = Vec::with_capacity(common.trials);
+-    let mut generated = Vec::with_capacity(common.trials);
+-    {
++    let mut real = Vec::with_capacity(trials);
++    let mut generated = Vec::with_capacity(trials);
++    if trials > 0 {
+         let server = cpus.on_setup_cpus(|| {
+             let nodes = setup.coloring.class_nodes(color);
+-            TreePirServer::new(setup.tree_layout, color, &nodes, |node| setup.tree.label_of_heap(node)).0
++            TreePirServer::new(setup.tree_layout, color, &nodes, |node| {
++                setup.tree.label_of_heap(node)
++            })
++            .0
+         });
+-        for trial in 0..common.trials {
++        for trial in 0..trials {
+             let leaf = paired_leaf(trial);
+             let location = *setup
+                 .coloring
+@@ -1588,7 +1793,9 @@ fn paired_check(
+                 .expect("every path has one node of every class");
+             let (query, request) = setup.tree_layout.request(location).expect("request");
+             let real_reply = server.answer(&request).expect("answer");
+-            let generated_reply = query.encrypt_row(&setup.treepir_row(location)).expect("reply");
++            let generated_reply = query
++                .encrypt_row(&setup.treepir_row(location))
++                .expect("reply");
+             assert_eq!(real_reply.len(), generated_reply.len(), "reply bytes");
+             assert_eq!(
+                 query.decode_row(&real_reply).expect("decode"),
+@@ -1597,8 +1804,16 @@ fn paired_check(
+             );
+             black_box(query.decode(&real_reply).expect("decode"));
+             black_box(query.decode(&generated_reply).expect("decode"));
+-            for first_real in if trial % 2 == 0 { [true, false] } else { [false, true] } {
+-                let reply = if first_real { &real_reply } else { &generated_reply };
++            for first_real in if trial % 2 == 0 {
++                [true, false]
++            } else {
++                [false, true]
++            } {
++                let reply = if first_real {
++                    &real_reply
++                } else {
++                    &generated_reply
++                };
+                 let (_, ns) = timed(|| query.decode(reply).expect("decode"));
+                 if first_real {
+                     real.push(ns);
+@@ -1626,6 +1841,10 @@ fn paired_check(
+ 
+ #[derive(Serialize)]
+ struct BenchMeta {
++    client_openings_per_sample: usize,
++    first_pass_warmup_calls: usize,
++    #[serde(skip_serializing_if = "Option::is_none")]
++    sample_groups: Option<std::collections::BTreeMap<String, usize>>,
+     seed: u64,
+     trials: usize,
+     role: String,
+@@ -1658,6 +1877,9 @@ fn run_benchmark() {
+         other => panic!("{ENV_PREFIX}_ROLE must be server or client; got {other}"),
+     };
+     let meta = BenchMeta {
++        client_openings_per_sample: CLIENT_OPENINGS_PER_SAMPLE,
++        first_pass_warmup_calls: usize::from(role == "server"),
++        sample_groups: common.sampling.groups.clone(),
+         seed: BENCH_SEED,
+         trials: common.trials,
+         height: common.height,
+@@ -1692,8 +1914,11 @@ fn run_benchmark() {
+     let out_dir = Path::new("results");
+     let _ = fs::create_dir_all(out_dir);
+     let path = out_dir.join("bench_treepir_comparison_local.json");
+-    fs::write(path, serde_json::to_vec_pretty(&document).expect("serialize"))
+-        .expect("write bench_treepir_comparison_local.json");
++    fs::write(
++        path,
++        serde_json::to_vec_pretty(&document).expect("serialize"),
++    )
++    .expect("write bench_treepir_comparison_local.json");
+ }
+ 
+ fn main() {
+diff --git a/documentation/treepir-ypir.md b/documentation/treepir-ypir.md
+index bd32d47..48af893 100644
+--- a/documentation/treepir-ypir.md
++++ b/documentation/treepir-ypir.md
+@@ -83,7 +83,7 @@ The last command needs a JDK. It compares output against the fixtures;
+ 
+ `benches/bench_treepir_comparison_local.rs` is the benchmark the publication
+ artifact runs at h = κ = 32 (and h = κ = 16 for validation). Its `server`
+-role rebuilds one UndineLog claim and one TreePIR class in every trial,
++role rebuilds one UndineLog claim and one TreePIR class for every preprocessing sample,
+ alternating them, on the same `SuffixTree` used by the client: 2^h − m
+ allocated, unwritten leaves followed by m seeded leaves, with m = 2^20 at
+ h = 32. Every query opens a seeded leaf. UndineLog uses the existing
+@@ -95,8 +95,8 @@ including their usual padding; zero blocks retain the backend's shortcut.
+ The benchmark times UndineLog's fragment build (all CPUs, wall time,
+ including hashing the seeded suffix), its gathering into PIR cells, the row
+ table and upper nodes, the hint, and the packing tables; and TreePIR's class
+-enumeration, column construction, hint, and packing tables, plus one answer
+-per rebuild. The initial `SuffixTree` construction is fixture setup; no tree
++enumeration, column construction, hint, and packing tables, plus checked answers
++from each build. The initial `SuffixTree` construction is fixture setup; no tree
+ hashing is charged to the PIR conversion, hint, packing or answer timers.
+ 
+ Its `client` role times both clients on one opening: the requests in parts
+@@ -106,11 +106,32 @@ decrypts κ replies and runs Combine+Verify; TreePIR decrypts h replies and
+ recomputes the root with `root_from_labels`). The tree is a `SuffixTree`:
+ 2^h − m unwritten leaves followed by m seeded ones. With `REPLIES=real`
+ every server of both systems is built. With `REPLIES=generated` each reply
+-is the row its server returns, read with `suffix_segment_entries` or
++is the row its server returns, read with the shared `ClaimRecords` helper or
+ `BalancedColoring::class_range` and encrypted under the client's key; one
+ real server of each system is then built and its replies are decoded in
+ pairs with the generated ones for the same queries.
+ 
++The artifact supplies `BENCH_SAMPLE_GROUPS` to stop expensive preparation,
++online work, client work, and the paired reply check independently. Client
++components and directly timed totals stay in one group so that the allocation
++history does not change when one series converges. Each group keeps the artifact's existing stopping
++rule and its own warmup prefix. Every measured preparation sample is a full
++fresh build. Every measured first pass follows one identical untimed scan,
++so fresh and reused databases have the same warmup policy. The JSON records
++`first_pass_warmup_calls`; complete-answer timers retain parsing and serialization. After preparation converges, an online-only invocation builds
++one server of each system untimed, then reuses it for queries. Online samples
++are distributed over the requested builds, and the two systems alternate by
++build; only one large server resides in memory at a time. The client avoids
++building real servers once the paired check has converged. Without this
++environment variable, the benchmark retains its fixed-trial behavior.
++
++One independent client sample averages eight complete opening pairs
++(`client_openings_per_sample = 8`). Each pair times components once in one
++opening and request/reply totals directly on a second opening. Fresh keys and
++different leaves are used throughout; no component is repeatedly timed in
++isolation. Every per-opening timing is retained in `raw_call_samples` alongside
++the batch means, and inner openings do not count as independent samples.
++
+ ## Reproducing the measurements
+ 
+ ```sh
+diff --git a/src/private/bulk.rs b/src/private/bulk.rs
+index 9c0c3ac..27a6b7d 100644
+--- a/src/private/bulk.rs
++++ b/src/private/bulk.rs
+@@ -85,7 +85,12 @@ impl<'a> SuffixTree<'a> {
+             .collect();
+         for level in (0..height).rev() {
+             let labels = (tree.first(level)..1u64 << level)
+-                .map(|pos| node_hash(tree.label(level + 1, 2 * pos), tree.label(level + 1, 2 * pos + 1)))
++                .map(|pos| {
++                    node_hash(
++                        tree.label(level + 1, 2 * pos),
++                        tree.label(level + 1, 2 * pos + 1),
++                    )
++                })
+                 .collect();
+             tree.levels[level as usize] = labels;
+         }
+@@ -245,7 +250,13 @@ impl<'a> ColumnEncoder<'a> {
+ 
+     /// Add the cell at `array_index` with content `value` to `entries`, one
+     /// buffer per claim starting at segment `first_segment`.
+-    fn add_cell(&mut self, entries: &mut [Vec<Fp>], first_segment: usize, array_index: u64, value: Fp) {
++    fn add_cell(
++        &mut self,
++        entries: &mut [Vec<Fp>],
++        first_segment: usize,
++        array_index: u64,
++        value: Fp,
++    ) {
+         let kappa = self.params.need;
+         let segment = (array_index / self.params.n_grid as u64) as usize;
+         let offset = (array_index % self.params.n_grid as u64) as usize;
+@@ -257,7 +268,11 @@ impl<'a> ColumnEncoder<'a> {
+             let axes = params.segment_axes(segment);
+             let mut basis = vec![fp_zero(); kappa * column_identifiers.len()];
+             for (claim, column_identifier) in column_identifiers.iter().enumerate() {
+-                params.z_basis_at(&axes, *column_identifier, &mut basis[claim * kappa..][..kappa]);
++                params.z_basis_at(
++                    &axes,
++                    *column_identifier,
++                    &mut basis[claim * kappa..][..kappa],
++                );
+             }
+             basis
+         });
+@@ -321,7 +336,11 @@ impl Walk<'_> {
+         cell(array_index, self.default_cell(level));
+         if level < self.height() {
+             self.default_subtree(level + 1, array_index + 1, cell);
+-            self.default_subtree(level + 1, array_index + 1 + self.subtree_nodes(level + 1), cell);
++            self.default_subtree(
++                level + 1,
++                array_index + 1 + self.subtree_nodes(level + 1),
++                cell,
++            );
+         }
+     }
+ 
+@@ -375,7 +394,14 @@ impl Walk<'_> {
+         if level == chunk_level {
+             return chunk_labels[pos as usize];
+         }
+-        let left = self.upper(level + 1, 2 * pos, array_index + 1, chunk_level, chunk_labels, cell);
++        let left = self.upper(
++            level + 1,
++            2 * pos,
++            array_index + 1,
++            chunk_level,
++            chunk_labels,
++            cell,
++        );
+         // The right child is reached only when it is active, and then the
+         // left subtree is full and its size fits the array.
+         let right = if self.is_active(level + 1, 2 * pos + 1) {
+@@ -468,6 +494,113 @@ pub struct BulkLog<'a> {
+ }
+ 
+ impl<'a> BulkLog<'a> {
++    /// Persist only the untimed input state of a benchmark. PIR hints and
++    /// packing tables are deliberately absent. The benchmark cache binds
++    /// this stream to its executable and complete workload parameters.
++    #[cfg(feature = "bench")]
++    pub fn write_benchmark_fixture(&self, output: &mut impl std::io::Write) {
++        let metadata = (
++            1u32,
++            self.params.need,
++            self.auth.tree_height,
++            self.seed,
++            &self.registry_indices,
++            self.chunk_bits,
++            self.default_leaves,
++            self.leaves,
++            &self.chunk_labels,
++            self.root,
++        );
++        bincode::serde::encode_into_std_write(metadata, output, bincode::config::standard())
++            .expect("write bulk fixture metadata");
++        for column in &self.entries {
++            for entry in column {
++                output
++                    .write_all(&encode_value(*entry))
++                    .expect("write bulk fixture column");
++            }
++        }
++    }
++
++    /// Restore the exact pre-append baseline, including the chunk labels
++    /// needed by `extend`. Each caller receives its own mutable columns.
++    #[cfg(feature = "bench")]
++    pub fn read_benchmark_fixture(
++        params: &'a CodedArrayParams,
++        auth: &'a AuthParams,
++        node_linearization: NodeLinearization,
++        input: &mut impl std::io::Read,
++    ) -> Self {
++        let (
++            version,
++            kappa,
++            height,
++            seed,
++            registry_indices,
++            chunk_bits,
++            default_leaves,
++            leaves,
++            chunk_labels,
++            root,
++        ): (
++            u32,
++            usize,
++            usize,
++            u64,
++            Vec<usize>,
++            u32,
++            u64,
++            u64,
++            Vec<Value256>,
++            Value256,
++        ) = bincode::serde::decode_from_std_read(input, bincode::config::standard())
++            .expect("read bulk fixture metadata");
++        assert_eq!(version, 1);
++        assert_eq!(kappa, params.need);
++        assert_eq!(height, auth.tree_height);
++        assert!(leaves > 0 && leaves <= 1u64 << height && default_leaves <= leaves);
++        assert!(chunk_bits <= height as u32);
++        assert_eq!(
++            chunk_labels.len(),
++            leaves.div_ceil(1u64 << chunk_bits) as usize
++        );
++        assert!(!registry_indices.is_empty());
++        assert!(
++            registry_indices
++                .iter()
++                .all(|&claim| claim < params.shard_registry.len())
++        );
++        let cursor = mapping::cursor(node_linearization, height as u16, leaves);
++        let count = cursor.div_ceil(params.n_grid as u64) as usize * kappa;
++        let entries = registry_indices
++            .iter()
++            .map(|_| {
++                (0..count)
++                    .map(|_| {
++                        let mut bytes = [0u8; 32];
++                        input
++                            .read_exact(&mut bytes)
++                            .expect("read bulk fixture column");
++                        decode_value(bytes)
++                    })
++                    .collect()
++            })
++            .collect();
++        Self {
++            params,
++            auth,
++            node_linearization,
++            seed,
++            registry_indices,
++            chunk_bits,
++            default_leaves,
++            leaves,
++            chunk_labels,
++            entries,
++            root,
++        }
++    }
++
+     /// Build the columns of a log of `leaves` leaves.
+     #[allow(clippy::too_many_arguments)]
+     pub fn build(
+@@ -605,7 +738,11 @@ impl<'a> BulkLog<'a> {
+         let root = self.root;
+         self.entries
+             .into_iter()
+-            .map(|entries| BulkColumns { segments, root, entries })
++            .map(|entries| BulkColumns {
++                segments,
++                root,
++                entries,
++            })
+             .collect()
+     }
+ 
+@@ -636,8 +773,11 @@ impl<'a> BulkLog<'a> {
+         };
+         let root = walk.upper(0, 0, 0, chunk_level, chunk_labels, &mut cell);
+         for index in cursor..segments * n_grid {
+-            let value =
+-                decode_value(default_value_at_index(self.auth, self.node_linearization, index));
++            let value = decode_value(default_value_at_index(
++                self.auth,
++                self.node_linearization,
++                index,
++            ));
+             cell(index, value);
+         }
+         root
+@@ -681,11 +821,8 @@ impl<'a> BulkLog<'a> {
+                         if chunk >= chunks.end {
+                             break;
+                         }
+-                        let root_index = mapping::preorder_idx(
+-                            height as u16,
+-                            chunk_level as u16,
+-                            chunk as u64,
+-                        );
++                        let root_index =
++                            mapping::preorder_idx(height as u16, chunk_level as u16, chunk as u64);
+                         let last_index = root_index + walk.subtree_nodes(chunk_level) - 1;
+                         let first_segment = (root_index / n_grid) as usize;
+                         let local_segments = ((last_index / n_grid) as usize)
+@@ -782,7 +919,12 @@ pub fn build_tree_cells(
+     let cells_per_record = layout.cells_per_record() as u64;
+     let records = layout.records();
+     let mut cells = vec![0u16; records * record_cells];
+-    let walk = Walk { auth, leaves, seed, default_leaves: 0 };
++    let walk = Walk {
++        auth,
++        leaves,
++        seed,
++        default_leaves: 0,
++    };
+     let chunk_bits = CHUNK_BITS.min(height);
+     let chunk_level = height - chunk_bits;
+     let chunks = leaves.div_ceil(1u64 << chunk_bits) as usize;
+@@ -799,7 +941,8 @@ pub fn build_tree_cells(
+ 
+     let next_chunk = AtomicUsize::new(0);
+     // A bounded channel keeps the workers from running ahead of the writer.
+-    let (sender, receiver) = mpsc::sync_channel::<(usize, Value256, Vec<(u64, Fp)>)>(threads.max(1));
++    let (sender, receiver) =
++        mpsc::sync_channel::<(usize, Value256, Vec<(u64, Fp)>)>(threads.max(1));
+     std::thread::scope(|scope| {
+         for _ in 0..threads.max(1).min(chunks) {
+             let sender = sender.clone();
+@@ -814,9 +957,12 @@ pub fn build_tree_cells(
+                     let root_index =
+                         mapping::preorder_idx(height as u16, chunk_level as u16, chunk as u64);
+                     let mut local = Vec::with_capacity(walk.subtree_nodes(chunk_level) as usize);
+-                    let label = walk.subtree(chunk_level, chunk as u64, root_index, &mut |index, value| {
+-                        local.push((index, value))
+-                    });
++                    let label = walk.subtree(
++                        chunk_level,
++                        chunk as u64,
++                        root_index,
++                        &mut |index, value| local.push((index, value)),
++                    );
+                     if sender.send((chunk, label, local)).is_err() {
+                         break;
+                     }
+diff --git a/src/private/pir.rs b/src/private/pir.rs
+index 12a0f5a..375c1e9 100644
+--- a/src/private/pir.rs
++++ b/src/private/pir.rs
+@@ -2231,41 +2231,28 @@ impl TableDatabase {
+ 
+     /// Write out every row of `database` and preprocess the table.
+     pub fn from_database(database: &PirDatabase) -> Self {
+-        let params = database.params;
+         let shape = database.shape;
+-        let db_rows = factored::simplepir_db_rows(params);
+-        let db_cols = factored::simplepir_db_cols(params);
+-        // `YServer::new` reads its input row by row.
+-        let table = (0..db_rows).flat_map(|row| {
+-            let mut cells = vec![0u16; db_cols];
+-            if row < shape.patterns {
+-                for slot in 0..shape.slots {
+-                    let id = database.rows[row * shape.slots + slot];
+-                    if id == NO_RECORD {
+-                        continue;
+-                    }
+-                    let source = database.slot_cells(slot, id as usize);
+-                    let full = shape.slot_bits(slot) / CELL_BITS;
+-                    let base = shape.slot_offset(slot);
+-                    cells[base..base + full].copy_from_slice(&source[..full]);
+-                    // Independent bitwise reference for the suffix.
+-                    for bit in 0..shape.slot_bits(slot) % CELL_BITS {
+-                        let dest =
+-                            shape.full_columns() * CELL_BITS + shape.tail_bit_offset(slot) + bit;
+-                        cells[dest / CELL_BITS] |=
+-                            ((source[full] >> bit) & 1) << (dest % CELL_BITS);
+-                    }
++        // Use the same tiled construction and compact preprocessing as the
++        // dense TreePIR adapter. Keep the independent bitwise row packing
++        // below: this table also checks the structured adapter's packing.
++        Self::from_rows_timed(shape, |row, cells| {
++            for slot in 0..shape.slots {
++                let id = database.rows[row * shape.slots + slot];
++                if id == NO_RECORD {
++                    continue;
++                }
++                let source = database.slot_cells(slot, id as usize);
++                let full = shape.slot_bits(slot) / CELL_BITS;
++                let base = shape.slot_offset(slot);
++                cells[base..base + full].copy_from_slice(&source[..full]);
++                // Independent bitwise reference for the suffix.
++                for bit in 0..shape.slot_bits(slot) % CELL_BITS {
++                    let dest = shape.full_columns() * CELL_BITS + shape.tail_bit_offset(slot) + bit;
++                    cells[dest / CELL_BITS] |= ((source[full] >> bit) & 1) << (dest % CELL_BITS);
+                 }
+             }
+-            cells
+-        });
+-        let server = YServer::<u16>::new(params, table, true, false, true);
+-        let offline = server.perform_offline_precomputation_simplepir(None);
+-        Self {
+-            params,
+-            server,
+-            offline,
+-        }
++        })
++        .0
+     }
+ 
+     /// The SimplePIR hint of the table.

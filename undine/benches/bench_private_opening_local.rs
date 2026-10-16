@@ -20,11 +20,24 @@
 //!   per pattern. First pass and complete answer.
 //! - `client`: a client that opens one position from `kappa` replies and from
 //!   `3 kappa` replies of which `kappa` lie, privately and publicly. Every
-//!   reply comes from the PIR database of its own claim.
+//!   reply encrypts exactly the selected records of its own claim; untimed
+//!   setup encodes only those records, including the upper-node records.
 //!
 //! Setup runs on `SETUP_THREADS` threads over all online CPUs; the timed
 //! operations run on the calling thread with the CPU set the process was
 //! started with.
+
+#[path = "support/sampling.rs"]
+mod sampling;
+use sampling::Sampling;
+
+#[path = "support/fixture_cache.rs"]
+mod fixture_cache;
+use fixture_cache::FixtureCache;
+
+#[path = "support/private_records.rs"]
+mod private_records;
+use private_records::ClaimRecords;
 
 use paper_a_optimized::auth::client::{AuthClient, AuthTransport, ClientError as AuthClientError};
 use paper_a_optimized::auth::mapping::NodeLinearization;
@@ -39,16 +52,14 @@ use paper_a_optimized::net::wire::{
     decode_binary, encode_binary,
 };
 use paper_a_optimized::private::bulk::CHUNK_BITS;
-use paper_a_optimized::private::pir::{
-    HINT_COLUMN_BATCH, UPPER_CELLS, bytes_from_cells, bytes_to_cells,
-};
+use paper_a_optimized::private::pir::{HINT_COLUMN_BATCH, UPPER_CELLS};
 use paper_a_optimized::private::wire::{
     WORD_BYTES, pack_words, request_to_net, response_from_net, unpack_words,
 };
 use paper_a_optimized::private::{
     BulkLog, Grouping, PackKeys, PirClient, PirDatabase, PirError, PirShape, PlannedEntry,
-    PrivateLayout, PrivateOpening, PrivateReadResponse, TableDatabase, build_primary_columns,
-    build_tree_cells, bulk_leaf_value, entries_to_cells, entry_from_cells, pattern_bits,
+    PrivateLayout, PrivateOpening, PrivateReadResponse, TableDatabase, build_tree_cells,
+    bulk_leaf_value, entries_to_cells, entry_from_cells, pattern_bits,
 };
 use paper_a_optimized::unauth::error_correcting_share_target;
 use paper_a_optimized::{
@@ -73,7 +84,6 @@ const DEFAULT_TREE_HEIGHT: usize = 50;
 const DEFAULT_CELLS_PER_RECORD: usize = 64;
 const DEFAULT_APPEND_LEAVES: usize = 1 << 10;
 const DEFAULT_HINT_CHECK_COLUMNS: usize = 4 * HINT_COLUMN_BATCH;
-const DEFAULT_CLIENT_SETUP_MEMORY_MIB: usize = 12 * 1024;
 const FIELD_BYTES: u64 = 32;
 const ORDER: NodeLinearization = NodeLinearization::Preorder;
 
@@ -94,6 +104,9 @@ struct BenchResults {
 
 #[derive(Clone, Debug, Serialize)]
 struct BenchMeta {
+    first_pass_warmup_calls: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sample_groups: Option<std::collections::BTreeMap<String, usize>>,
     seed: u64,
     trials: usize,
     role: String,
@@ -628,13 +641,14 @@ struct ServerSamples {
     client_decode: Vec<u64>,
 }
 
-/// Rebuild all preprocessing on one core in each trial, then time an opening
-/// against that build and check it against `expected`. Reuse only the input
-/// cells; discard the previous hint, packing tables, row table and upper cache.
+/// Rebuild preprocessing for each requested preprocessing sample, checking
+/// every build against `expected`. Online samples can continue on the last
+/// checked build; an online-only batch makes one untimed build. Rebuilds reuse
+/// only the input cells, never the old hint, packing tables or upper cache.
 fn server_trials(
     common: &Common,
     layout: &PrivateLayout,
-    mut cells: Vec<u16>,
+    cells: Vec<u16>,
     kappa: usize,
     registry_index: usize,
     fields: &ShapeFields,
@@ -650,56 +664,75 @@ fn server_trials(
         answer: Vec::with_capacity(common.trials),
         client_decode: Vec::with_capacity(common.trials),
     };
-    for trial in 0..common.trials {
-        let (database, times) = PirDatabase::from_cells_timed(layout, cells, 1);
-        samples.hint.push(times.hint.as_nanos() as u64);
-        samples.packing.push(times.packing.as_nanos() as u64);
-        samples
-            .preprocess
-            .push((times.hint + times.packing).as_nanos() as u64);
-
+    let preprocessing = common.sampling.count("preprocess");
+    let online = common.sampling.count("online");
+    let mut database: Option<PirDatabase> = None;
+    let mut input = Some(cells);
+    for trial in 0..preprocessing.max(online).max(1) {
+        if trial == 0 || trial < preprocessing {
+            let cells = input
+                .take()
+                .unwrap_or_else(|| database.take().unwrap().into_cells());
+            let (built, times) = PirDatabase::from_cells_timed(layout, cells, 1);
+            if trial < preprocessing {
+                samples.hint.push(times.hint.as_nanos() as u64);
+                samples.packing.push(times.packing.as_nanos() as u64);
+                samples
+                    .preprocess
+                    .push((times.hint + times.packing).as_nanos() as u64);
+            }
+            database = Some(built);
+        }
+        let current = database.as_ref().unwrap();
         let leaf = trial_leaf(layout, trial);
         let pattern = layout.pattern_of(leaf);
         let plan = layout.opening_plan(leaf);
 
         let ((client, request), request_ns) = timed(|| client_request(layout, kappa, pattern));
         assert_eq!(request.len() as u64, fields.request_bytes, "request bytes");
-        samples.client_request.push(request_ns);
+        if trial < online {
+            samples.client_request.push(request_ns);
+        }
 
         let (query, _) = parse_request(&request);
-        let (_, first_pass_ns) = timed(|| database.first_pass(&query).expect("first pass"));
-        samples.first_pass.push(first_pass_ns);
+        // Give fresh and reused databases the same warmup before the scan.
+        black_box(current.first_pass(&query).expect("warm first pass"));
+        let (_, first_pass_ns) = timed(|| current.first_pass(&query).expect("first pass"));
+        if trial < online {
+            samples.first_pass.push(first_pass_ns);
+        }
         drop(query);
 
         let (reply, answer_ns) = timed(|| {
             serve(
-                &|query, keys| database.answer(query, keys),
+                &|query, keys| current.answer(query, keys),
                 registry_index,
                 &request,
             )
         });
         assert_eq!(reply.len() as u64, fields.reply_bytes, "reply bytes");
-        samples.answer.push(answer_ns);
+        if trial < online {
+            samples.answer.push(answer_ns);
+        }
         drop(request);
 
         let (entries, decode_ns) = timed(|| client_decode(&client, &plan, &reply));
-        samples.client_decode.push(decode_ns);
+        if trial < online {
+            samples.client_decode.push(decode_ns);
+        }
         assert!(
-            entries == expected(&database, leaf),
+            entries == expected(current, leaf),
             "trial {trial}: the opening of leaf {leaf}"
         );
-        if trial + 1 == common.trials {
-            return (database, samples);
-        }
-        cells = database.into_cells();
     }
-    unreachable!("the last trial returns the database and samples")
+    (database.expect("at least one checked build"), samples)
 }
 
 // ---------------------------------------------------------------------------
 // Roles.
 
 struct Common {
+    sampling: Sampling,
     trials: usize,
     kappa: usize,
     leaves: u64,
@@ -739,6 +772,49 @@ fn single_pattern_bits(common: &Common, cells_per_record: usize) -> u32 {
     }
 }
 
+/// Reuse an immutable seeded fragment across pattern sweeps and sampling
+/// batches. Loading gives update trials a separate, unmodified BulkLog.
+fn cached_primary<'a>(
+    common: &Common,
+    cpus: &CpuPlan,
+    params: &'a CodedArrayParams,
+    auth: &'a AuthParams,
+    defaults: u64,
+    claim: usize,
+) -> BulkLog<'a> {
+    let cache = FixtureCache::new(
+        "private-primary",
+        &(
+            BENCH_SEED,
+            common.tree_height,
+            common.leaves,
+            defaults,
+            common.kappa,
+            params.shard_registry.len(),
+            claim,
+            CHUNK_BITS,
+        ),
+    );
+    if let Some(bulk) =
+        cache.load_with(|input| BulkLog::read_benchmark_fixture(params, auth, ORDER, input))
+    {
+        return bulk;
+    }
+    let bulk = BulkLog::build_with_default_prefix(
+        params,
+        auth,
+        ORDER,
+        common.leaves,
+        defaults,
+        BENCH_SEED,
+        claim,
+        cpus.setup_threads,
+        CHUNK_BITS,
+    );
+    cache.store_with(|output| bulk.write_benchmark_fixture(output));
+    bulk
+}
+
 fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     let grouping = grouping_of_env(common);
     let segments_per_record = grouping.segments_per_group;
@@ -756,24 +832,14 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     } else {
         0
     };
-    let mut bulk = BulkLog::build_with_default_prefix(
-        &params,
-        &auth,
-        ORDER,
-        common.leaves,
-        default_leaves,
-        BENCH_SEED,
-        registry_index,
-        cpus.setup_threads,
-        CHUNK_BITS,
-    );
+    let mut bulk = cached_primary(common, cpus, &params, &auth, default_leaves, registry_index);
     let layout = layout_at(common.leaves);
     let cells = PirDatabase::cells_from_entries(&layout, bulk.entries());
     cpus.restore();
 
     let fields = shape_fields(&layout, common.kappa, registry_index);
 
-    // A full preprocessing rebuild and a verified opening in every trial.
+    // Fresh preprocessing samples and checked openings, with independent counts.
     let (mut database, samples) = server_trials(
         common,
         &layout,
@@ -796,7 +862,7 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     let mut update_hint = Vec::with_capacity(common.trials);
     let mut update_packing = Vec::with_capacity(common.trials);
     let mut leaves = common.leaves;
-    for _ in 0..common.trials {
+    for _ in 0..common.sampling.count("update") {
         let old_leaves = leaves;
         leaves += append_leaves;
         bulk.extend(leaves, 1);
@@ -809,61 +875,64 @@ fn run_maintainer(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         update_packing.push(times.packing.as_nanos() as u64);
     }
 
-    // The updated database equals the database of the longer log: its cells,
-    // the hint of the sample columns, and openings across the log.
-    let final_layout = layout_at(leaves);
-    {
-        // Record by record, so that the fresh cells are never held whole
-        // next to the database's.
-        let record_cells = database.shape().record_cells;
-        let per_record = final_layout.entries_per_record();
-        let entries = bulk.entries();
-        let mut padded = vec![fp_zero(); per_record];
-        let mut fresh = vec![0u16; record_cells];
-        for record in 0..final_layout.records() {
-            let start = (record * per_record).min(entries.len());
-            let end = ((record + 1) * per_record).min(entries.len());
-            padded[..end - start].copy_from_slice(&entries[start..end]);
-            padded[end - start..].fill(fp_zero());
-            entries_to_cells(&padded, &mut fresh);
-            assert!(
-                database.record_cells(record) == fresh.as_slice(),
-                "block {record} after the updates"
-            );
-        }
-        // The records equal the fresh ones, so the upper nodes read from
-        // them are the fresh upper nodes.
-        let fresh_upper = PirDatabase::upper_from_cells(&final_layout, database.cells());
-        for (level, cells) in fresh_upper.iter().enumerate() {
-            for pos in 0..final_layout.upper_count(level) {
+    if common.sampling.count("update") > 0 {
+        // The updated database equals the database of the longer log: its cells,
+        // the hint of the sample columns, and openings across the log.
+        let final_layout = layout_at(leaves);
+        {
+            // Record by record, so that the fresh cells are never held whole
+            // next to the database's.
+            let record_cells = database.shape().record_cells;
+            let per_record = final_layout.entries_per_record();
+            let entries = bulk.entries();
+            let mut padded = vec![fp_zero(); per_record];
+            let mut fresh = vec![0u16; record_cells];
+            for record in 0..final_layout.records() {
+                let start = (record * per_record).min(entries.len());
+                let end = ((record + 1) * per_record).min(entries.len());
+                padded[..end - start].copy_from_slice(&entries[start..end]);
+                padded[end - start..].fill(fp_zero());
+                entries_to_cells(&padded, &mut fresh);
                 assert!(
-                    database.upper_cells(level, pos)
-                        == &cells[pos * UPPER_CELLS..(pos + 1) * UPPER_CELLS],
-                    "upper node {pos} at level {level} after the updates"
+                    database.record_cells(record) == fresh.as_slice(),
+                    "block {record} after the updates"
                 );
             }
+            // The records equal the fresh ones, so the upper nodes read from
+            // them are the fresh upper nodes.
+            let fresh_upper = PirDatabase::upper_from_cells(&final_layout, database.cells());
+            for (level, cells) in fresh_upper.iter().enumerate() {
+                for pos in 0..final_layout.upper_count(level) {
+                    assert!(
+                        database.upper_cells(level, pos)
+                            == &cells[pos * UPPER_CELLS..(pos + 1) * UPPER_CELLS],
+                        "upper node {pos} at level {level} after the updates"
+                    );
+                }
+            }
         }
-    }
-    let cols = sample_columns(&database.shape(), common.hint_check_columns);
-    for (col, values) in cols.iter().zip(database.hint_of_columns(&cols)) {
-        assert!(
-            values == database.stored_hint_column(*col),
-            "updated hint of column {col}"
-        );
-    }
-    for leaf in [0, common.leaves - 1, common.leaves, leaves - 1] {
-        let plan = final_layout.opening_plan(leaf);
-        let (client, request) =
-            client_request(&final_layout, common.kappa, final_layout.pattern_of(leaf));
-        let reply = serve(
-            &|query, pack_keys| database.answer(query, pack_keys),
-            registry_index,
-            &request,
-        );
-        assert!(
-            client_decode(&client, &plan, &reply) == stored_opening(&database, &final_layout, leaf),
-            "opening of leaf {leaf} after the updates"
-        );
+        let cols = sample_columns(&database.shape(), common.hint_check_columns);
+        for (col, values) in cols.iter().zip(database.hint_of_columns(&cols)) {
+            assert!(
+                values == database.stored_hint_column(*col),
+                "updated hint of column {col}"
+            );
+        }
+        for leaf in [0, common.leaves - 1, common.leaves, leaves - 1] {
+            let plan = final_layout.opening_plan(leaf);
+            let (client, request) =
+                client_request(&final_layout, common.kappa, final_layout.pattern_of(leaf));
+            let reply = serve(
+                &|query, pack_keys| database.answer(query, pack_keys),
+                registry_index,
+                &request,
+            );
+            assert!(
+                client_decode(&client, &plan, &reply)
+                    == stored_opening(&database, &final_layout, leaf),
+                "opening of leaf {leaf} after the updates"
+            );
+        }
     }
 
     vec![BenchEntry::Server(Box::new(ServerEntry {
@@ -986,16 +1055,8 @@ fn run_table(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     let layout = PrivateLayout::with_grouping(&params, &auth, ORDER, common.leaves, grouping)
         .expect("layout");
 
-    let bulk = build_primary_columns(
-        &params,
-        &auth,
-        ORDER,
-        common.leaves,
-        BENCH_SEED,
-        registry_index,
-        cpus.setup_threads,
-    );
-    let cells = PirDatabase::cells_from_entries(&layout, &bulk.entries);
+    let bulk = cached_primary(common, cpus, &params, &auth, 0, registry_index);
+    let cells = PirDatabase::cells_from_entries(&layout, bulk.entries());
     drop(bulk);
     let (database, _) = PirDatabase::from_cells_timed(&layout, cells, cpus.setup_threads);
     let table = TableDatabase::from_database(&database);
@@ -1025,6 +1086,7 @@ fn run_table(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         let plan = layout.opening_plan(leaf);
         let (client, request) = client_request(&layout, common.kappa, layout.pattern_of(leaf));
         let (query, _) = parse_request(&request);
+        black_box(table.first_pass(&query).expect("warm first pass"));
         first_pass.push(timed(|| table.first_pass(&query).expect("first pass")).1);
         let (reply, answer_ns) = timed(|| {
             serve(
@@ -1168,7 +1230,6 @@ fn same_replies(left: &AuthReadResponse, right: &AuthReadResponse) -> bool {
 fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     let grouping = grouping_of_env(common);
     let segments_per_record = grouping.segments_per_group;
-    let memory_mib = parse_usize_env("CLIENT_SETUP_MEMORY_MIB", DEFAULT_CLIENT_SETUP_MEMORY_MIB);
     let kappa = common.kappa;
     let claims = error_correcting_share_target(kappa, kappa);
     let params = build_params(kappa, claims);
@@ -1183,68 +1244,43 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
     let plan = layout.opening_plan(index);
     let fields = shape_fields(&layout, kappa, claims - 1);
 
-    // Each claim answers the request honestly, and the first `kappa` claims
-    // answer a second time with a lie about one node of the path each, so
-    // that the same registry is timed with and without lies. The client's
-    // work does not depend on the stored values or on how a reply was
-    // formed, so the claims hold the columns of a log of allocated, unwritten
-    // leaves, which the bulk builder writes without hashing the tree for as
-    // many claims per walk as two thirds of the memory hold, and a claim's
-    // reply is the row the query selects encrypted under the client's key,
-    // in place of the server's preprocessing and answer.
-    let column_mib = (fields.database_bytes as usize >> 20).max(1);
-    let claims_per_walk = (memory_mib * 2 / 3 / column_mib).clamp(1, claims);
+    // Construct exactly the records this opening reads, for every claim.
+    // The allocated, unwritten workload is unchanged: inner cells are
+    // level defaults and leaf cells are zero. No full fragments are built.
+    let registry_indices = (0..claims).collect::<Vec<_>>();
+    let records = ClaimRecords::new(
+        &params,
+        &auth,
+        &layout,
+        &registry_indices,
+        [index],
+        &|level, _| {
+            if level as usize == common.tree_height {
+                fp_zero()
+            } else {
+                decode_value(default_hash(&auth.defaults, level as usize))
+            }
+        },
+    );
+    let root = default_hash(&auth.defaults, 0);
     let workers = cpus.setup_threads.clamp(1, claims);
-    let shape = PirShape::of(&layout);
     let pattern = layout.pattern_of(index);
-    let row = layout.row(pattern);
-    let per_record = layout.entries_per_record();
     let honest: Mutex<Vec<Option<(Vec<u8>, AuthReadResponse, Value256)>>> =
         Mutex::new(vec![None; claims]);
     let lying: Mutex<Vec<Option<(Vec<u8>, AuthReadResponse, Value256)>>> =
         Mutex::new(vec![None; kappa]);
-    // The cells of one record of `entries`, as the database holds them.
-    let record_cells = |entries: &[Fp], record: usize| -> Vec<u16> {
-        let start = (record * per_record).min(entries.len());
-        let end = ((record + 1) * per_record).min(entries.len());
-        let mut padded = vec![fp_zero(); per_record];
-        padded[..end - start].copy_from_slice(&entries[start..end]);
-        let mut cells = vec![0u16; shape.record_cells];
-        entries_to_cells(&padded, &mut cells);
-        cells
-    };
-    let answer = |claim: usize, entries: &[Fp], root: Value256| {
+    let answer = |claim: usize, patch: Option<(usize, Fp)>| {
         let stored = plan
             .iter()
-            .map(|entry| entries[layout.entry_index(entry.array_index)])
-            .collect::<Vec<_>>();
-        // The row the query selects: the record of each group slot and the
-        // entry of each upper slot, as `PirDatabase` lays them out.
-        let slots = row
-            .iter()
-            .enumerate()
-            .map(|(slot, id)| {
-                let mut cells = vec![0u16; shape.slot_width(slot)];
-                match id {
-                    Some(record) if slot < shape.group_slots => {
-                        cells = record_cells(entries, *record);
-                    }
-                    Some(pos) => {
-                        let entry_index = layout.upper_entry_index(slot - shape.group_slots, *pos);
-                        let block = record_cells(entries, entry_index / per_record)
-                            .into_iter()
-                            .map(u64::from)
-                            .collect::<Vec<_>>();
-                        bytes_to_cells(
-                            bytes_from_cells(&block, entry_index % per_record),
-                            &mut cells,
-                        );
-                    }
-                    None => {}
+            .map(|entry| {
+                let index = layout.entry_index(entry.array_index);
+                match patch {
+                    Some((changed, value)) if changed == index => value,
+                    _ => records.entry(claim, index),
                 }
-                cells.into_iter().map(u64::from).collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
+        let slots = records.slots_with_patch(&layout, claim, pattern, patch);
         let reply = encode_binary(&net::Response::AuthReadPrivate {
             resp: AuthPrivateReadResponse {
                 replies: vec![AuthPrivateReadReply {
@@ -1261,48 +1297,28 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<BenchEntry> {
         let public = public_reply(common.tree_height, index, claim, &plan, &stored);
         (reply, public, root)
     };
-    for first in (0..claims).step_by(claims_per_walk) {
-        let group = (first..(first + claims_per_walk).min(claims)).collect::<Vec<_>>();
-        let columns = BulkLog::build_for_claims(
-            &params,
-            &auth,
-            ORDER,
-            common.leaves,
-            common.leaves,
-            BENCH_SEED,
-            &group,
-            cpus.setup_threads,
-            CHUNK_BITS,
-        )
-        .into_claim_columns();
-        let columns = columns.into_iter().map(Mutex::new).collect::<Vec<_>>();
-        let next = AtomicUsize::new(0);
-        std::thread::scope(|scope| {
-            for _ in 0..workers {
-                scope.spawn(|| {
-                    loop {
-                        let position = next.fetch_add(1, Ordering::Relaxed);
-                        if position >= group.len() {
-                            break;
-                        }
-                        let claim = group[position];
-                        let mut bulk = columns[position].lock().expect("columns");
-                        let bulk = &mut *bulk;
-                        honest.lock().expect("honest replies")[claim] =
-                            Some(answer(claim, &bulk.entries, bulk.root));
-                        if claim < kappa {
-                            let entry = &plan[claim % plan.len()];
-                            bulk.entries[layout.entry_index(entry.array_index)] += fp_one();
-                            lying.lock().expect("lying replies")[claim] =
-                                Some(answer(claim, &bulk.entries, bulk.root));
-                        }
-                        // The columns are not needed again.
-                        bulk.entries = Vec::new();
+    let next = AtomicUsize::new(0);
+    std::thread::scope(|scope| {
+        for _ in 0..workers {
+            scope.spawn(|| {
+                loop {
+                    let claim = next.fetch_add(1, Ordering::Relaxed);
+                    if claim >= claims {
+                        break;
                     }
-                });
-            }
-        });
-    }
+                    honest.lock().expect("honest replies")[claim] = Some(answer(claim, None));
+                    if claim < kappa {
+                        let entry = &plan[claim % plan.len()];
+                        let index = layout.entry_index(entry.array_index);
+                        lying.lock().expect("lying replies")[claim] = Some(answer(
+                            claim,
+                            Some((index, records.entry(claim, index) + fp_one())),
+                        ));
+                    }
+                }
+            });
+        }
+    });
     cpus.restore();
     let collect = |replies: Mutex<Vec<Option<(Vec<u8>, AuthReadResponse, Value256)>>>| {
         replies
@@ -1469,6 +1485,7 @@ fn run_benchmark() {
     let role =
         std::env::var(format!("{ENV_PREFIX}_ROLE")).unwrap_or_else(|_| "maintainer".to_string());
     let common = Common {
+        sampling: Sampling::new(parse_usize_env("TRIALS", DEFAULT_TRIALS)),
         trials: parse_usize_env("TRIALS", DEFAULT_TRIALS),
         kappa: parse_usize_env("KAPPA", DEFAULT_KAPPA),
         leaves: parse_usize_env("LEAVES", DEFAULT_LEAVES) as u64,
@@ -1495,6 +1512,8 @@ fn run_benchmark() {
         .as_millis() as u64;
     let results = BenchResults {
         meta: BenchMeta {
+            first_pass_warmup_calls: usize::from(role != "client"),
+            sample_groups: common.sampling.groups.clone(),
             seed: BENCH_SEED,
             trials: common.trials,
             role,
@@ -1519,7 +1538,7 @@ fn run_benchmark() {
             peak_rss_bytes: peak_rss_bytes(),
             timestamp_unix_ms: timestamp_ms,
             git: git_sha(),
-            notes: "private openings of one position: one server's first pass and answer to a serialized request, the client's request and decoding, complete single-core hint and packing-table rebuilds in every server trial, and the preprocessing update after appends; preprocessing totals exclude tree construction, encoding and conversion to PIR cells; sampled hint columns are only an untimed update correctness check; or one client's Combine and Verify from private and from public replies".to_string(),
+            notes: "private openings of one position: one server's first pass and answer to a serialized request, the client's request and decoding, complete single-core hint and packing-table rebuilds in every preprocessing sample, and the preprocessing update after appends; preprocessing totals exclude tree construction, encoding and conversion to PIR cells; sampled hint columns are only an untimed update correctness check; or one client's Combine and Verify from private and from public replies".to_string(),
         },
         entries,
     };

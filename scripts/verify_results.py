@@ -307,6 +307,33 @@ def verify_run(run_dir: pathlib.Path, *, reference: bool) -> dict[str, Any]:
     manifest = load_json(run_dir / "manifest.json")
     summary = load_json(run_dir / "summary.json")
 
+    if checkpoint.get("pipeline_version", 1) >= 2:
+        snapshot = load_json(run_dir / "provenance" / "source-snapshot.json")
+        require(snapshot.get("snapshot_id") == checkpoint.get("snapshot_id"),
+                "build source snapshot differs from checkpoint")
+        require(bool(snapshot.get("build_configuration")), "compiler configuration is missing")
+        for relative, record in snapshot.get("files", {}).items():
+            archived = run_dir / "provenance" / "source-tree" / relative
+            require(archived.is_file(), f"archived source is missing: {relative}")
+            require(sha256_file(archived) == record["sha256"], f"archived source changed: {relative}")
+        for key, binary in checkpoint.get("binaries", {}).items():
+            require(binary.get("source_snapshot_id") == checkpoint["snapshot_id"],
+                    f"{key}: executable is not bound to the source snapshot")
+            target = pathlib.Path(str(binary.get("isolated_target_dir", "")))
+            require(target.parts == ("build-targets", binary.get("layout")),
+                    f"{key}: executable has no isolated build directory")
+            require(binary.get("compiler_wrappers") == "disabled", f"{key}: compiler wrapper used")
+            command = binary.get("command", [])
+            require("--target-dir" in command, f"{key}: Cargo build did not isolate its target")
+            target_arg = command.index("--target-dir") + 1
+            require(target_arg < len(command), f"{key}: missing Cargo target directory")
+            build_target = pathlib.Path(command[target_arg])
+            require(pathlib.Path(binary["source_path"]).is_relative_to(build_target),
+                    f"{key}: executable came from outside the isolated build")
+            saved = run_dir / binary["path"]
+            if saved.exists():  # Packaged results omit executables, retaining build logs.
+                require(sha256_file(saved) == binary["sha256"], f"{key}: saved executable changed")
+
     require(checkpoint.get("status") == "completed", "checkpoint is not complete")
     require(summary.get("run_id") == checkpoint.get("run_id"), "run IDs disagree")
     require(summary.get("mode") == checkpoint.get("mode"), "run modes disagree")

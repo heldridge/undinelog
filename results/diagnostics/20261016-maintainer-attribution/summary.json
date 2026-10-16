@@ -1,0 +1,156 @@
+{
+  "purpose": "Separate implementation changes from benchmark scheduling/warmup differences using a common PIR-only harness.",
+  "source_runs": [
+    "20261013T015031Z-full-9de75e447c",
+    "20261016T005529Z-full-2e1033e8d8"
+  ],
+  "compiled_in_separate_fresh_target_directories": true,
+  "identical_harness_sha256": "05c72a129d2498a3bb16269d030cbfdcfbfe18b590755e1058d565c3e285e171",
+  "matching_input_and_wire_fields": {
+    "input_hash": "a9a77fc6adcb1e6b210fb3302d99fd153b42e06c020c3989672842c24c04bcc3",
+    "leaves": 134217728,
+    "kappa": 64,
+    "entry_count": 4194368,
+    "patterns": 8192,
+    "db_rows": 8192,
+    "db_cols": 12288,
+    "outputs": 6,
+    "request_bytes": 530448,
+    "reply_bytes": 73750
+  },
+  "all_plaintext_entry_checks_passed": true,
+  "query_and_key_material": "fresh per query",
+  "sequence": [
+    "old",
+    "new",
+    "new",
+    "old"
+  ],
+  "retained_samples_per_implementation_per_case": 40,
+  "warmup_trials_per_process": 3,
+  "limitation": "Synthetic pseudorandom primary columns at the 4 GiB log shape. Every decoded entry is checked, but the input columns are not constructed from a Merkle tree. This is an attribution diagnostic, not a replacement publication benchmark. No cache flush or cold-memory claim.",
+  "cases": [
+    {
+      "operation": "answer",
+      "preceding_scans": 0,
+      "old_mean_ms": 113.12689962500001,
+      "old_process_means_ms": [
+        113.63927915,
+        112.61452010000001
+      ],
+      "new_mean_ms": 101.330619625,
+      "new_process_means_ms": [
+        101.0515763,
+        101.60966295
+      ],
+      "time_change_percent": -10.427475727791569,
+      "speedup": 1.1164137754575585
+    },
+    {
+      "operation": "answer",
+      "preceding_scans": 1,
+      "old_mean_ms": 113.22130505,
+      "old_process_means_ms": [
+        113.80982405,
+        112.63278605
+      ],
+      "new_mean_ms": 101.349473025,
+      "new_process_means_ms": [
+        100.9256669,
+        101.77327915
+      ],
+      "time_change_percent": -10.485510672887266,
+      "speedup": 1.1171375802030226
+    },
+    {
+      "operation": "answer",
+      "preceding_scans": 2,
+      "old_mean_ms": 113.419708025,
+      "old_process_means_ms": [
+        113.48663604999999,
+        113.35278000000001
+      ],
+      "new_mean_ms": 101.2558937,
+      "new_process_means_ms": [
+        101.21653,
+        101.2952574
+      ],
+      "time_change_percent": -10.724603807231503,
+      "speedup": 1.1201294451169315
+    },
+    {
+      "operation": "first_pass",
+      "preceding_scans": 0,
+      "old_mean_ms": 20.831707975,
+      "old_process_means_ms": [
+        20.89782315,
+        20.7655928
+      ],
+      "new_mean_ms": 9.4958021,
+      "new_process_means_ms": [
+        9.53732385,
+        9.454280350000001
+      ],
+      "time_change_percent": -54.416593630268565,
+      "speedup": 2.193780762869942
+    },
+    {
+      "operation": "first_pass",
+      "preceding_scans": 1,
+      "old_mean_ms": 20.714700125,
+      "old_process_means_ms": [
+        20.972531150000002,
+        20.4568691
+      ],
+      "new_mean_ms": 9.325309075,
+      "new_process_means_ms": [
+        9.35536035,
+        9.2952578
+      ],
+      "time_change_percent": -54.982167162798845,
+      "speedup": 2.221341937130379
+    }
+  ],
+  "full_run_build_provenance_audit": {
+    "problem": "The full run reused a binary containing diagnostic branches absent from its recorded benchmark sources.",
+    "full_run_private_binary_sha256": "0b80c238e521af8ee718a1fdbdf9eb3b2c11c2f1dd441e291d33091b6b3bedf0",
+    "earlier_diagnostic_binary_sha256": "0b80c238e521af8ee718a1fdbdf9eb3b2c11c2f1dd441e291d33091b6b3bedf0",
+    "unexpected_binary_markers": [
+      "BENCH_DIAGNOSTIC_TABLE_LEGACY",
+      "BENCH_DIAGNOSTIC_FULL_CLIENT"
+    ],
+    "markers_absent_from_recorded_benchmark_source": true,
+    "cargo_reported_fresh": true,
+    "build_log": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261016T005529Z-full-2e1033e8d8/builds/177282142665a14a/stdout.jsonl",
+    "affected_jobs": [
+      "private-client-undine-k16",
+      "private-client-undine-k256",
+      "private-client-undine-k32",
+      "private-client-undine-k64",
+      "private-client-undine-k8",
+      "private-client-undine-log16gib-k64",
+      "private-client-undine-log32gib-k64",
+      "private-client-undine-log8gib-k64",
+      "private-maintainer-undine-log1024gib-p19-k256",
+      "private-maintainer-undine-log16gib-p15-k64",
+      "private-maintainer-undine-log1gib-p13-k64",
+      "private-maintainer-undine-log256gib-p17-k64",
+      "private-maintainer-undine-log4gib-p12-k8",
+      "private-maintainer-undine-log4gib-p13-k16",
+      "private-maintainer-undine-log4gib-p13-k32",
+      "private-maintainer-undine-log4gib-p14-k64",
+      "private-maintainer-undine-log64gib-p14-k64",
+      "private-maintainer-undine-log64gib-p15-k64",
+      "private-maintainer-undine-log64gib-p16-k64",
+      "private-maintainer-undine-log64gib-p17-k64",
+      "private-single-undine-log1gib-p10",
+      "private-single-undine-log1gib-p11",
+      "private-single-undine-log1gib-p9",
+      "private-single-undine-log4gib-p11",
+      "private-table-undine-log1gib-k64",
+      "private-table-undine-log4gib-k64"
+    ],
+    "diagnostic_switches_in_recorded_job_environments": [],
+    "interpretation": "Default branches use the optimized implementation and the injected paths concern table/client diagnostic controls. This mismatch does not itself show numerically incorrect maintainer timings, but it breaks the claimed connection between the archived source and executable; clean builds and replacement measurements are required."
+  }
+}

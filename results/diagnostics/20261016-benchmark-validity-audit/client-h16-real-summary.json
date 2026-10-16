@@ -1,0 +1,135 @@
+[
+  {
+    "system": "undine",
+    "metric": "client_total_ns",
+    "mean_ns": 38186013.3,
+    "relative_half_width": 0.004527019921084627,
+    "stable": true
+  },
+  {
+    "system": "undine",
+    "metric": "combine_verify_ns",
+    "mean_ns": 304296.3,
+    "relative_half_width": 0.017367383764446204,
+    "stable": true
+  },
+  {
+    "system": "undine",
+    "metric": "decrypt_ns",
+    "mean_ns": 4487348.8,
+    "relative_half_width": 0.016695289553569834,
+    "stable": true
+  },
+  {
+    "system": "undine",
+    "metric": "index_ns",
+    "mean_ns": 1269.8,
+    "relative_half_width": 0.053532301940621314,
+    "stable": false
+  },
+  {
+    "system": "undine",
+    "metric": "keygen_ns",
+    "mean_ns": 47715.75,
+    "relative_half_width": 0.06041865080706369,
+    "stable": false
+  },
+  {
+    "system": "undine",
+    "metric": "process_total_ns",
+    "mean_ns": 4762358.85,
+    "relative_half_width": 0.006523303528896944,
+    "stable": true
+  },
+  {
+    "system": "undine",
+    "metric": "query_ns",
+    "mean_ns": 33216028.6,
+    "relative_half_width": 0.004773522055737936,
+    "stable": true
+  },
+  {
+    "system": "undine",
+    "metric": "request_total_ns",
+    "mean_ns": 33423654.45,
+    "relative_half_width": 0.005275736523717991,
+    "stable": true
+  },
+  {
+    "system": "undine",
+    "metric": "serialize_ns",
+    "mean_ns": 62545.1,
+    "relative_half_width": 0.041057454097505344,
+    "stable": true
+  },
+  {
+    "system": "undine",
+    "metric": "verify_ns",
+    "mean_ns": 4300.3,
+    "relative_half_width": 0.006895666037581292,
+    "stable": true
+  },
+  {
+    "system": "treepir",
+    "metric": "client_total_ns",
+    "mean_ns": 535500798.15,
+    "relative_half_width": 0.0023184868420498047,
+    "stable": true
+  },
+  {
+    "system": "treepir",
+    "metric": "decrypt_ns",
+    "mean_ns": 4326104.25,
+    "relative_half_width": 0.00658059348478592,
+    "stable": true
+  },
+  {
+    "system": "treepir",
+    "metric": "index_ns",
+    "mean_ns": 1003.0,
+    "relative_half_width": 0.05596500954593515,
+    "stable": false
+  },
+  {
+    "system": "treepir",
+    "metric": "keygen_ns",
+    "mean_ns": 609344.5,
+    "relative_half_width": 0.043768896416361676,
+    "stable": true
+  },
+  {
+    "system": "treepir",
+    "metric": "process_total_ns",
+    "mean_ns": 4343890.35,
+    "relative_half_width": 0.004777941116743714,
+    "stable": true
+  },
+  {
+    "system": "treepir",
+    "metric": "query_ns",
+    "mean_ns": 527912496.45,
+    "relative_half_width": 0.0022992717402270774,
+    "stable": true
+  },
+  {
+    "system": "treepir",
+    "metric": "request_total_ns",
+    "mean_ns": 531156907.8,
+    "relative_half_width": 0.0023410185956547437,
+    "stable": true
+  },
+  {
+    "system": "treepir",
+    "metric": "serialize_ns",
+    "mean_ns": 1744041.5,
+    "relative_half_width": 0.048130519025080316,
+    "stable": true
+  },
+  {
+    "system": "treepir",
+    "metric": "verify_ns",
+    "mean_ns": 4382.55,
+    "relative_half_width": 0.01257700579225853,
+    "stable": true
+  }
+]

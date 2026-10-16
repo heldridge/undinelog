@@ -35,7 +35,7 @@ from typing import Any, Iterable, Iterator, Mapping, Sequence
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RUNS_ROOT = ROOT / "results" / "runs"
 GATES_ROOT = ROOT / "results" / "gates"
-PIPELINE_VERSION = 1
+PIPELINE_VERSION = 2
 FIELD_BYTES = 32
 TREE_HEIGHT = 50
 APPEND_SEQUENCE_BLOCKS = 64
@@ -83,7 +83,6 @@ PRIVATE_CLIENT_LARGE_LOGS_GIB = (8, 16, 32)
 # at the threshold of the largest maintainer job.
 PRIVATE_CLIENT_LARGE_KAPPAS = (256,)
 # Seconds of the client job's setup per GiB of log, on all cores.
-CLIENT_SETUP_SECONDS_PER_GIB = 45.0
 # The public grouping: one segment per block up to 2^25 leaves, doubling
 # with every two further levels of the active prefix.
 PRIVATE_PATTERN_SHIFT = 5
@@ -554,6 +553,7 @@ class MeasurementSpec:
     path: tuple[str, ...] = ()
     kind: str = "timing"
     sample_mode: str = "direct"
+    sample_group: str = "all"
     formula: str | None = None
     formula_args: tuple[Any, ...] = ()
     unit: str = ""
@@ -743,6 +743,7 @@ def ensure_output(
     path: str,
     kind: str,
     sample_mode: str = "direct",
+    sample_group: str = "all",
     unit: str = "",
     description: str = "",
 ) -> str:
@@ -755,6 +756,7 @@ def ensure_output(
             path=tuple(path.split(".")),
             kind=kind,
             sample_mode=sample_mode,
+            sample_group=sample_group,
             unit=unit,
             description=description,
         )
@@ -1576,7 +1578,7 @@ PRIVATE_SIZE_FIELDS = {
 }
 PRIVATE_SERVER_TIMINGS = {
     "client_request_ns": "Key generation, the query, and the serialized request.",
-    "server_first_pass_ns": "The query's inner product with every database column.",
+    "server_first_pass_ns": "The query's inner product with every database column, after one untimed scan.",
     "server_answer_ns": "From the serialized request to the serialized reply.",
     "client_decode_ns": "From the serialized reply to the entries of the opening.",
     "hint_ns": "A complete fresh hint, including padded columns, on one core.",
@@ -1608,9 +1610,15 @@ def _private_outputs(
             kind="value", unit=unit, description=description,
         )
     for name, description in timings.items():
+        role = dict(match).get("role")
+        group = "all"
+        if role in {"maintainer", "single"}:
+            group = ("preprocess" if name in {"hint_ns", "packing_ns", "preprocess_ns"}
+                     else "update" if name.startswith("update_") else "online")
         outputs[name] = ensure_output(
             manifest, job, f"{tag}{name}", entry_selector=match, path=name,
-            kind="timing", unit="ns", sample_mode=sample_mode, description=description,
+            kind="timing", unit="ns", sample_mode="rebuild" if group == "preprocess" else sample_mode,
+            sample_group=group, description=description,
         )
     return outputs
 
@@ -1634,7 +1642,7 @@ def _private_server_outputs(
             "preprocessed_bytes": "Bytes of the complete hint and packing tables.",
         },
         timings=timings,
-        sample_mode="rebuild",
+        sample_mode="direct",
     )
 
 
@@ -1671,7 +1679,7 @@ def _private_maintainer(
         setup=(
             "Build one claim's primary columns for the seeded log on all "
             "cores and convert them to PIR cells. Each repetition rebuilds "
-            "all PIR preprocessing on one core."
+            "all PIR preprocessing on one core; online and update samples stop independently."
         ),
         setup_seconds=30.0 + 8.0 * gib,
         repetition_seconds=4.0 + 3.5 * ciphertexts + 25.0 * database_gib,
@@ -1941,15 +1949,14 @@ def _build_private_client_table(manifest: Manifest) -> None:
         for gib in PRIVATE_CLIENT_LARGE_LOGS_GIB
     ]
     for kappa, leaves, identifier, row in settings:
-        # The walks of the tree that build the claims' columns, on all
-        # cores, with 24 GiB of memory for the columns.
-        setup_seconds = 10.0 + leaves * FIELD_BYTES / GIB * CLIENT_SETUP_SECONDS_PER_GIB
+        # Only records touched by the opening are encoded. The canary
+        # calibrates this conservative fixed estimate on the current host.
+        setup_seconds = 10.0 + kappa / 8
         env = {
             "KAPPA": kappa,
             "LEAVES": leaves,
             "SEGMENTS_PER_RECORD": 1,
             "PATTERN_BITS": private_pattern_bits(leaves, kappa),
-            "CLIENT_SETUP_MEMORY_MIB": 24 * 1024,
         }
         job = _private_job(
             manifest,
@@ -1957,8 +1964,8 @@ def _build_private_client_table(manifest: Manifest) -> None:
             role="client",
             env=env,
             setup=(
-                "The columns of the unwritten log for 3*kappa claims, and each "
-                "claim's reply to one request."
+                "Only the selected group and upper-node records of the unwritten "
+                "log for 3*kappa claims, and each claim's reply to one request."
             ),
             setup_seconds=setup_seconds,
             repetition_seconds=max(0.1, (kappa / 8) ** 3 * 0.004),
@@ -2068,7 +2075,6 @@ def _treepir_outputs(
     sizes: Mapping[str, str] = {},
     counts: Mapping[str, tuple[str, str]] = {},
     timings: Mapping[str, str] = {},
-    sample_mode: str = "direct",
 ) -> dict[str, str]:
     outputs: dict[str, str] = {}
     for name, description in sizes.items():
@@ -2082,9 +2088,20 @@ def _treepir_outputs(
             kind="value", unit=unit, description=description,
         )
     for name, description in timings.items():
+        role = dict(match)["role"]
+        if role == "server":
+            group = "online" if name in {"first_pass_ns", "answer_ns"} else "preprocess"
+        elif role == "paired":
+            group = "paired"
+        else:
+            # Keep the allocator/workload history fixed: dropping the directly
+            # timed opening once it converges changes serialization timings in
+            # the component opening. These two openings are one sampling group.
+            group = "client"
         outputs[name] = ensure_output(
             manifest, job, f"{tag}{name}", entry_selector=match, path=name,
-            kind="timing", unit="ns", sample_mode=sample_mode,
+            kind="timing", unit="ns", sample_mode="rebuild" if group == "preprocess" else "direct",
+            sample_group=group,
             description=description,
         )
     return outputs
@@ -2227,7 +2244,6 @@ def _build_treepir_tables(manifest: Manifest) -> None:
                 sizes=TREEPIR_SERVER_SIZES,
                 counts=TREEPIR_SERVER_COUNTS,
                 timings=TREEPIR_SERVER_STAGES[system] | TREEPIR_SERVER_ONLINE,
-                sample_mode="rebuild",
             )
             row = f"m{claim}-c{color}:{system}"
             cells = [
@@ -2656,6 +2672,12 @@ def benchmark_warmup_repetitions(run_job: RunJob, mode: str) -> int:
         return DIRECT_WARMUP_REPETITIONS
     if modes == {"rebuild"}:
         return REBUILD_WARMUP_REPETITIONS
+    groups = {item.sample_group for item in run_job.measurements if item.kind == "timing"}
+    if len(groups) > 1:
+        return max(benchmark_warmup_repetitions(
+            dataclasses.replace(run_job, measurements=tuple(item for item in run_job.measurements
+                if item.kind == "timing" and item.sample_group == group)), mode
+        ) for group in groups)
     raise PipelineError(
         f"{run_job.spec.id}: cannot select one warmup policy for sample modes "
         f"{sorted(modes)}"
@@ -2682,6 +2704,7 @@ def source_files() -> list[pathlib.Path]:
         for base in (
             crate / "src",
             crate / "benches",
+            crate / "tests",
             crate / "apps" / "appendOnlyLog",
             crate / "third_party",
         ):
@@ -2713,10 +2736,36 @@ def collect_source_snapshot() -> dict[str, Any]:
         "git_head": git_head,
         "git_status_sha256": sha256_bytes(git_status.encode()),
         "git_diff_sha256": sha256_bytes(git_diff),
+        "build_configuration": collect_build_configuration(),
         "files": files,
     }
     payload["snapshot_id"] = sha256_bytes(canonical_json(payload))
     return payload
+
+
+def collect_build_configuration() -> dict[str, Any]:
+    """Bind resumed builds to the compiler, flags and Cargo configuration."""
+    configs: set[pathlib.Path] = set()
+    for crate in CRATE_ROOTS.values():
+        for directory in (crate, *crate.parents):
+            configs.update(directory / ".cargo" / name for name in ("config", "config.toml"))
+    cargo_home = pathlib.Path(os.environ.get("CARGO_HOME", pathlib.Path.home() / ".cargo"))
+    configs.update(cargo_home / name for name in ("config", "config.toml"))
+    flags = {
+        key: value for key, value in os.environ.items()
+        if key.startswith(("RUST", "CARGO_BUILD_", "CARGO_PROFILE_", "CARGO_TARGET_"))
+        or key in {"CARGO_ENCODED_RUSTFLAGS", "CC", "CXX", "CFLAGS", "CXXFLAGS", "AR"}
+    }
+    # The pipeline overrides the target directory and disables compiler wrappers.
+    for key in ("CARGO_TARGET_DIR", "RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER"):
+        flags.pop(key, None)
+    return {
+        "rustc": run_capture(["rustc", "--version", "--verbose"]).stdout.decode().strip(),
+        "cargo": run_capture(["cargo", "--version"]).stdout.decode().strip(),
+        "flags": dict(sorted(flags.items())),
+        "configs": {str(path): sha256_file(path) for path in sorted(configs) if path.is_file()},
+        "compiler_wrappers": "disabled",
+    }
 
 
 def validate_current_source_snapshot(
@@ -3115,6 +3164,14 @@ def initialize_run(
     (run_dir / "provenance").mkdir()
     atomic_write_json(run_dir / "manifest.json", manifest.as_dict())
     atomic_write_json(run_dir / "provenance" / "source-snapshot.json", snapshot)
+    # Hashes and a tracked diff alone cannot restore newly added source files.
+    # Retain the exact measured sources and tests, including untracked additions.
+    for relative, record in snapshot.get("files", {}).items():
+        destination = run_dir / "provenance" / "source-tree" / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / relative, destination)
+        if sha256_file(destination) != record["sha256"]:
+            raise PipelineError(f"source changed while archiving {relative}")
     atomic_write_json(
         run_dir / "provenance" / "environment.json",
         collect_environment(benchmark_cpu),
@@ -3145,6 +3202,7 @@ def initialize_run(
                         "kind": item.kind,
                         "unit": item.unit,
                         "sample_mode": item.sample_mode,
+                        "sample_group": item.sample_group,
                     }
                     for item in run_job.measurements
                 },
@@ -3187,6 +3245,20 @@ def build_key(run_job: RunJob) -> str:
     )[:16]
 
 
+def isolated_build_target(run_dir: pathlib.Path, snapshot_id: str, layout: str) -> pathlib.Path:
+    """A run may reuse only compiler outputs from its own frozen sources."""
+    target_dir = run_dir.resolve() / "build-targets" / layout
+    identity = {"snapshot_id": snapshot_id, "layout": layout}
+    marker = target_dir / "artifact-build-identity.json"
+    if target_dir.exists():
+        if not marker.is_file() or json.loads(marker.read_text()) != identity:
+            raise PipelineError(f"unrecognized benchmark build cache: {target_dir}")
+    else:
+        target_dir.mkdir(parents=True)
+        atomic_write_json(marker, identity)
+    return target_dir
+
+
 def build_benchmark_binary(
     run_dir: pathlib.Path,
     state: dict[str, Any],
@@ -3203,7 +3275,19 @@ def build_benchmark_binary(
         actual = sha256_file(binary)
         if actual != existing["sha256"]:
             raise PipelineError(f"checkpointed binary hash changed: {binary}")
+        if existing.get("source_snapshot_id") != state["snapshot_id"]:
+            raise PipelineError(f"checkpointed binary has no matching source build: {binary}")
         return binary
+    validate_current_source_snapshot(
+        str(state["snapshot_id"]), phase=f"before building {run_job.spec.benchmark}"
+    )
+    # Never consult a crate's shared target cache. Cargo freshness can otherwise
+    # reuse a diagnostic executable after source restoration with preserved mtimes.
+    # Only builds of this run's frozen sources may share dependencies; the marker
+    # also protects resumed builds from an unrelated target directory.
+    target_dir = isolated_build_target(run_dir, str(state["snapshot_id"]), run_job.spec.layout)
+    environment = clean_benchmark_environment()
+    environment.update({"RUSTC_WRAPPER": "", "RUSTC_WORKSPACE_WRAPPER": ""})
     features = ",".join(run_job.effective_features())
     command = [
         "cargo",
@@ -3211,6 +3295,8 @@ def build_benchmark_binary(
         "--locked",
         "--no-run",
         "--message-format=json-render-diagnostics",
+        "--target-dir",
+        str(target_dir),
         "--features",
         features,
         "--bench",
@@ -3222,6 +3308,7 @@ def build_benchmark_binary(
     completed = run_capture(
         command,
         cwd=CRATE_ROOTS[run_job.spec.layout],
+        env=environment,
         timeout=timeout_seconds,
         check=False,
     )
@@ -3232,6 +3319,7 @@ def build_benchmark_binary(
             f"failed to build {run_job.spec.benchmark}; see {build_dir}"
         )
     executables: list[pathlib.Path] = []
+    freshness: dict[pathlib.Path, bool] = {}
     for line in completed.stdout.splitlines():
         try:
             message = json.loads(line)
@@ -3246,12 +3334,16 @@ def build_benchmark_binary(
             continue
         executable = message.get("executable")
         if executable:
-            executables.append(pathlib.Path(executable))
+            path = pathlib.Path(executable)
+            executables.append(path)
+            freshness[path] = bool(message.get("fresh"))
     unique = sorted(set(executables))
     if len(unique) != 1 or not unique[0].exists():
         raise PipelineError(
             f"expected one executable for {run_job.spec.benchmark}, found {unique}"
         )
+    if not unique[0].resolve().is_relative_to(target_dir):
+        raise PipelineError(f"Cargo returned a binary outside the isolated build: {unique[0]}")
     destination = run_dir / "binaries" / key / run_job.spec.benchmark
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(unique[0], destination)
@@ -3262,6 +3354,10 @@ def build_benchmark_binary(
         "features": list(run_job.effective_features()),
         "path": str(destination.relative_to(run_dir)),
         "sha256": sha256_file(destination),
+        "source_snapshot_id": state["snapshot_id"],
+        "isolated_target_dir": str(target_dir.relative_to(run_dir.resolve())),
+        "compiler_wrappers": "disabled",
+        "cargo_fresh": freshness[unique[0]],
         "source_path": str(unique[0]),
         "command": command,
         "build_seconds": time.time() - started,
@@ -3273,6 +3369,54 @@ def build_benchmark_binary(
     state["binaries"][key] = record
     write_checkpoint(run_dir, state)
     return destination
+
+
+def clean_benchmark_environment() -> dict[str, str]:
+    """Only manifest-declared BENCH_* settings may affect a measured process."""
+    tracing = {"YPIR_PACK_PROFILE", "AUTH_WRITE_TRACE", "NET_DEMO_TRACE"}
+    return {key: value for key, value in os.environ.items()
+            if not key.startswith("BENCH_") and key not in tracing}
+
+
+def validate_timing_policy(run_job: RunJob, document: Mapping[str, Any]) -> None:
+    """Check measurement policy as well as workload dimensions in new runs."""
+    meta = document.get("meta", {})
+    benchmark = run_job.spec.benchmark
+    expected: dict[str, int] = {}
+    if benchmark == PRIVATE_BENCHMARK:
+        expected["first_pass_warmup_calls"] = int(meta.get("role") != "client")
+    elif benchmark == TREEPIR_BENCHMARK:
+        expected["first_pass_warmup_calls"] = int(meta.get("role") == "server")
+        expected["client_openings_per_sample"] = 8
+    elif benchmark == "bench_append_only_log_on_the_fly_open_local":
+        expected["point_calls_per_sample"] = 32
+    for key, value in expected.items():
+        if meta.get(key) != value:
+            raise PipelineError(f"{run_job.spec.id}: timing policy mismatch for {key}")
+    if benchmark == TREEPIR_BENCHMARK and meta.get("role") == "client":
+        for entry in document.get("entries", []):
+            if entry.get("role") != "client":
+                continue
+            for path, metric in metric_stats_paths(entry):
+                calls = metric.get("raw_call_samples")
+                if metric.get("inner_repetitions") != 8 or not isinstance(calls, list):
+                    raise PipelineError(f"{run_job.spec.id}: missing per-opening timings for {path}")
+                if len(calls) != 8 * len(metric["samples"]):
+                    raise PipelineError(f"{run_job.spec.id}: incomplete opening batch for {path}")
+                if any(not isinstance(value, int) or value <= 0 for value in calls):
+                    raise PipelineError(f"{run_job.spec.id}: invalid per-opening timings for {path}")
+                means = [sum(calls[offset:offset + 8]) // 8 for offset in range(0, len(calls), 8)]
+                if means != metric["samples"]:
+                    raise PipelineError(f"{run_job.spec.id}: opening batch means disagree for {path}")
+            if "client_total_ns" in entry:
+                request, process, total = (
+                    entry[field]["raw_call_samples"]
+                    for field in ("request_total_ns", "process_total_ns", "client_total_ns")
+                )
+                if not len(request) == len(process) == len(total) or total != [
+                    left + right for left, right in zip(request, process)
+                ]:
+                    raise PipelineError(f"{run_job.spec.id}: per-opening client total differs from request plus processing")
 
 
 def find_entry(document: Mapping[str, Any], measurement: MeasurementSpec) -> tuple[int, Mapping[str, Any]]:
@@ -3315,12 +3459,18 @@ def metric_stats_paths(value: Any, path: tuple[str, ...] = ()) -> Iterator[tuple
             yield from metric_stats_paths(child, path + (str(index),))
 
 
+def requested_samples(document: Mapping[str, Any], measurement: MeasurementSpec) -> int:
+    meta = document.get("meta", {})
+    groups = meta.get("sample_groups")
+    return int(meta.get("trials", -1) if groups is None else groups.get(measurement.sample_group, 0))
+
+
 def validate_no_unconsumed_timings(
     document: Mapping[str, Any], measurements: Sequence[MeasurementSpec]
 ) -> None:
     expected: set[tuple[int, tuple[str, ...]]] = set()
     for measurement in measurements:
-        if measurement.kind != "timing":
+        if measurement.kind != "timing" or requested_samples(document, measurement) == 0:
             continue
         index, _ = find_entry(document, measurement)
         expected.add((index, measurement.path))
@@ -3346,6 +3496,7 @@ def extract_measurements(
     measurements: Sequence[MeasurementSpec],
     *,
     warmup_repetitions: int = 0,
+    group_warmups: Mapping[str, int] | None = None,
 ) -> tuple[
     dict[str, list[float]],
     dict[str, Any],
@@ -3377,11 +3528,22 @@ def extract_measurements(
             continue
         if measurement.kind != "timing":
             raise PipelineError(f"unexpected run measurement kind: {measurement.kind}")
+        expected_trials = requested_samples(document, measurement)
+        if expected_trials == 0:
+            if not isinstance(raw, dict) or raw.get("trials") != 0 or raw.get("samples") != []:
+                raise PipelineError(f"{measurement.id}: unrequested group produced samples")
+            continue
+        discard = (group_warmups or {}).get(measurement.sample_group, warmup_repetitions)
+        if not 0 <= discard < expected_trials:
+            raise PipelineError(f"{measurement.id}: invalid group warmup count")
         if not isinstance(raw, dict):
             raise PipelineError(f"{measurement.id}: expected MetricStats object")
         samples = raw.get("samples")
         if not isinstance(samples, list) or not samples:
             raise PipelineError(f"{measurement.id}: missing raw timing samples")
+        inner = raw.get("inner_repetitions", 1)
+        if type(inner) is not int or inner < 1:
+            raise PipelineError(f"{measurement.id}: invalid inner repetition count")
         numeric = [float(value) for value in samples]
         for value in numeric:
             validate_measurement_value(measurement, value)
@@ -3392,13 +3554,12 @@ def extract_measurements(
                 f"{measurement.id}: trials={declared_trials}, samples={len(numeric)}"
             )
         if measurement.sample_mode in {"direct", "rebuild"}:
-            expected_trials = declared_run_repetitions
             if len(numeric) != expected_trials:
                 raise PipelineError(
                     f"{measurement.id}: expected {expected_trials} direct samples, "
                     f"found {len(numeric)}"
                 )
-            timing[measurement.id] = numeric[warmup_repetitions:]
+            timing[measurement.id] = numeric[discard:]
         elif measurement.sample_mode == "append-sequence":
             repetitions = declared_run_repetitions
             blocks = int(meta.get("sequence_blocks", -1))
@@ -3417,7 +3578,7 @@ def extract_measurements(
                 )
                 for offset in range(0, len(numeric), sampled_blocks)
             ]
-            timing[measurement.id] = sequence_means[warmup_repetitions:]
+            timing[measurement.id] = sequence_means[discard:]
         else:
             raise PipelineError(
                 f"{measurement.id}: unknown sample mode {measurement.sample_mode}"
@@ -3426,7 +3587,9 @@ def extract_measurements(
 
 
 def validate_output_contract(
-    run_job: RunJob, document: Mapping[str, Any], repetitions: int
+    run_job: RunJob, document: Mapping[str, Any], repetitions: int,
+    expected_sample_groups: Mapping[str, int] | None = None,
+    *, warmup_repetitions: int = 0, group_warmups: Mapping[str, int] | None = None,
 ) -> None:
     meta = document.get("meta")
     entries = document.get("entries")
@@ -3436,6 +3599,8 @@ def validate_output_contract(
         raise PipelineError(
             f"{run_job.spec.id}: output trials do not match invocation"
         )
+    if meta.get("sample_groups") != expected_sample_groups:
+        raise PipelineError(f"{run_job.spec.id}: sample groups differ from the invocation")
     if "seed" not in meta:
         raise PipelineError(f"{run_job.spec.id}: benchmark output omits its seed")
     env = run_job.effective_env()
@@ -3644,7 +3809,7 @@ def validate_output_contract(
                 entry["role"] in {"maintainer", "single"}
                 and f"{PRIVATE_PREFIX}_HINT_CHECK_COLUMNS" in env
             ):
-                validate_private_preprocessing(entry, meta["trials"], run_job.spec.id)
+                validate_private_preprocessing(entry, (meta.get("sample_groups") or {}).get("preprocess", meta["trials"]), run_job.spec.id)
             leaves = int(entry["leaves"])
             if int(entry["log_bytes"]) != leaves * FIELD_BYTES:
                 raise PipelineError(f"{run_job.spec.id}: log bytes fail 32 per leaf")
@@ -3693,7 +3858,8 @@ def validate_output_contract(
                     f"{run_job.spec.id}: database dimensions are inconsistent"
                 )
     elif benchmark == TREEPIR_BENCHMARK:
-        validate_treepir_entries(run_job, env, entries)
+        validate_treepir_entries(run_job, env, entries,
+                                 paired_warmups=(group_warmups or {}).get("paired", warmup_repetitions))
     elif benchmark == "bench_append_only_log_on_the_fly_open_local":
         for entry in entries:
             if entry.get("query") == "stitch":
@@ -3734,7 +3900,8 @@ def validate_private_preprocessing(
 
 
 def validate_treepir_entries(
-    run_job: RunJob, env: Mapping[str, str], entries: Sequence[Mapping[str, Any]]
+    run_job: RunJob, env: Mapping[str, str], entries: Sequence[Mapping[str, Any]],
+    *, paired_warmups: int = 0,
 ) -> None:
     """Independently derive the sizes and counts of the TreePIR comparison,
     and hold the generated replies to the real ones."""
@@ -3824,10 +3991,10 @@ def validate_treepir_entries(
             raise PipelineError(f"{job_id}: download fails one reply per server")
     for system in ("undine", "treepir"):
         paired = by_role.get(("paired", system))
-        if paired is None:
+        if paired is None or paired["real_decode_ns"]["trials"] == 0:
             continue
-        real = statistics.fmean(paired["real_decode_ns"]["samples"])
-        generated = statistics.fmean(paired["generated_decode_ns"]["samples"])
+        real = statistics.fmean(paired["real_decode_ns"]["samples"][paired_warmups:])
+        generated = statistics.fmean(paired["generated_decode_ns"]["samples"][paired_warmups:])
         if abs(generated - real) > TREEPIR_PAIRED_TOLERANCE * real:
             raise PipelineError(
                 f"{job_id}: {system} generated replies decode in {generated:.0f} ns "
@@ -3849,9 +4016,7 @@ def job_complete(job_state: Mapping[str, Any], mode: str) -> bool:
     if not all(len(values) >= DEFAULT_MIN_REPETITIONS for values in timing.values()):
         return False
     summaries = [summarize_samples(values) for values in timing.values()]
-    if all(summary["stable"] for summary in summaries):
-        return True
-    return all(len(values) >= DEFAULT_MAX_REPETITIONS for values in timing.values())
+    return all(summary["stable"] or summary["n"] >= DEFAULT_MAX_REPETITIONS for summary in summaries)
 
 
 def batch_repetitions(job_state: Mapping[str, Any], mode: str) -> int:
@@ -3867,6 +4032,33 @@ def batch_repetitions(job_state: Mapping[str, Any], mode: str) -> int:
     return next_look - current
 
 
+def group_batch_plan(run_job: RunJob, job_state: Mapping[str, Any], mode: str) -> tuple[dict[str, int], dict[str, int]]:
+    """Retained samples and warmups, independently for each declared group."""
+    groups: dict[str, list[MeasurementSpec]] = defaultdict(list)
+    for measurement in run_job.measurements:
+        if measurement.kind == "timing":
+            groups[measurement.sample_group].append(measurement)
+    counts, warmups = {}, {}
+    for group, measurements in groups.items():
+        substate = {"samples": {item.id: job_state["samples"][item.id] for item in measurements}}
+        counts[group] = 0 if job_complete(substate, mode) else batch_repetitions(substate, mode)
+        warmups[group] = (benchmark_warmup_repetitions(
+            dataclasses.replace(run_job, measurements=tuple(measurements)), mode
+        ) if counts[group] else 0)
+        if (
+            counts[group]
+            and mode in {"smoke", "canary"}
+            and run_job.spec.benchmark == TREEPIR_BENCHMARK
+            and group == "paired"
+        ):
+            # These gates also enforce the 10% agreement between mean real
+            # and generated reply timings. One pair cannot support that
+            # check: use the full run's first-look sample count and warmups.
+            counts[group] = DEFAULT_MIN_REPETITIONS
+            warmups[group] = DIRECT_WARMUP_REPETITIONS
+    return counts, warmups
+
+
 def execute_batch(
     run_dir: pathlib.Path,
     state: dict[str, Any],
@@ -3879,18 +4071,30 @@ def execute_batch(
     job_state = state["jobs"][run_job.spec.id]
     warmup_repetitions = benchmark_warmup_repetitions(run_job, state["mode"])
     invocation_repetitions = repetitions + warmup_repetitions
+    grouped = any(item.sample_group != "all" for item in run_job.measurements if item.kind == "timing")
+    group_counts, group_warmups = group_batch_plan(run_job, job_state, state["mode"]) if grouped else ({}, {})
+    sample_groups = {group: count + group_warmups[group] for group, count in group_counts.items()} if grouped else None
+    if grouped:
+        repetitions = max(group_counts.values())
+        invocation_repetitions = max(sample_groups.values())
+        warmup_repetitions = 0  # Each group has its own discarded prefix.
     batch_index = len(job_state["batches"])
     batch_dir = run_dir / "jobs" / run_job.spec.id / f"batch-{batch_index:03d}"
     work_dir = batch_dir / "work"
     work_dir.mkdir(parents=True, exist_ok=True)
     result_path = work_dir / run_job.spec.result_relpath
-    environment = os.environ.copy()
+    environment = clean_benchmark_environment()
     environment["GIT_DIR"] = str(ROOT / ".git")
     environment["GIT_WORK_TREE"] = str(ROOT)
     effective_env = run_job.effective_env()
+    # Only immutable, untimed inputs live here. Benchmarks bind each entry
+    # to their executable and workload and verify its complete-file checksum.
+    effective_env["BENCH_FIXTURE_DIR"] = str(run_dir / "fixtures")
     for key, value in list(effective_env.items()):
         effective_env[key] = value.replace("{RESULT_PATH}", str(result_path))
     effective_env[run_job.spec.trial_env] = str(invocation_repetitions)
+    if sample_groups is not None:
+        effective_env["BENCH_SAMPLE_GROUPS"] = json.dumps(sample_groups, sort_keys=True)
     environment.update(effective_env)
     command = [str(binary), "--bench"]
     benchmark_cpu = state.get("benchmark_cpu")
@@ -3909,6 +4113,9 @@ def execute_batch(
         "repetitions": repetitions,
         "warmup_repetitions": warmup_repetitions,
         "invocation_repetitions": invocation_repetitions,
+        "sample_groups": sample_groups,
+        "group_warmups": group_warmups,
+        "group_repetitions": group_counts,
     }
     job_state["status"] = "running"
     job_state["batches"].append(attempt)
@@ -3954,11 +4161,14 @@ def execute_batch(
     result_bytes = result_path.read_bytes()
     try:
         document = json.loads(result_bytes)
-        validate_output_contract(run_job, document, invocation_repetitions)
+        validate_timing_policy(run_job, document)
+        validate_output_contract(run_job, document, invocation_repetitions, sample_groups,
+                                 warmup_repetitions=warmup_repetitions, group_warmups=group_warmups)
         timing, values, seed, raw_timing = extract_measurements(
             document,
             run_job.measurements,
             warmup_repetitions=warmup_repetitions,
+            group_warmups=group_warmups,
         )
         for measurement_id, value in values.items():
             previous = job_state["values"][measurement_id]
@@ -4040,6 +4250,7 @@ def reconstruct_run_jobs(
                     path=tuple(metadata["path"]),
                     kind=metadata["kind"],
                     sample_mode=metadata["sample_mode"],
+                    sample_group=metadata.get("sample_group", "all"),
                 )
             )
         result.append(
@@ -4082,6 +4293,8 @@ def validate_resume_artifacts(
             raise PipelineError(f"resume rejected: saved binary is missing: {path}")
         if sha256_file(path) != record.get("sha256"):
             raise PipelineError(f"resume rejected: saved binary hash changed: {path}")
+        if state.get("pipeline_version", 1) >= 2 and record.get("source_snapshot_id") != state["snapshot_id"]:
+            raise PipelineError(f"resume rejected: binary source snapshot differs: {path}")
 
     for run_job in run_jobs:
         job_state = jobs.get(run_job.spec.id)
@@ -4103,6 +4316,19 @@ def validate_resume_artifacts(
         for attempt in job_state.get("batches", []):
             if attempt.get("status") != "completed":
                 continue
+            if any(item.sample_group != "all" for item in run_job.measurements if item.kind == "timing"):
+                counts, warmups = group_batch_plan(
+                    run_job, {"samples": expected_samples}, state["mode"]
+                )
+                requested = {group: count + warmups[group] for group, count in counts.items()}
+                if (attempt.get("group_repetitions") != counts
+                        or attempt.get("group_warmups") != warmups
+                        or attempt.get("sample_groups") != requested
+                        or attempt.get("invocation_repetitions") != max(requested.values())
+                        or attempt.get("warmup_repetitions") != 0):
+                    raise PipelineError(
+                        f"resume rejected: sample-group schedule changed for {run_job.spec.id}"
+                    )
             binary_record = binaries.get(build_key(run_job))
             if not isinstance(binary_record, dict):
                 raise PipelineError(
@@ -4143,13 +4369,17 @@ def validate_resume_artifacts(
                         repetitions + warmup_repetitions,
                     )
                 )
+                if state.get("pipeline_version", 1) >= 2:
+                    validate_timing_policy(run_job, document)
                 validate_output_contract(
-                    run_job, document, invocation_repetitions
+                    run_job, document, invocation_repetitions, attempt.get("sample_groups"),
+                    warmup_repetitions=warmup_repetitions, group_warmups=attempt.get("group_warmups"),
                 )
                 timing, values, seed, raw_timing = extract_measurements(
                     document,
                     run_job.measurements,
                     warmup_repetitions=warmup_repetitions,
+                    group_warmups=attempt.get("group_warmups"),
                 )
                 saved_raw = json.loads(raw_path.read_bytes())
             except (json.JSONDecodeError, KeyError, PipelineError, TypeError, ValueError) as exc:
@@ -4218,7 +4448,11 @@ def execute_run(
                 str(state["snapshot_id"]),
                 phase=f"starting a batch for {run_job.spec.id}",
             )
-            repetitions = batch_repetitions(job_state, state["mode"])
+            if any(item.sample_group != "all" for item in run_job.measurements if item.kind == "timing"):
+                counts, _ = group_batch_plan(run_job, job_state, state["mode"])
+                repetitions = max(counts.values())
+            else:
+                repetitions = batch_repetitions(job_state, state["mode"])
             if repetitions <= 0:
                 break
             execute_batch(
@@ -5012,6 +5246,28 @@ def run_unit_tests(run_dir: pathlib.Path) -> None:
         raise PipelineError(
             f"pipeline unit tests failed; see {run_dir / 'unit-tests.stderr.log'}"
         )
+    # These tests exercise fixture restoration, selected records, independent
+    # dense/structured PIR agreement and verified openings. Do not let a passing
+    # Python scheduler test stand in for correctness of the measured Rust code.
+    state = load_checkpoint(run_dir)
+    snapshot_id = str(state["snapshot_id"])
+    validate_current_source_snapshot(snapshot_id, phase="before Rust correctness tests")
+    target = isolated_build_target(run_dir, snapshot_id, "undine")
+    command = ["cargo", "test", "--locked", "--release", "--features", "bench",
+               "--target-dir", str(target)]
+    for test in ("benchmark_fixtures", "private_selected_records", "private_pir",
+                 "private_update", "private_opening", "private_layout", "private_bulk"):
+        command.extend(["--test", test])
+    environment = clean_benchmark_environment()
+    environment.update({"RUSTC_WRAPPER": "", "RUSTC_WORKSPACE_WRAPPER": ""})
+    atomic_write_json(run_dir / "rust-correctness.command.json", command)
+    completed = run_capture(command, cwd=CRATE_ROOTS["undine"], env=environment,
+                            check=False, timeout=1800)
+    atomic_write_bytes(run_dir / "rust-correctness.stdout.log", completed.stdout)
+    atomic_write_bytes(run_dir / "rust-correctness.stderr.log", completed.stderr)
+    if completed.returncode != 0:
+        raise PipelineError(f"Rust correctness tests failed; see {run_dir / 'rust-correctness.stderr.log'}")
+    validate_current_source_snapshot(snapshot_id, phase="after Rust correctness tests")
 
 
 def full_preflight_risks() -> list[str]:
@@ -5021,7 +5277,7 @@ def full_preflight_risks() -> list[str]:
         "The 64-batch append sequences and the large corrupted range openings "
         "are the dominant CPU costs.",
         "The private server jobs build their input cells on all cores, then "
-        "rebuild all PIR preprocessing on the pinned core in every repetition; "
+        "rebuild PIR preprocessing on the pinned core for each preprocessing sample; "
         "the single server at a 4 GiB log holds about 15 GiB of memory.",
         "Thermal throttling or competing host load can widen confidence intervals "
         f"and push individual jobs toward {DEFAULT_MAX_REPETITIONS} repetitions.",
@@ -5425,7 +5681,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 evidence={
                     "stdout": str(
                         (run_dir / "unit-tests.stdout.log").relative_to(ROOT)
-                    )
+                    ),
+                    "rust_correctness_stdout": str(
+                        (run_dir / "rust-correctness.stdout.log").relative_to(ROOT)
+                    ),
+                    "rust_correctness_command": str(
+                        (run_dir / "rust-correctness.command.json").relative_to(ROOT)
+                    ),
                 },
             )
         completed = execute_run(

@@ -85,7 +85,12 @@ impl<'a> SuffixTree<'a> {
             .collect();
         for level in (0..height).rev() {
             let labels = (tree.first(level)..1u64 << level)
-                .map(|pos| node_hash(tree.label(level + 1, 2 * pos), tree.label(level + 1, 2 * pos + 1)))
+                .map(|pos| {
+                    node_hash(
+                        tree.label(level + 1, 2 * pos),
+                        tree.label(level + 1, 2 * pos + 1),
+                    )
+                })
                 .collect();
             tree.levels[level as usize] = labels;
         }
@@ -245,7 +250,13 @@ impl<'a> ColumnEncoder<'a> {
 
     /// Add the cell at `array_index` with content `value` to `entries`, one
     /// buffer per claim starting at segment `first_segment`.
-    fn add_cell(&mut self, entries: &mut [Vec<Fp>], first_segment: usize, array_index: u64, value: Fp) {
+    fn add_cell(
+        &mut self,
+        entries: &mut [Vec<Fp>],
+        first_segment: usize,
+        array_index: u64,
+        value: Fp,
+    ) {
         let kappa = self.params.need;
         let segment = (array_index / self.params.n_grid as u64) as usize;
         let offset = (array_index % self.params.n_grid as u64) as usize;
@@ -257,7 +268,11 @@ impl<'a> ColumnEncoder<'a> {
             let axes = params.segment_axes(segment);
             let mut basis = vec![fp_zero(); kappa * column_identifiers.len()];
             for (claim, column_identifier) in column_identifiers.iter().enumerate() {
-                params.z_basis_at(&axes, *column_identifier, &mut basis[claim * kappa..][..kappa]);
+                params.z_basis_at(
+                    &axes,
+                    *column_identifier,
+                    &mut basis[claim * kappa..][..kappa],
+                );
             }
             basis
         });
@@ -321,7 +336,11 @@ impl Walk<'_> {
         cell(array_index, self.default_cell(level));
         if level < self.height() {
             self.default_subtree(level + 1, array_index + 1, cell);
-            self.default_subtree(level + 1, array_index + 1 + self.subtree_nodes(level + 1), cell);
+            self.default_subtree(
+                level + 1,
+                array_index + 1 + self.subtree_nodes(level + 1),
+                cell,
+            );
         }
     }
 
@@ -375,7 +394,14 @@ impl Walk<'_> {
         if level == chunk_level {
             return chunk_labels[pos as usize];
         }
-        let left = self.upper(level + 1, 2 * pos, array_index + 1, chunk_level, chunk_labels, cell);
+        let left = self.upper(
+            level + 1,
+            2 * pos,
+            array_index + 1,
+            chunk_level,
+            chunk_labels,
+            cell,
+        );
         // The right child is reached only when it is active, and then the
         // left subtree is full and its size fits the array.
         let right = if self.is_active(level + 1, 2 * pos + 1) {
@@ -468,6 +494,113 @@ pub struct BulkLog<'a> {
 }
 
 impl<'a> BulkLog<'a> {
+    /// Persist only the untimed input state of a benchmark. PIR hints and
+    /// packing tables are deliberately absent. The benchmark cache binds
+    /// this stream to its executable and complete workload parameters.
+    #[cfg(feature = "bench")]
+    pub fn write_benchmark_fixture(&self, output: &mut impl std::io::Write) {
+        let metadata = (
+            1u32,
+            self.params.need,
+            self.auth.tree_height,
+            self.seed,
+            &self.registry_indices,
+            self.chunk_bits,
+            self.default_leaves,
+            self.leaves,
+            &self.chunk_labels,
+            self.root,
+        );
+        bincode::serde::encode_into_std_write(metadata, output, bincode::config::standard())
+            .expect("write bulk fixture metadata");
+        for column in &self.entries {
+            for entry in column {
+                output
+                    .write_all(&encode_value(*entry))
+                    .expect("write bulk fixture column");
+            }
+        }
+    }
+
+    /// Restore the exact pre-append baseline, including the chunk labels
+    /// needed by `extend`. Each caller receives its own mutable columns.
+    #[cfg(feature = "bench")]
+    pub fn read_benchmark_fixture(
+        params: &'a CodedArrayParams,
+        auth: &'a AuthParams,
+        node_linearization: NodeLinearization,
+        input: &mut impl std::io::Read,
+    ) -> Self {
+        let (
+            version,
+            kappa,
+            height,
+            seed,
+            registry_indices,
+            chunk_bits,
+            default_leaves,
+            leaves,
+            chunk_labels,
+            root,
+        ): (
+            u32,
+            usize,
+            usize,
+            u64,
+            Vec<usize>,
+            u32,
+            u64,
+            u64,
+            Vec<Value256>,
+            Value256,
+        ) = bincode::serde::decode_from_std_read(input, bincode::config::standard())
+            .expect("read bulk fixture metadata");
+        assert_eq!(version, 1);
+        assert_eq!(kappa, params.need);
+        assert_eq!(height, auth.tree_height);
+        assert!(leaves > 0 && leaves <= 1u64 << height && default_leaves <= leaves);
+        assert!(chunk_bits <= height as u32);
+        assert_eq!(
+            chunk_labels.len(),
+            leaves.div_ceil(1u64 << chunk_bits) as usize
+        );
+        assert!(!registry_indices.is_empty());
+        assert!(
+            registry_indices
+                .iter()
+                .all(|&claim| claim < params.shard_registry.len())
+        );
+        let cursor = mapping::cursor(node_linearization, height as u16, leaves);
+        let count = cursor.div_ceil(params.n_grid as u64) as usize * kappa;
+        let entries = registry_indices
+            .iter()
+            .map(|_| {
+                (0..count)
+                    .map(|_| {
+                        let mut bytes = [0u8; 32];
+                        input
+                            .read_exact(&mut bytes)
+                            .expect("read bulk fixture column");
+                        decode_value(bytes)
+                    })
+                    .collect()
+            })
+            .collect();
+        Self {
+            params,
+            auth,
+            node_linearization,
+            seed,
+            registry_indices,
+            chunk_bits,
+            default_leaves,
+            leaves,
+            chunk_labels,
+            entries,
+            root,
+        }
+    }
+
     /// Build the columns of a log of `leaves` leaves.
     #[allow(clippy::too_many_arguments)]
     pub fn build(
@@ -605,7 +738,11 @@ impl<'a> BulkLog<'a> {
         let root = self.root;
         self.entries
             .into_iter()
-            .map(|entries| BulkColumns { segments, root, entries })
+            .map(|entries| BulkColumns {
+                segments,
+                root,
+                entries,
+            })
             .collect()
     }
 
@@ -636,8 +773,11 @@ impl<'a> BulkLog<'a> {
         };
         let root = walk.upper(0, 0, 0, chunk_level, chunk_labels, &mut cell);
         for index in cursor..segments * n_grid {
-            let value =
-                decode_value(default_value_at_index(self.auth, self.node_linearization, index));
+            let value = decode_value(default_value_at_index(
+                self.auth,
+                self.node_linearization,
+                index,
+            ));
             cell(index, value);
         }
         root
@@ -681,11 +821,8 @@ impl<'a> BulkLog<'a> {
                         if chunk >= chunks.end {
                             break;
                         }
-                        let root_index = mapping::preorder_idx(
-                            height as u16,
-                            chunk_level as u16,
-                            chunk as u64,
-                        );
+                        let root_index =
+                            mapping::preorder_idx(height as u16, chunk_level as u16, chunk as u64);
                         let last_index = root_index + walk.subtree_nodes(chunk_level) - 1;
                         let first_segment = (root_index / n_grid) as usize;
                         let local_segments = ((last_index / n_grid) as usize)
@@ -782,7 +919,12 @@ pub fn build_tree_cells(
     let cells_per_record = layout.cells_per_record() as u64;
     let records = layout.records();
     let mut cells = vec![0u16; records * record_cells];
-    let walk = Walk { auth, leaves, seed, default_leaves: 0 };
+    let walk = Walk {
+        auth,
+        leaves,
+        seed,
+        default_leaves: 0,
+    };
     let chunk_bits = CHUNK_BITS.min(height);
     let chunk_level = height - chunk_bits;
     let chunks = leaves.div_ceil(1u64 << chunk_bits) as usize;
@@ -799,7 +941,8 @@ pub fn build_tree_cells(
 
     let next_chunk = AtomicUsize::new(0);
     // A bounded channel keeps the workers from running ahead of the writer.
-    let (sender, receiver) = mpsc::sync_channel::<(usize, Value256, Vec<(u64, Fp)>)>(threads.max(1));
+    let (sender, receiver) =
+        mpsc::sync_channel::<(usize, Value256, Vec<(u64, Fp)>)>(threads.max(1));
     std::thread::scope(|scope| {
         for _ in 0..threads.max(1).min(chunks) {
             let sender = sender.clone();
@@ -814,9 +957,12 @@ pub fn build_tree_cells(
                     let root_index =
                         mapping::preorder_idx(height as u16, chunk_level as u16, chunk as u64);
                     let mut local = Vec::with_capacity(walk.subtree_nodes(chunk_level) as usize);
-                    let label = walk.subtree(chunk_level, chunk as u64, root_index, &mut |index, value| {
-                        local.push((index, value))
-                    });
+                    let label = walk.subtree(
+                        chunk_level,
+                        chunk as u64,
+                        root_index,
+                        &mut |index, value| local.push((index, value)),
+                    );
                     if sender.send((chunk, label, local)).is_err() {
                         break;
                     }

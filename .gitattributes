@@ -1,0 +1,2 @@
+# Archived diffs preserve the original patch context, including blank context lines.
+results/diagnostics/**/*.patch -whitespace

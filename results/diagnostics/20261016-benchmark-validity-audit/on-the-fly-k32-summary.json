@@ -1,0 +1,194 @@
+[
+  {
+    "query": "point",
+    "kappa": 32,
+    "metric": "helper_stored_at_open_kappa_serialized_ns",
+    "mean_ns": 8560.65,
+    "stable": true,
+    "relative_half_width": 0.02571976196922284
+  },
+  {
+    "query": "range",
+    "kappa": 32,
+    "metric": "helper_stored_at_open_kappa_serialized_ns",
+    "mean_ns": 56908.125,
+    "stable": true,
+    "relative_half_width": 0.03809144567646243
+  },
+  {
+    "query": "range",
+    "kappa": 32,
+    "metric": "helper_stored_at_open_kappa_serialized_ns",
+    "mean_ns": 210415.6,
+    "stable": true,
+    "relative_half_width": 0.02690946266526792
+  },
+  {
+    "query": "point",
+    "kappa": 64,
+    "metric": "helper_on_the_fly_serialized_ns",
+    "mean_ns": 11330.5,
+    "stable": true,
+    "relative_half_width": 0.014810194796271846
+  },
+  {
+    "query": "point",
+    "kappa": 64,
+    "metric": "helper_stored_at_open_kappa_serialized_ns",
+    "mean_ns": 7894.375,
+    "stable": true,
+    "relative_half_width": 0.01962217623469625
+  },
+  {
+    "query": "range",
+    "kappa": 64,
+    "metric": "helper_on_the_fly_serialized_ns",
+    "mean_ns": 68919.25,
+    "stable": true,
+    "relative_half_width": 0.016653246331025145
+  },
+  {
+    "query": "range",
+    "kappa": 64,
+    "metric": "helper_stored_at_open_kappa_serialized_ns",
+    "mean_ns": 29818.675,
+    "stable": true,
+    "relative_half_width": 0.029492805547270077
+  },
+  {
+    "query": "range",
+    "kappa": 64,
+    "metric": "helper_on_the_fly_serialized_ns",
+    "mean_ns": 243610.3,
+    "stable": false,
+    "relative_half_width": 0.051492085181350636
+  },
+  {
+    "query": "range",
+    "kappa": 64,
+    "metric": "helper_stored_at_open_kappa_serialized_ns",
+    "mean_ns": 94147.675,
+    "stable": true,
+    "relative_half_width": 0.022595083839950722
+  },
+  {
+    "query": "stitch",
+    "kappa": 64,
+    "metric": "stitch_whole_state_ns",
+    "mean_ns": 1863563.15,
+    "stable": true,
+    "relative_half_width": 0.0059701184020585175
+  },
+  {
+    "query": "point",
+    "kappa": 128,
+    "metric": "helper_on_the_fly_serialized_ns",
+    "mean_ns": 14867.275,
+    "stable": true,
+    "relative_half_width": 0.004307415888390726
+  },
+  {
+    "query": "point",
+    "kappa": 128,
+    "metric": "helper_stored_at_open_kappa_serialized_ns",
+    "mean_ns": 7397.325,
+    "stable": true,
+    "relative_half_width": 0.00991381671657543
+  },
+  {
+    "query": "range",
+    "kappa": 128,
+    "metric": "helper_on_the_fly_serialized_ns",
+    "mean_ns": 76106.225,
+    "stable": true,
+    "relative_half_width": 0.004911509877536294
+  },
+  {
+    "query": "range",
+    "kappa": 128,
+    "metric": "helper_stored_at_open_kappa_serialized_ns",
+    "mean_ns": 16522.0,
+    "stable": true,
+    "relative_half_width": 0.013572567478644982
+  },
+  {
+    "query": "range",
+    "kappa": 128,
+    "metric": "helper_on_the_fly_serialized_ns",
+    "mean_ns": 258058.4,
+    "stable": true,
+    "relative_half_width": 0.014815025358660578
+  },
+  {
+    "query": "range",
+    "kappa": 128,
+    "metric": "helper_stored_at_open_kappa_serialized_ns",
+    "mean_ns": 44265.45,
+    "stable": true,
+    "relative_half_width": 0.03619798233971781
+  },
+  {
+    "query": "stitch",
+    "kappa": 128,
+    "metric": "stitch_whole_state_ns",
+    "mean_ns": 5250221.25,
+    "stable": true,
+    "relative_half_width": 0.00990508200824808
+  },
+  {
+    "query": "point",
+    "kappa": 256,
+    "metric": "helper_on_the_fly_serialized_ns",
+    "mean_ns": 21299.675,
+    "stable": true,
+    "relative_half_width": 0.017683991941987037
+  },
+  {
+    "query": "point",
+    "kappa": 256,
+    "metric": "helper_stored_at_open_kappa_serialized_ns",
+    "mean_ns": 7168.65,
+    "stable": true,
+    "relative_half_width": 0.007352413771868854
+  },
+  {
+    "query": "range",
+    "kappa": 256,
+    "metric": "helper_on_the_fly_serialized_ns",
+    "mean_ns": 88794.75,
+    "stable": true,
+    "relative_half_width": 0.007447170288576376
+  },
+  {
+    "query": "range",
+    "kappa": 256,
+    "metric": "helper_stored_at_open_kappa_serialized_ns",
+    "mean_ns": 11121.675,
+    "stable": true,
+    "relative_half_width": 0.00517454970626565
+  },
+  {
+    "query": "range",
+    "kappa": 256,
+    "metric": "helper_on_the_fly_serialized_ns",
+    "mean_ns": 272924.025,
+    "stable": true,
+    "relative_half_width": 0.005523993006209756
+  },
+  {
+    "query": "range",
+    "kappa": 256,
+    "metric": "helper_stored_at_open_kappa_serialized_ns",
+    "mean_ns": 23627.825,
+    "stable": true,
+    "relative_half_width": 0.019593391458799243
+  },
+  {
+    "query": "stitch",
+    "kappa": 256,
+    "metric": "stitch_whole_state_ns",
+    "mean_ns": 16444550.425,
+    "stable": true,
+    "relative_half_width": 0.004599215940355809
+  }
+]

@@ -4,7 +4,7 @@
 //! - `server`: the preparation and the answer of one UndineLog maintainer
 //!   (claim `MAINTAINER`) and one TreePIR server (color `COLOR`), alternated
 //!   trial by trial. The maintainer's fragment is built once per process
-//!   and kept in a temporary file; every trial reloads it untimed and
+//!   and kept in a temporary file; each preprocessing sample reloads it untimed and
 //!   rebuilds both PIR servers from the start: UndineLog gathers its primary
 //!   columns into PIR cells, reads the row table and the upper nodes, and
 //!   builds the hint and the packing tables; TreePIR enumerates its class,
@@ -29,11 +29,21 @@
 //!   the client's key; the process then also builds one real server of each
 //!   system and times its replies and the generated ones in pairs.
 //!
-//! Each component timing is its own measurement of the same opening, and
-//! each total is timed directly on a second opening.
+//! Each component is timed once in a complete opening, and each total is timed
+//! directly on a second opening with fresh keys. One independent sample averages
+//! eight such pairs. Small components retain their normal allocation/cache
+//! history; no component is repeatedly timed in isolation. All per-opening
+//! timings are retained alongside the batch means.
+
+#[path = "support/private_records.rs"]
+mod private_records;
+use private_records::ClaimRecords;
+#[path = "support/sampling.rs"]
+mod sampling;
+use sampling::Sampling;
 
 use paper_a_optimized::auth::client::{AuthClient, AuthTransport, ClientError as AuthClientError};
-use paper_a_optimized::auth::mapping::{self, NodeLinearization};
+use paper_a_optimized::auth::mapping::NodeLinearization;
 use paper_a_optimized::auth::service::{
     AuthBatchWriteRequest, AuthBatchWriteResponse, AuthReadResponse, AuthSubtreeReadResponse,
     AuthWriteRequest, AuthWriteResponse,
@@ -45,7 +55,6 @@ use paper_a_optimized::net::wire::{
     decode_binary, encode_binary,
 };
 use paper_a_optimized::private::bulk::CHUNK_BITS;
-use paper_a_optimized::private::pir::{bytes_from_cells, bytes_to_cells};
 use paper_a_optimized::private::treepir::{
     BalancedColoring, NodeLocation, TreePirLayout, TreePirQuery, TreePirRequest, TreePirServer,
     root_from_labels,
@@ -53,15 +62,14 @@ use paper_a_optimized::private::treepir::{
 use paper_a_optimized::private::wire::{WORD_BYTES, pack_words, response_from_net, unpack_words};
 use paper_a_optimized::private::{
     BulkLog, PackKeys, PirClient, PirDatabase, PirShape, PlannedEntry, PrivateLayout,
-    PrivateOpening, SuffixTree, entries_to_cells, entry_from_cells,
-    suffix_segment_entries,
+    PrivateOpening, SuffixTree, entry_from_cells,
 };
 use paper_a_optimized::{
     AuthParams, CodedArrayConfig, CodedArrayParams, Fp, ShardShare, Value256, build_coded_params,
-    build_shard_registry_deterministic, decode_value, encode_value, fp_zero,
+    build_shard_registry_deterministic, decode_value, encode_value,
 };
 use serde::Serialize;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::fs;
 use std::hint::black_box;
 use std::path::Path;
@@ -83,6 +91,9 @@ struct MetricStats {
     p95: u64,
     trials: u64,
     samples: Vec<u64>,
+    inner_repetitions: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    raw_call_samples: Option<Vec<u64>>,
 }
 
 fn percentile(sorted: &[u64], pct: usize) -> u64 {
@@ -90,7 +101,17 @@ fn percentile(sorted: &[u64], pct: usize) -> u64 {
 }
 
 fn stats(samples: Vec<u64>) -> MetricStats {
-    assert!(!samples.is_empty(), "a metric without samples");
+    if samples.is_empty() {
+        return MetricStats {
+            mean: 0,
+            p50: 0,
+            p95: 0,
+            trials: 0,
+            samples,
+            inner_repetitions: 1,
+            raw_call_samples: None,
+        };
+    }
     let sum: u128 = samples.iter().map(|&v| v as u128).sum();
     let mut sorted = samples.clone();
     sorted.sort_unstable();
@@ -100,6 +121,8 @@ fn stats(samples: Vec<u64>) -> MetricStats {
         p95: percentile(&sorted, 95),
         trials: samples.len() as u64,
         samples,
+        inner_repetitions: 1,
+        raw_call_samples: None,
     }
 }
 
@@ -110,18 +133,46 @@ fn timed<T>(f: impl FnOnce() -> T) -> (T, u64) {
     (out, (start.elapsed().as_nanos() as u64).max(1))
 }
 
+const CLIENT_OPENINGS_PER_SAMPLE: usize = 8;
+
+fn client_stats(calls: Vec<u64>) -> MetricStats {
+    assert_eq!(
+        calls.len() % CLIENT_OPENINGS_PER_SAMPLE,
+        0,
+        "complete opening batches"
+    );
+    let samples = calls
+        .chunks_exact(CLIENT_OPENINGS_PER_SAMPLE)
+        .map(|chunk| {
+            (chunk.iter().map(|&ns| u128::from(ns)).sum::<u128>()
+                / CLIENT_OPENINGS_PER_SAMPLE as u128) as u64
+        })
+        .collect();
+    let mut result = stats(samples);
+    result.inner_repetitions = CLIENT_OPENINGS_PER_SAMPLE;
+    result.raw_call_samples = Some(calls);
+    result
+}
+
 fn env_string(suffix: &str) -> Option<String> {
     std::env::var(format!("{ENV_PREFIX}_{suffix}")).ok()
 }
 
 fn env_usize(suffix: &str, default: usize) -> usize {
     env_string(suffix)
-        .map(|raw| raw.trim().parse::<usize>().expect("integer benchmark option"))
+        .map(|raw| {
+            raw.trim()
+                .parse::<usize>()
+                .expect("integer benchmark option")
+        })
         .unwrap_or(default)
 }
 
 fn git_sha() -> Option<String> {
-    let output = Command::new("git").args(["rev-parse", "HEAD"]).output().ok()?;
+    let output = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .ok()?;
     let sha = String::from_utf8_lossy(&output.stdout).trim().to_string();
     (output.status.success() && !sha.is_empty()).then_some(sha)
 }
@@ -140,8 +191,15 @@ fn allowed_cpus() -> Option<String> {
 
 fn peak_rss_bytes() -> Option<u64> {
     let status = fs::read_to_string("/proc/self/status").ok()?;
-    let line = status.lines().find_map(|line| line.strip_prefix("VmHWM:"))?;
-    let kib = line.trim().trim_end_matches("kB").trim().parse::<u64>().ok()?;
+    let line = status
+        .lines()
+        .find_map(|line| line.strip_prefix("VmHWM:"))?;
+    let kib = line
+        .trim()
+        .trim_end_matches("kB")
+        .trim()
+        .parse::<u64>()
+        .ok()?;
     Some(kib * 1024)
 }
 
@@ -232,6 +290,7 @@ fn cpu_count(list: &str) -> usize {
 // Parameters.
 
 struct Common {
+    sampling: Sampling,
     trials: usize,
     height: u8,
     kappa: usize,
@@ -246,6 +305,7 @@ impl Common {
             "h = kappa needs a power-of-two height"
         );
         Common {
+            sampling: Sampling::new(env_usize("TRIALS", DEFAULT_TRIALS).max(1)),
             trials: env_usize("TRIALS", DEFAULT_TRIALS).max(1),
             height: height as u8,
             kappa: height,
@@ -258,8 +318,8 @@ impl Common {
     }
 
     fn seeded_leaves(&self) -> u64 {
-        let seeded = (env_usize("SEEDED_LEAVES", DEFAULT_SEEDED_LEAVES as usize) as u64)
-            .min(self.leaves);
+        let seeded =
+            (env_usize("SEEDED_LEAVES", DEFAULT_SEEDED_LEAVES as usize) as u64).min(self.leaves);
         assert!(seeded > 0, "at least one seeded leaf");
         seeded
     }
@@ -278,7 +338,11 @@ impl Common {
 
 /// Leaf `trial` of `count` leaves starting at `first`, spread over them.
 fn spread_leaf(first: u64, count: u64, trial: usize) -> u64 {
-    first + (trial as u64).wrapping_mul(2_654_435_761).wrapping_add(count / 3) % count
+    first
+        + (trial as u64)
+            .wrapping_mul(2_654_435_761)
+            .wrapping_add(count / 3)
+            % count
 }
 
 /// Serialized sizes of one request: the blob of the query, the blob of the
@@ -348,7 +412,10 @@ fn undine_serve(database: &PirDatabase, registry_index: usize, request: &[u8]) -
     let keys = PackKeys {
         words: unpack_words(&req.pack_keys.0).expect("packing-key words"),
     };
-    undine_reply_message(registry_index, database.answer(&query, &keys).expect("answer"))
+    undine_reply_message(
+        registry_index,
+        database.answer(&query, &keys).expect("answer"),
+    )
 }
 
 /// Parse one maintainer's reply and decode it into the shares of the path.
@@ -369,7 +436,10 @@ fn undine_slots(opening: &PrivateOpening, reply: &[u8]) -> Vec<Vec<u64>> {
         panic!("the reply is a private opening");
     };
     let response = response_from_net(resp);
-    opening.client().decode(&response.replies[0].response).expect("decode the reply")
+    opening
+        .client()
+        .decode(&response.replies[0].response)
+        .expect("decode the reply")
 }
 
 fn request_bytes_of(query_words: usize, key_words: usize, request: &[u8]) -> RequestBytes {
@@ -520,7 +590,8 @@ impl FragmentFile {
             fs::File::create(&path).expect("create the fragment file"),
         );
         for entry in entries {
-            out.write_all(&encode_value(*entry)).expect("write the fragment");
+            out.write_all(&encode_value(*entry))
+                .expect("write the fragment");
         }
         out.flush().expect("write the fragment");
         Self {
@@ -560,7 +631,11 @@ impl Samples {
     }
 
     fn take(&mut self, name: &'static str) -> MetricStats {
-        stats(self.0.remove(name).unwrap_or_else(|| panic!("no samples of {name}")))
+        stats(self.0.remove(name).unwrap_or_default())
+    }
+
+    fn take_client(&mut self, name: &'static str) -> MetricStats {
+        client_stats(self.0.remove(name).unwrap_or_default())
     }
 }
 
@@ -577,8 +652,14 @@ struct ServerSizes {
 fn run_server(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
     let registry_index = env_usize("MAINTAINER", 0);
     let color = env_usize("COLOR", 0);
-    assert!(registry_index < common.kappa, "MAINTAINER is a claim of the threshold");
-    assert!(color < usize::from(common.height), "COLOR is a class of the tree");
+    assert!(
+        registry_index < common.kappa,
+        "MAINTAINER is a claim of the threshold"
+    );
+    assert!(
+        color < usize::from(common.height),
+        "COLOR is a class of the tree"
+    );
     let params = common.params();
     let auth = common.auth();
     let layout = PrivateLayout::for_log(&params, &auth, ORDER, common.leaves).expect("layout");
@@ -597,7 +678,7 @@ fn run_server(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
 
     // The maintainer's fragment is built once. It is kept on disk between
     // repetitions, so that neither server's preparation shares the memory
-    // with it, and every repetition reloads it untimed.
+    // with it, and every build reloads it untimed.
     let (bulk, fragment_build_ns) = cpus.on_setup_cpus(|| {
         timed(|| {
             BulkLog::build_with_default_prefix(
@@ -613,7 +694,11 @@ fn run_server(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
             )
         })
     });
-    assert_eq!(bulk.root(), tree.root(), "the maintainer and TreePIR tree roots");
+    assert_eq!(
+        bulk.root(),
+        tree.root(),
+        "the maintainer and TreePIR tree roots"
+    );
     let fragment = FragmentFile::write(bulk.entries());
     {
         // The reloaded fragment is the built one. Both are held here, before
@@ -623,15 +708,34 @@ fn run_server(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
     }
     drop(bulk);
 
-    let undine_trial = |trial: usize, samples: &mut Samples| -> ServerSizes {
+    let preprocess_count = common.sampling.count("preprocess");
+    let online_count = common.sampling.count("online");
+    let builds = preprocess_count.max(1);
+    // Distribute online samples over the fresh builds. Once preprocessing
+    // has converged, one untimed build suffices for an online-only batch.
+    // Keep just one server resident, even at the 128 GiB operating point.
+    let undine_trial = |trial: usize,
+                        online: std::ops::Range<usize>,
+                        samples: &mut Samples|
+     -> ServerSizes {
         let entries = fragment.read();
-        let leaf = spread_leaf(default_leaves, seeded, trial);
-        let plan = layout.opening_plan(leaf);
-        let expected = plan
-            .iter()
-            .map(|entry| entries[layout.entry_index(entry.array_index)])
-            .collect::<Vec<_>>();
         let database_bytes = entries.len() as u64 * FIELD_BYTES;
+        let indices: Vec<_> = if online.is_empty() {
+            vec![trial]
+        } else {
+            online.clone().collect()
+        };
+        let expected_rows = indices
+            .iter()
+            .map(|&index| {
+                let leaf = spread_leaf(default_leaves, seeded, index);
+                layout
+                    .opening_plan(leaf)
+                    .iter()
+                    .map(|entry| entries[layout.entry_index(entry.array_index)])
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
         let (cells, gather_cells_ns) = timed(|| PirDatabase::cells_from_entries(&layout, &entries));
         drop(entries);
         let (database, times) = PirDatabase::from_cells_timed(&layout, cells, 1);
@@ -641,108 +745,141 @@ fn run_server(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
             times.hint.as_nanos() as u64,
             times.packing.as_nanos() as u64,
         ];
-        samples.push("gather_cells", stages[0]);
-        samples.push("gather_upper", stages[1].max(1));
-        samples.push("hint", stages[2]);
-        samples.push("packing", stages[3]);
-        samples.push("prepare", stages.iter().sum());
-
-        let client = PirClient::generate(shape);
-        let query = client.query(layout.pattern_of(leaf));
-        let keys = client.pack_keys();
-        let request = undine_request_message(&layout, &query, &keys);
-        let (_, first_pass_ns) = timed(|| database.first_pass(&query).expect("first pass"));
-        samples.push("first_pass", first_pass_ns);
-        let (reply, answer_ns) = timed(|| undine_serve(&database, registry_index, &request));
-        samples.push("answer", answer_ns);
-        let net::Response::AuthReadPrivate { resp } =
-            decode_binary::<net::Response>(&reply).expect("parse the reply")
-        else {
-            panic!("the reply is a private opening");
-        };
-        let slots = client
-            .decode(&response_from_net(resp).replies[0].response)
-            .expect("decode the reply");
-        let decoded = plan
-            .iter()
-            .map(|entry| entry_from_cells(&slots[entry.slot], entry.entry_in_record))
-            .collect::<Vec<_>>();
-        assert!(decoded == expected, "trial {trial}: the opening of leaf {leaf}");
-        // Counted once, after every timer of the trial.
+        if trial < preprocess_count {
+            samples.push("gather_cells", stages[0]);
+            samples.push("gather_upper", stages[1].max(1));
+            samples.push("hint", stages[2]);
+            samples.push("packing", stages[3]);
+            samples.push("prepare", stages.iter().sum());
+        }
+        // Every build is checked, including a preprocessing-only build.
+        let mut messages = None;
+        for (index, expected) in indices.into_iter().zip(expected_rows) {
+            let leaf = spread_leaf(default_leaves, seeded, index);
+            let plan = layout.opening_plan(leaf);
+            let client = PirClient::generate(shape);
+            let query = client.query(layout.pattern_of(leaf));
+            let keys = client.pack_keys();
+            let request = undine_request_message(&layout, &query, &keys);
+            // The same warmup whether this build serves one query or many.
+            black_box(database.first_pass(&query).expect("warm first pass"));
+            let (_, first_pass_ns) = timed(|| database.first_pass(&query).expect("first pass"));
+            let (reply, answer_ns) = timed(|| undine_serve(&database, registry_index, &request));
+            if online.contains(&index) {
+                samples.push("first_pass", first_pass_ns);
+                samples.push("answer", answer_ns);
+            }
+            let net::Response::AuthReadPrivate { resp } =
+                decode_binary::<net::Response>(&reply).expect("parse the reply")
+            else {
+                panic!("the reply is a private opening");
+            };
+            let slots = client
+                .decode(&response_from_net(resp).replies[0].response)
+                .expect("decode the reply");
+            let decoded = plan
+                .iter()
+                .map(|entry| entry_from_cells(&slots[entry.slot], entry.entry_in_record))
+                .collect::<Vec<_>>();
+            assert!(
+                decoded == expected,
+                "trial {trial}: the opening of leaf {leaf}"
+            );
+            messages.get_or_insert((
+                request_bytes_of(query.len(), keys.words.len(), &request),
+                reply.len() as u64,
+            ));
+        }
         let blocks = (trial == 0).then(|| HintBlocks::of(&shape, database.zero_hint_blocks()));
+        let (request, reply_bytes) = messages.expect("one checked opening");
         ServerSizes {
             database_bytes,
             pir_bytes: database.record_state_bytes() as u64,
             hint_bytes: database.hint_bytes() as u64,
             packing_bytes: database.packing_bytes() as u64,
             blocks,
-            request: request_bytes_of(query.len(), keys.words.len(), &request),
-            reply_bytes: reply.len() as u64,
+            request,
+            reply_bytes,
         }
     };
 
-    let treepir_trial = |trial: usize, samples: &mut Samples| -> ServerSizes {
-        let (nodes, enumerate_ns) = timed(|| coloring.class_nodes(color));
-        samples.push("enumerate", enumerate_ns);
-        let (server, columns, times) =
-            TreePirServer::new(tree_layout, color, &nodes, |node| tree.label_of_heap(node));
-        drop(nodes);
-        let stages = [
-            enumerate_ns,
-            columns.as_nanos() as u64,
-            times.hint.as_nanos() as u64,
-            times.packing.as_nanos() as u64,
-        ];
-        samples.push("columns", stages[1]);
-        samples.push("hint", stages[2]);
-        samples.push("packing", stages[3]);
-        samples.push("prepare", stages.iter().sum());
-
-        // A leaf whose path has a node of this class.
-        let leaf = spread_leaf(default_leaves, seeded, trial);
-        let location = *coloring
-            .locate(leaf)
-            .iter()
-            .find(|item| item.color == color)
-            .expect("every path has one node of every class");
-        let (query, request) = tree_layout.request(location).expect("request");
-        let parsed: TreePirRequest = decode_binary(&request).expect("parse the request");
-        let words = unpack_words(&parsed.query.0).expect("query words");
-        let key_words = unpack_words(&parsed.pack_keys.0).expect("key words").len();
-        let (_, first_pass_ns) = timed(|| server.database.first_pass(&words).expect("first pass"));
-        samples.push("first_pass", first_pass_ns);
-        let (reply, answer_ns) = timed(|| server.answer(&request).expect("answer"));
-        samples.push("answer", answer_ns);
-        assert_eq!(
-            query.decode(&reply).expect("decode"),
-            tree.label_of_heap(location.sibling()),
-            "trial {trial}: the node of leaf {leaf}"
-        );
-        let blocks = (trial == 0)
-            .then(|| HintBlocks::of(&tree_layout.shape, server.database.zero_hint_blocks()));
-        ServerSizes {
-            database_bytes: class_size * FIELD_BYTES,
-            pir_bytes: server.database.database_bytes() as u64,
-            hint_bytes: server.database.hint_bytes() as u64,
-            packing_bytes: server.database.packing_bytes() as u64,
-            blocks,
-            request: request_bytes_of(words.len(), key_words, &request),
-            reply_bytes: reply.len() as u64,
-        }
-    };
-
-    for trial in 0..common.trials {
-        // The order alternates, so that a drift of the machine affects both.
+    let treepir_trial =
+        |trial: usize, online: std::ops::Range<usize>, samples: &mut Samples| -> ServerSizes {
+            let (nodes, enumerate_ns) = timed(|| coloring.class_nodes(color));
+            let (server, columns, times) =
+                TreePirServer::new(tree_layout, color, &nodes, |node| tree.label_of_heap(node));
+            drop(nodes);
+            let stages = [
+                enumerate_ns,
+                columns.as_nanos() as u64,
+                times.hint.as_nanos() as u64,
+                times.packing.as_nanos() as u64,
+            ];
+            if trial < preprocess_count {
+                samples.push("enumerate", stages[0]);
+                samples.push("columns", stages[1]);
+                samples.push("hint", stages[2]);
+                samples.push("packing", stages[3]);
+                samples.push("prepare", stages.iter().sum());
+            }
+            let indices: Vec<_> = if online.is_empty() {
+                vec![trial]
+            } else {
+                online.clone().collect()
+            };
+            let mut messages = None;
+            for index in indices {
+                let leaf = spread_leaf(default_leaves, seeded, index);
+                let location = *coloring
+                    .locate(leaf)
+                    .iter()
+                    .find(|item| item.color == color)
+                    .expect("every path has one node of every class");
+                let (query, request) = tree_layout.request(location).expect("request");
+                let parsed: TreePirRequest = decode_binary(&request).expect("parse the request");
+                let words = unpack_words(&parsed.query.0).expect("query words");
+                let key_words = unpack_words(&parsed.pack_keys.0).expect("key words").len();
+                black_box(server.database.first_pass(&words).expect("warm first pass"));
+                let (_, first_pass_ns) =
+                    timed(|| server.database.first_pass(&words).expect("first pass"));
+                let (reply, answer_ns) = timed(|| server.answer(&request).expect("answer"));
+                if online.contains(&index) {
+                    samples.push("first_pass", first_pass_ns);
+                    samples.push("answer", answer_ns);
+                }
+                assert_eq!(
+                    query.decode(&reply).expect("decode"),
+                    tree.label_of_heap(location.sibling()),
+                    "trial {trial}: the node of leaf {leaf}"
+                );
+                messages.get_or_insert((
+                    request_bytes_of(words.len(), key_words, &request),
+                    reply.len() as u64,
+                ));
+            }
+            let blocks = (trial == 0)
+                .then(|| HintBlocks::of(&tree_layout.shape, server.database.zero_hint_blocks()));
+            let (request, reply_bytes) = messages.expect("one checked opening");
+            ServerSizes {
+                database_bytes: class_size * FIELD_BYTES,
+                pir_bytes: server.database.database_bytes() as u64,
+                hint_bytes: server.database.hint_bytes() as u64,
+                packing_bytes: server.database.packing_bytes() as u64,
+                blocks,
+                request,
+                reply_bytes,
+            }
+        };
+    for trial in 0..builds {
+        let online = (trial * online_count / builds)..((trial + 1) * online_count / builds);
         for system in if trial % 2 == 0 { [0, 1] } else { [1, 0] } {
             if system == 0 {
-                let sizes = undine_trial(trial, &mut undine);
-                undine_sizes.get_or_insert(sizes);
+                undine_sizes.get_or_insert(undine_trial(trial, online.clone(), &mut undine));
             } else {
-                let sizes = treepir_trial(trial, &mut treepir);
-                treepir_sizes.get_or_insert(sizes);
+                treepir_sizes.get_or_insert(treepir_trial(trial, online.clone(), &mut treepir));
             }
         }
-        eprintln!("trial {}/{} complete", trial + 1, common.trials);
+        eprintln!("build {}/{} complete", trial + 1, builds);
     }
 
     let sizes = undine_sizes.expect("one trial");
@@ -828,7 +965,9 @@ impl AuthTransport for NoopTransport {
     }
 
     fn auth_get_len(&self, _server: &Self::Server) -> Result<u64, AuthClientError> {
-        Err(AuthClientError::Net("collected replies carry no length".to_string()))
+        Err(AuthClientError::Net(
+            "collected replies carry no length".to_string(),
+        ))
     }
 
     fn auth_read(
@@ -837,7 +976,9 @@ impl AuthTransport for NoopTransport {
         _index: u64,
         _kappa: usize,
     ) -> Result<AuthReadResponse, AuthClientError> {
-        Err(AuthClientError::Net("replies are collected in the setup".to_string()))
+        Err(AuthClientError::Net(
+            "replies are collected in the setup".to_string(),
+        ))
     }
 
     fn auth_read_subtree(
@@ -846,7 +987,9 @@ impl AuthTransport for NoopTransport {
         _start_index: u64,
         _leaf_count: usize,
     ) -> Result<AuthSubtreeReadResponse, AuthClientError> {
-        Err(AuthClientError::Net("replies are collected in the setup".to_string()))
+        Err(AuthClientError::Net(
+            "replies are collected in the setup".to_string(),
+        ))
     }
 
     fn unauth_multi_read(
@@ -854,7 +997,9 @@ impl AuthTransport for NoopTransport {
         _server: &Self::Server,
         _indices: &[u64],
     ) -> Result<Vec<Vec<ShardShare>>, AuthClientError> {
-        Err(AuthClientError::Net("replies are collected in the setup".to_string()))
+        Err(AuthClientError::Net(
+            "replies are collected in the setup".to_string(),
+        ))
     }
 
     fn auth_write(
@@ -880,108 +1025,6 @@ impl AuthTransport for NoopTransport {
 
 /// The records of every claim that the openings of a set of leaves read,
 /// encoded from the tree without the claims' columns.
-struct ClaimRecords {
-    per_record: usize,
-    /// `records[record][claim]`: the claim's entries of the record.
-    records: HashMap<usize, Vec<Vec<Fp>>>,
-}
-
-impl ClaimRecords {
-    fn new(
-        params: &CodedArrayParams,
-        tree: &SuffixTree<'_>,
-        layout: &PrivateLayout,
-        claims: &[usize],
-        leaves: impl IntoIterator<Item = u64>,
-    ) -> Self {
-        let per_record = layout.entries_per_record();
-        let kappa = layout.kappa();
-        let shape = PirShape::of(layout);
-        let mut wanted = BTreeSet::new();
-        for leaf in leaves {
-            for (slot, id) in layout.row(layout.pattern_of(leaf)).into_iter().enumerate() {
-                match id {
-                    Some(record) if slot < shape.group_slots => {
-                        wanted.insert(record);
-                    }
-                    Some(pos) => {
-                        let index = layout.upper_entry_index(slot - shape.group_slots, pos);
-                        wanted.insert(index / per_record);
-                    }
-                    None => {}
-                }
-            }
-        }
-        let height = tree.height() as u16;
-        let segments_total = mapping::cursor(ORDER, height, 1u64 << height)
-            .div_ceil(params.n_grid as u64) as usize;
-        let segments_per_record = layout.segments_per_record();
-        let segments = wanted
-            .iter()
-            .flat_map(|&record| record * segments_per_record..(record + 1) * segments_per_record)
-            .filter(|&segment| segment < segments_total)
-            .collect::<Vec<_>>();
-        let encoded = suffix_segment_entries(params, tree, claims, &segments);
-        let by_segment = segments.iter().copied().zip(encoded).collect::<HashMap<_, _>>();
-        let records = wanted
-            .iter()
-            .map(|&record| {
-                let entries = (0..claims.len())
-                    .map(|claim| {
-                        let mut values = vec![fp_zero(); per_record];
-                        for k in 0..segments_per_record {
-                            if let Some(segment) = by_segment.get(&(record * segments_per_record + k)) {
-                                values[k * kappa..(k + 1) * kappa].copy_from_slice(&segment[claim]);
-                            }
-                        }
-                        values
-                    })
-                    .collect();
-                (record, entries)
-            })
-            .collect();
-        Self { per_record, records }
-    }
-
-    fn record_cells(&self, shape: &PirShape, claim: usize, record: usize) -> Vec<u16> {
-        let mut cells = vec![0u16; shape.record_cells];
-        entries_to_cells(&self.records[&record][claim], &mut cells);
-        cells
-    }
-
-    /// The row the query of `pattern` selects from claim `claim`: the
-    /// record of each group slot and the entry of each upper slot, as
-    /// `PirDatabase` lays them out.
-    fn slots(&self, layout: &PrivateLayout, claim: usize, pattern: usize) -> Vec<Vec<u64>> {
-        let shape = PirShape::of(layout);
-        layout
-            .row(pattern)
-            .iter()
-            .enumerate()
-            .map(|(slot, id)| {
-                let mut cells = vec![0u16; shape.slot_width(slot)];
-                match id {
-                    Some(record) if slot < shape.group_slots => {
-                        cells = self.record_cells(&shape, claim, *record);
-                    }
-                    Some(pos) => {
-                        let index = layout.upper_entry_index(slot - shape.group_slots, *pos);
-                        let block = self
-                            .record_cells(&shape, claim, index / self.per_record)
-                            .into_iter()
-                            .map(u64::from)
-                            .collect::<Vec<_>>();
-                        bytes_to_cells(bytes_from_cells(&block, index % self.per_record), &mut cells);
-                    }
-                    None => {}
-                }
-                assert_eq!(cells.len(), shape.slot_width(slot), "cells of slot {slot}");
-                cells.into_iter().map(u64::from).collect()
-            })
-            .collect()
-    }
-}
-
 /// The servers whose replies a client job uses.
 enum Replies {
     /// Every reply from a real server of each system.
@@ -1009,7 +1052,9 @@ impl ClientSetup<'_> {
     /// The cells of the TreePIR row that holds `location`.
     fn treepir_row(&self, location: NodeLocation) -> Vec<u16> {
         let row = self.tree_layout.row_of(location.offset);
-        let offsets = self.tree_layout.row_offsets(row, self.class_sizes[location.color]);
+        let offsets = self
+            .tree_layout
+            .row_offsets(row, self.class_sizes[location.color]);
         let nodes = self.coloring.class_range(location.color, offsets);
         let mut cells = vec![0u16; self.tree_layout.shape.record_cells];
         self.tree_layout
@@ -1017,12 +1062,24 @@ impl ClientSetup<'_> {
         cells
     }
 
-    fn undine_generated_reply(&self, records: &ClaimRecords, opening: &PrivateOpening, leaf: u64, claim: usize) -> Vec<u8> {
+    fn undine_generated_reply(
+        &self,
+        records: &ClaimRecords,
+        opening: &PrivateOpening,
+        leaf: u64,
+        claim: usize,
+    ) -> Vec<u8> {
         let slots = records.slots(self.layout, claim, self.layout.pattern_of(leaf));
         undine_reply_message(claim, opening.encrypt_slots(&slots))
     }
 
-    fn undine_replies(&self, replies: &Replies, opening: &PrivateOpening, request: &[u8], leaf: u64) -> Vec<Vec<u8>> {
+    fn undine_replies(
+        &self,
+        replies: &Replies,
+        opening: &PrivateOpening,
+        request: &[u8],
+        leaf: u64,
+    ) -> Vec<Vec<u8>> {
         match replies {
             Replies::Real { maintainers, .. } => maintainers
                 .iter()
@@ -1035,16 +1092,29 @@ impl ClientSetup<'_> {
         }
     }
 
-    fn treepir_replies(&self, replies: &Replies, queries: &[TreePirQuery], requests: &[Vec<u8>]) -> Vec<Vec<u8>> {
+    fn treepir_replies(
+        &self,
+        replies: &Replies,
+        queries: &[TreePirQuery],
+        requests: &[Vec<u8>],
+    ) -> Vec<Vec<u8>> {
         match replies {
             Replies::Real { colors, .. } => queries
                 .iter()
                 .zip(requests)
-                .map(|(query, request)| colors[query.location.color].answer(request).expect("answer"))
+                .map(|(query, request)| {
+                    colors[query.location.color]
+                        .answer(request)
+                        .expect("answer")
+                })
                 .collect(),
             Replies::Generated { .. } => queries
                 .iter()
-                .map(|query| query.encrypt_row(&self.treepir_row(query.location)).expect("reply"))
+                .map(|query| {
+                    query
+                        .encrypt_row(&self.treepir_row(query.location))
+                        .expect("reply")
+                })
                 .collect(),
         }
     }
@@ -1064,12 +1134,22 @@ impl ClientSetup<'_> {
     }
 
     /// UndineLog's request for `leaf` with a fresh key, in its parts.
-    fn undine_request(&self, leaf: u64, samples: Option<&mut Samples>) -> (PrivateOpening, Vec<u8>, RequestBytes) {
+    fn undine_request(
+        &self,
+        leaf: u64,
+        samples: Option<&mut Samples>,
+    ) -> (PrivateOpening, Vec<u8>, RequestBytes) {
         let layout = self.layout;
-        let ((pattern, plan), index_ns) = timed(|| (layout.pattern_of(leaf), layout.opening_plan(leaf)));
+        let ((pattern, plan), index_ns) = timed(|| {
+            (
+                layout.pattern_of(black_box(leaf)),
+                layout.opening_plan(black_box(leaf)),
+            )
+        });
         let (client, keygen_ns) = timed(|| PirClient::generate(self.shape));
         let ((query, keys), query_ns) = timed(|| (client.query(pattern), client.pack_keys()));
-        let (request, serialize_ns) = timed(|| undine_request_message(layout, &query, &keys));
+        let (request, serialize_ns) =
+            timed(|| undine_request_message(layout, black_box(&query), black_box(&keys)));
         if let Some(samples) = samples {
             samples.push("index", index_ns);
             samples.push("keygen", keygen_ns);
@@ -1109,32 +1189,58 @@ impl ClientSetup<'_> {
         ((opening, request), ns)
     }
 
-    fn check_undine(&self, leaf: u64, result: (Value256, paper_a_optimized::AuthPath)) -> (Value256, Vec<Value256>) {
-        assert_eq!(result.0, self.tree.leaf_value(leaf), "the value of leaf {leaf}");
+    fn check_undine(
+        &self,
+        leaf: u64,
+        result: (Value256, paper_a_optimized::AuthPath),
+    ) -> (Value256, Vec<Value256>) {
+        assert_eq!(
+            result.0,
+            self.tree.leaf_value(leaf),
+            "the value of leaf {leaf}"
+        );
         assert_eq!(result.1.root, self.tree.root(), "the root of leaf {leaf}");
         (result.0, result.1.siblings)
     }
 
     /// TreePIR's `h` requests for `leaf`, with a fresh key each, in parts.
-    fn treepir_request(&self, leaf: u64, samples: Option<&mut Samples>) -> (Vec<TreePirQuery>, Vec<Vec<u8>>, RequestBytes) {
+    fn treepir_request(
+        &self,
+        leaf: u64,
+        samples: Option<&mut Samples>,
+    ) -> (Vec<TreePirQuery>, Vec<Vec<u8>>, RequestBytes) {
         let h = usize::from(self.common.height);
-        let (locations, index_ns) = timed(|| self.coloring.locate(leaf));
-        let (clients, keygen_ns) =
-            timed(|| (0..h).map(|_| PirClient::generate(self.tree_layout.shape)).collect::<Vec<_>>());
+        let (locations, index_ns) = timed(|| self.coloring.locate(black_box(leaf)));
+        let (clients, keygen_ns) = timed(|| {
+            (0..h)
+                .map(|_| PirClient::generate(self.tree_layout.shape))
+                .collect::<Vec<_>>()
+        });
         let ((queries, encrypted), query_ns) = timed(|| {
             let queries = locations
                 .iter()
                 .zip(clients)
-                .map(|(&location, client)| self.tree_layout.query_with(location, client).expect("query"))
+                .map(|(&location, client)| {
+                    self.tree_layout
+                        .query_with(location, client)
+                        .expect("query")
+                })
                 .collect::<Vec<_>>();
-            let encrypted = queries.iter().map(|query| query.encrypted_query()).collect::<Vec<_>>();
+            let encrypted = queries
+                .iter()
+                .map(|query| query.encrypted_query())
+                .collect::<Vec<_>>();
             (queries, encrypted)
         });
         let (requests, serialize_ns) = timed(|| {
             queries
                 .iter()
                 .zip(&encrypted)
-                .map(|(query, (words, keys))| query.serialize_request(words, keys).expect("request"))
+                .map(|(query, (words, keys))| {
+                    query
+                        .serialize_request(black_box(words), black_box(keys))
+                        .expect("request")
+                })
                 .collect::<Vec<_>>()
         });
         if let Some(samples) = samples {
@@ -1145,7 +1251,11 @@ impl ClientSetup<'_> {
         }
         let (words, keys) = &encrypted[0];
         let bytes = request_bytes_of(words.len(), keys.words.len(), &requests[0]);
-        assert!(requests.iter().all(|request| request.len() == requests[0].len()));
+        assert!(
+            requests
+                .iter()
+                .all(|request| request.len() == requests[0].len())
+        );
         (queries, requests, bytes)
     }
 
@@ -1264,8 +1374,12 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
     let coloring = BalancedColoring::new(common.height);
     let tree_layout = TreePirLayout::new(common.height);
     let claims = (0..common.kappa).collect::<Vec<_>>();
-    let (tree, tree_ns) = cpus.on_setup_cpus(|| timed(|| SuffixTree::new(&auth, default_leaves, BENCH_SEED)));
-    eprintln!("tree of {seeded} seeded leaves in {:.1} s", tree_ns as f64 / 1e9);
+    let (tree, tree_ns) =
+        cpus.on_setup_cpus(|| timed(|| SuffixTree::new(&auth, default_leaves, BENCH_SEED)));
+    eprintln!(
+        "tree of {seeded} seeded leaves in {:.1} s",
+        tree_ns as f64 / 1e9
+    );
     let setup = ClientSetup {
         common,
         params: &params,
@@ -1283,6 +1397,7 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
     let component_leaf = |trial: usize| leaf_of(4 * trial);
     let direct_leaf = |trial: usize| leaf_of(4 * trial + 1);
     let paired_leaf = |trial: usize| leaf_of(4 * trial + 2);
+    let client_openings = common.sampling.count("client") * CLIENT_OPENINGS_PER_SAMPLE;
 
     let replies = if replies_source == "real" {
         let (maintainers, colors) = cpus.on_setup_cpus(|| {
@@ -1307,29 +1422,44 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
             let colors = (0..usize::from(common.height))
                 .map(|color| {
                     let nodes = coloring.class_nodes(color);
-                    TreePirServer::new(tree_layout, color, &nodes, |node| tree.label_of_heap(node)).0
+                    TreePirServer::new(tree_layout, color, &nodes, |node| tree.label_of_heap(node))
+                        .0
                 })
                 .collect::<Vec<_>>();
             (maintainers, colors)
         });
-        Replies::Real { maintainers, colors }
+        Replies::Real {
+            maintainers,
+            colors,
+        }
     } else {
-        let leaves = (0..common.trials)
-            .flat_map(|trial| [component_leaf(trial), direct_leaf(trial), paired_leaf(trial)]);
+        let leaves = (0..client_openings.max(1))
+            .flat_map(|trial| [component_leaf(trial), direct_leaf(trial)])
+            .chain((0..common.sampling.count("paired")).map(paired_leaf));
         let (records, ns) = cpus.on_setup_cpus(|| {
-            timed(|| ClaimRecords::new(&params, &tree, &layout, &claims, leaves))
+            timed(|| {
+                ClaimRecords::new(&params, &auth, &layout, &claims, leaves, &|level, pos| {
+                    tree.cell(level, pos)
+                })
+            })
         });
-        eprintln!("{} records of {} claims in {:.1} s", records.records.len(), claims.len(), ns as f64 / 1e9);
+        eprintln!(
+            "{} records of {} claims in {:.1} s",
+            records.len(),
+            claims.len(),
+            ns as f64 / 1e9
+        );
         Replies::Generated { records }
     };
     // With real replies, the generated ones are built as well, to compare.
     let check_records = (replies_source == "real").then(|| {
         ClaimRecords::new(
             &params,
-            &tree,
+            &auth,
             &layout,
             &claims,
-            (0..common.trials).map(component_leaf),
+            (0..client_openings.max(1)).map(component_leaf),
+            &|level, pos| tree.cell(level, pos),
         )
     });
 
@@ -1341,99 +1471,154 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
     let mut treepir_reply_bytes = 0;
     let mut auth_client = setup.auth_client();
 
-    for trial in 0..common.trials {
+    // Keeping these together prevents adaptive stopping from changing the
+    // allocator history of either opening's measurements.
+    let components = client_openings;
+    let totals = components;
+    for trial in 0..components.max(totals).max(1) {
         for system in if trial % 2 == 0 { [0, 1] } else { [1, 0] } {
             if system == 0 {
-                // Components, on one opening.
-                let leaf = component_leaf(trial);
-                let (opening, request, bytes) = setup.undine_request(leaf, Some(&mut undine));
-                undine_bytes.get_or_insert(bytes);
-                let replies_now = setup.undine_replies(&replies, &opening, &request, leaf);
-                if let Replies::Real { .. } = &replies {
-                    // Every real reply decodes to the generated one.
-                    let records = check_records.as_ref().expect("records to compare");
-                    for (claim, reply) in replies_now.iter().enumerate() {
-                        let generated = setup.undine_generated_reply(records, &opening, leaf, claim);
-                        assert_eq!(reply.len(), generated.len(), "reply bytes of claim {claim}");
-                        assert!(
-                            undine_slots(&opening, reply) == undine_slots(&opening, &generated),
-                            "trial {trial}: the generated reply of claim {claim}"
-                        );
+                if trial < components || trial == 0 {
+                    // Components, on one opening.
+                    let leaf = component_leaf(trial);
+                    let (opening, request, bytes) = setup.undine_request(leaf, Some(&mut undine));
+                    undine_bytes.get_or_insert(bytes);
+                    let replies_now = setup.undine_replies(&replies, &opening, &request, leaf);
+                    if let Replies::Real { .. } = &replies {
+                        // Every real reply decodes to the generated one.
+                        let records = check_records.as_ref().expect("records to compare");
+                        for (claim, reply) in replies_now.iter().enumerate() {
+                            let generated =
+                                setup.undine_generated_reply(records, &opening, leaf, claim);
+                            assert_eq!(
+                                reply.len(),
+                                generated.len(),
+                                "reply bytes of claim {claim}"
+                            );
+                            assert!(
+                                undine_slots(&opening, reply) == undine_slots(&opening, &generated),
+                                "trial {trial}: the generated reply of claim {claim}"
+                            );
+                        }
                     }
+                    undine_reply_bytes = replies_now[0].len() as u64;
+                    assert!(
+                        replies_now
+                            .iter()
+                            .all(|reply| reply.len() as u64 == undine_reply_bytes)
+                    );
+                    let (responses, decrypt_ns) = timed(|| {
+                        replies_now
+                            .iter()
+                            .map(|reply| undine_decode(&opening, reply))
+                            .collect::<Vec<_>>()
+                    });
+                    undine.push("decrypt", decrypt_ns);
+                    let (result, combine_ns) =
+                        timed(|| auth_client.read_with_path_from_responses(leaf, &responses));
+                    undine.push("combine_verify", combine_ns);
+                    let (value, siblings) =
+                        setup.check_undine(leaf, result.expect("UndineLog opening"));
+                    let (root, verify_ns) = timed(|| {
+                        recompute_root(
+                            u32::from(common.height),
+                            leaf,
+                            value,
+                            black_box(&siblings),
+                            &auth.defaults,
+                        )
+                    });
+                    undine.push("verify", verify_ns);
+                    assert_eq!(root, tree.root(), "the recomputed root");
                 }
-                undine_reply_bytes = replies_now[0].len() as u64;
-                assert!(replies_now.iter().all(|reply| reply.len() as u64 == undine_reply_bytes));
-                let (responses, decrypt_ns) = timed(|| {
-                    replies_now
-                        .iter()
-                        .map(|reply| undine_decode(&opening, reply))
-                        .collect::<Vec<_>>()
-                });
-                undine.push("decrypt", decrypt_ns);
-                let (result, combine_ns) =
-                    timed(|| auth_client.read_with_path_from_responses(leaf, &responses));
-                undine.push("combine_verify", combine_ns);
-                let (value, siblings) = setup.check_undine(leaf, result.expect("UndineLog opening"));
-                let (root, verify_ns) = timed(|| {
-                    recompute_root(u32::from(common.height), leaf, value, &siblings, &auth.defaults)
-                });
-                undine.push("verify", verify_ns);
-                assert_eq!(root, tree.root(), "the recomputed root");
-
-                // The whole client, on a second opening.
-                let leaf = direct_leaf(trial);
-                let ((opening, request), request_ns) = setup.undine_request_direct(leaf);
-                let replies_now = setup.undine_replies(&replies, &opening, &request, leaf);
-                let (result, process_ns) = timed(|| {
-                    let responses = replies_now
-                        .iter()
-                        .map(|reply| undine_decode(&opening, reply))
-                        .collect::<Vec<_>>();
-                    auth_client.read_with_path_from_responses(leaf, &responses)
-                });
-                setup.check_undine(leaf, result.expect("UndineLog opening"));
-                undine.push("request_total", request_ns);
-                undine.push("process_total", process_ns);
-                undine.push("client_total", request_ns + process_ns);
+                if trial < totals {
+                    // The whole client, on a second opening.
+                    let leaf = direct_leaf(trial);
+                    let ((opening, request), request_ns) = setup.undine_request_direct(leaf);
+                    let replies_now = setup.undine_replies(&replies, &opening, &request, leaf);
+                    let (result, process_ns) = timed(|| {
+                        let responses = replies_now
+                            .iter()
+                            .map(|reply| undine_decode(&opening, reply))
+                            .collect::<Vec<_>>();
+                        auth_client.read_with_path_from_responses(leaf, &responses)
+                    });
+                    setup.check_undine(leaf, result.expect("UndineLog opening"));
+                    undine.push("request_total", request_ns);
+                    undine.push("process_total", process_ns);
+                    undine.push("client_total", request_ns + process_ns);
+                }
             } else {
-                let leaf = component_leaf(trial);
-                let (queries, requests, bytes) = setup.treepir_request(leaf, Some(&mut treepir));
-                treepir_bytes.get_or_insert(bytes);
-                let replies_now = setup.treepir_replies(&replies, &queries, &requests);
-                if let Replies::Real { .. } = &replies {
-                    for (query, reply) in queries.iter().zip(&replies_now) {
-                        let generated = query.encrypt_row(&setup.treepir_row(query.location)).expect("reply");
-                        assert_eq!(reply.len(), generated.len(), "reply bytes");
-                        assert_eq!(
-                            query.decode_row(reply).expect("decode"),
-                            query.decode_row(&generated).expect("decode"),
-                            "trial {trial}: the generated row of color {}",
-                            query.location.color
-                        );
+                if trial < components || trial == 0 {
+                    let leaf = component_leaf(trial);
+                    let (queries, requests, bytes) =
+                        setup.treepir_request(leaf, Some(&mut treepir));
+                    treepir_bytes.get_or_insert(bytes);
+                    let replies_now = setup.treepir_replies(&replies, &queries, &requests);
+                    if let Replies::Real { .. } = &replies {
+                        for (query, reply) in queries.iter().zip(&replies_now) {
+                            let generated = query
+                                .encrypt_row(&setup.treepir_row(query.location))
+                                .expect("reply");
+                            assert_eq!(reply.len(), generated.len(), "reply bytes");
+                            assert_eq!(
+                                query.decode_row(reply).expect("decode"),
+                                query.decode_row(&generated).expect("decode"),
+                                "trial {trial}: the generated row of color {}",
+                                query.location.color
+                            );
+                        }
                     }
+                    treepir_reply_bytes = replies_now[0].len() as u64;
+                    assert!(
+                        replies_now
+                            .iter()
+                            .all(|reply| reply.len() as u64 == treepir_reply_bytes)
+                    );
+                    let (labels, decrypt_ns) =
+                        timed(|| setup.treepir_decrypt(&queries, &replies_now));
+                    treepir.push("decrypt", decrypt_ns);
+                    let (root, verify_ns) =
+                        timed(|| setup.treepir_verify(black_box(leaf), black_box(&labels)));
+                    treepir.push("verify", verify_ns);
+                    assert_eq!(root, tree.root(), "TreePIR proof of leaf {leaf}");
                 }
-                treepir_reply_bytes = replies_now[0].len() as u64;
-                assert!(replies_now.iter().all(|reply| reply.len() as u64 == treepir_reply_bytes));
-                let (labels, decrypt_ns) = timed(|| setup.treepir_decrypt(&queries, &replies_now));
-                treepir.push("decrypt", decrypt_ns);
-                let (root, verify_ns) = timed(|| setup.treepir_verify(leaf, &labels));
-                treepir.push("verify", verify_ns);
-                assert_eq!(root, tree.root(), "TreePIR proof of leaf {leaf}");
-
-                let leaf = direct_leaf(trial);
-                let ((queries, requests), request_ns) = setup.treepir_request_direct(leaf);
-                let replies_now = setup.treepir_replies(&replies, &queries, &requests);
-                let (root, process_ns) = timed(|| {
-                    let labels = setup.treepir_decrypt(&queries, &replies_now);
-                    setup.treepir_verify(leaf, &labels)
-                });
-                assert_eq!(root, tree.root(), "TreePIR proof of leaf {leaf}");
-                treepir.push("request_total", request_ns);
-                treepir.push("process_total", process_ns);
-                treepir.push("client_total", request_ns + process_ns);
+                if trial < totals {
+                    let leaf = direct_leaf(trial);
+                    let ((queries, requests), request_ns) = setup.treepir_request_direct(leaf);
+                    let replies_now = setup.treepir_replies(&replies, &queries, &requests);
+                    let (root, process_ns) = timed(|| {
+                        let labels = setup.treepir_decrypt(&queries, &replies_now);
+                        setup.treepir_verify(leaf, &labels)
+                    });
+                    assert_eq!(root, tree.root(), "TreePIR proof of leaf {leaf}");
+                    treepir.push("request_total", request_ns);
+                    treepir.push("process_total", process_ns);
+                    treepir.push("client_total", request_ns + process_ns);
+                }
             }
         }
-        eprintln!("client trial {}/{} complete", trial + 1, common.trials);
+        eprintln!(
+            "client opening pair {}/{} complete",
+            trial + 1,
+            client_openings.max(1)
+        );
+    }
+
+    if components == 0 {
+        // Drop the single untimed setup check, preserving directly timed totals.
+        for name in [
+            "index",
+            "keygen",
+            "query",
+            "serialize",
+            "decrypt",
+            "combine_verify",
+            "verify",
+        ] {
+            undine.0.remove(name);
+            treepir.0.remove(name);
+        }
     }
 
     let h = u64::from(common.height);
@@ -1444,7 +1629,11 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
         serde_json::to_value(ClientEntry {
             role: "client",
             system: "undine",
-            replies_source: if replies_source == "real" { "real" } else { "generated" },
+            replies_source: if replies_source == "real" {
+                "real"
+            } else {
+                "generated"
+            },
             height: common.height,
             kappa: common.kappa,
             leaves: common.leaves,
@@ -1457,22 +1646,26 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
             reply_bytes: undine_reply_bytes,
             upload_bytes: kappa * undine_request.request_bytes,
             download_bytes: kappa * undine_reply_bytes,
-            index_ns: undine.take("index"),
-            keygen_ns: undine.take("keygen"),
-            query_ns: undine.take("query"),
-            serialize_ns: undine.take("serialize"),
-            decrypt_ns: undine.take("decrypt"),
-            combine_verify_ns: Some(undine.take("combine_verify")),
-            verify_ns: undine.take("verify"),
-            request_total_ns: undine.take("request_total"),
-            process_total_ns: undine.take("process_total"),
-            client_total_ns: undine.take("client_total"),
+            index_ns: undine.take_client("index"),
+            keygen_ns: undine.take_client("keygen"),
+            query_ns: undine.take_client("query"),
+            serialize_ns: undine.take_client("serialize"),
+            decrypt_ns: undine.take_client("decrypt"),
+            combine_verify_ns: Some(undine.take_client("combine_verify")),
+            verify_ns: undine.take_client("verify"),
+            request_total_ns: undine.take_client("request_total"),
+            process_total_ns: undine.take_client("process_total"),
+            client_total_ns: undine.take_client("client_total"),
         })
         .unwrap(),
         serde_json::to_value(ClientEntry {
             role: "client",
             system: "treepir",
-            replies_source: if replies_source == "real" { "real" } else { "generated" },
+            replies_source: if replies_source == "real" {
+                "real"
+            } else {
+                "generated"
+            },
             height: common.height,
             kappa: common.kappa,
             leaves: common.leaves,
@@ -1485,16 +1678,16 @@ fn run_client(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
             reply_bytes: treepir_reply_bytes,
             upload_bytes: h * treepir_request.request_bytes,
             download_bytes: h * treepir_reply_bytes,
-            index_ns: treepir.take("index"),
-            keygen_ns: treepir.take("keygen"),
-            query_ns: treepir.take("query"),
-            serialize_ns: treepir.take("serialize"),
-            decrypt_ns: treepir.take("decrypt"),
+            index_ns: treepir.take_client("index"),
+            keygen_ns: treepir.take_client("keygen"),
+            query_ns: treepir.take_client("query"),
+            serialize_ns: treepir.take_client("serialize"),
+            decrypt_ns: treepir.take_client("decrypt"),
             combine_verify_ns: None,
-            verify_ns: treepir.take("verify"),
-            request_total_ns: treepir.take("request_total"),
-            process_total_ns: treepir.take("process_total"),
-            client_total_ns: treepir.take("client_total"),
+            verify_ns: treepir.take_client("verify"),
+            request_total_ns: treepir.take_client("request_total"),
+            process_total_ns: treepir.take_client("process_total"),
+            client_total_ns: treepir.take_client("client_total"),
         })
         .unwrap(),
     ];
@@ -1516,10 +1709,11 @@ fn paired_check(
     paired_leaf: &dyn Fn(usize) -> u64,
 ) -> Vec<serde_json::Value> {
     let common = setup.common;
+    let trials = common.sampling.count("paired");
     let claim = 0usize;
-    let mut real = Vec::with_capacity(common.trials);
-    let mut generated = Vec::with_capacity(common.trials);
-    {
+    let mut real = Vec::with_capacity(trials);
+    let mut generated = Vec::with_capacity(trials);
+    if trials > 0 {
         let database = cpus.on_setup_cpus(|| {
             let bulk = BulkLog::build_with_default_prefix(
                 setup.params,
@@ -1537,7 +1731,7 @@ fn paired_check(
             drop(bulk);
             PirDatabase::from_cells_timed(setup.layout, cells, cpus.setup_threads).0
         });
-        for trial in 0..common.trials {
+        for trial in 0..trials {
             let leaf = paired_leaf(trial);
             let (opening, request, _) = setup.undine_request(leaf, None);
             let real_reply = undine_serve(&database, claim, &request);
@@ -1550,8 +1744,16 @@ fn paired_check(
             // One untimed decoding of each, so that neither is timed cold.
             black_box(undine_decode(&opening, &real_reply));
             black_box(undine_decode(&opening, &generated_reply));
-            for first_real in if trial % 2 == 0 { [true, false] } else { [false, true] } {
-                let reply = if first_real { &real_reply } else { &generated_reply };
+            for first_real in if trial % 2 == 0 {
+                [true, false]
+            } else {
+                [false, true]
+            } {
+                let reply = if first_real {
+                    &real_reply
+                } else {
+                    &generated_reply
+                };
                 let (_, ns) = timed(|| undine_decode(&opening, reply));
                 if first_real {
                     real.push(ns);
@@ -1571,14 +1773,17 @@ fn paired_check(
     };
 
     let color = 0usize;
-    let mut real = Vec::with_capacity(common.trials);
-    let mut generated = Vec::with_capacity(common.trials);
-    {
+    let mut real = Vec::with_capacity(trials);
+    let mut generated = Vec::with_capacity(trials);
+    if trials > 0 {
         let server = cpus.on_setup_cpus(|| {
             let nodes = setup.coloring.class_nodes(color);
-            TreePirServer::new(setup.tree_layout, color, &nodes, |node| setup.tree.label_of_heap(node)).0
+            TreePirServer::new(setup.tree_layout, color, &nodes, |node| {
+                setup.tree.label_of_heap(node)
+            })
+            .0
         });
-        for trial in 0..common.trials {
+        for trial in 0..trials {
             let leaf = paired_leaf(trial);
             let location = *setup
                 .coloring
@@ -1588,7 +1793,9 @@ fn paired_check(
                 .expect("every path has one node of every class");
             let (query, request) = setup.tree_layout.request(location).expect("request");
             let real_reply = server.answer(&request).expect("answer");
-            let generated_reply = query.encrypt_row(&setup.treepir_row(location)).expect("reply");
+            let generated_reply = query
+                .encrypt_row(&setup.treepir_row(location))
+                .expect("reply");
             assert_eq!(real_reply.len(), generated_reply.len(), "reply bytes");
             assert_eq!(
                 query.decode_row(&real_reply).expect("decode"),
@@ -1597,8 +1804,16 @@ fn paired_check(
             );
             black_box(query.decode(&real_reply).expect("decode"));
             black_box(query.decode(&generated_reply).expect("decode"));
-            for first_real in if trial % 2 == 0 { [true, false] } else { [false, true] } {
-                let reply = if first_real { &real_reply } else { &generated_reply };
+            for first_real in if trial % 2 == 0 {
+                [true, false]
+            } else {
+                [false, true]
+            } {
+                let reply = if first_real {
+                    &real_reply
+                } else {
+                    &generated_reply
+                };
                 let (_, ns) = timed(|| query.decode(reply).expect("decode"));
                 if first_real {
                     real.push(ns);
@@ -1626,6 +1841,10 @@ fn paired_check(
 
 #[derive(Serialize)]
 struct BenchMeta {
+    client_openings_per_sample: usize,
+    first_pass_warmup_calls: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sample_groups: Option<std::collections::BTreeMap<String, usize>>,
     seed: u64,
     trials: usize,
     role: String,
@@ -1658,6 +1877,9 @@ fn run_benchmark() {
         other => panic!("{ENV_PREFIX}_ROLE must be server or client; got {other}"),
     };
     let meta = BenchMeta {
+        client_openings_per_sample: CLIENT_OPENINGS_PER_SAMPLE,
+        first_pass_warmup_calls: usize::from(role == "server"),
+        sample_groups: common.sampling.groups.clone(),
         seed: BENCH_SEED,
         trials: common.trials,
         height: common.height,
@@ -1692,8 +1914,11 @@ fn run_benchmark() {
     let out_dir = Path::new("results");
     let _ = fs::create_dir_all(out_dir);
     let path = out_dir.join("bench_treepir_comparison_local.json");
-    fs::write(path, serde_json::to_vec_pretty(&document).expect("serialize"))
-        .expect("write bench_treepir_comparison_local.json");
+    fs::write(
+        path,
+        serde_json::to_vec_pretty(&document).expect("serialize"),
+    )
+    .expect("write bench_treepir_comparison_local.json");
 }
 
 fn main() {

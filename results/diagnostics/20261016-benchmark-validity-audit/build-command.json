@@ -1,0 +1,1 @@
+["cargo", "bench", "--locked", "--no-run", "--message-format=json-render-diagnostics", "--target-dir", "/tmp/undine-benchmark-audit-20261016-40tmfjsi/target-current", "--features", "bench,private", "--bench", "bench_private_opening_local", "--bench", "bench_treepir_comparison_local", "--bench", "bench_append_only_log_on_the_fly_open_local"]

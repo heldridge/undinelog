@@ -19,7 +19,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RUNS_ROOT = ROOT / "results" / "runs"
 REFERENCE_ROOT = ROOT / "reference-results"
-EXCLUDED_TOP_LEVEL = {"binaries"}
+EXCLUDED_TOP_LEVEL = {"binaries", "build-targets", "fixtures"}
 
 
 class PackageError(RuntimeError):

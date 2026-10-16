@@ -62,6 +62,9 @@ const DEFAULT_MAX_LEVELS: usize = 3;
 const DEFAULT_COMMITTED_BULK_UPDATE_BATCHES: usize = 3;
 const DEFAULT_RANGE_BYTE_LENS: [usize; 2] = [1 << 20, 4 << 20];
 const ENV_PREFIX: &str = "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN";
+/// A point answer lasts only a few microseconds. Each retained sample is the
+/// mean of this many calls; inner calls are not independent observations.
+const POINT_CALLS_PER_SAMPLE: usize = 32;
 
 #[derive(Clone)]
 struct LocalServer {
@@ -296,6 +299,7 @@ struct BenchResults {
 
 #[derive(Clone, Debug, Serialize)]
 struct BenchMeta {
+    point_calls_per_sample: usize,
     seed: u64,
     trials: usize,
     stored_kappa: usize,
@@ -411,12 +415,13 @@ impl Timed<'_> {
     fn sample(&self) -> u64 {
         match self {
             Timed::Point { server, req } => {
-                // One untimed answer first: the trials of all operations are
-                // interleaved, so each visit starts on a cold request.
+                // Warm the request once, then batch these short operations.
                 black_box(serialized_point_response(server, req));
                 let start = Instant::now();
-                black_box(serialized_point_response(server, req));
-                start.elapsed().as_nanos() as u64
+                for _ in 0..POINT_CALLS_PER_SAMPLE {
+                    black_box(serialized_point_response(black_box(server), black_box(req)));
+                }
+                (start.elapsed().as_nanos() / POINT_CALLS_PER_SAMPLE as u128) as u64
             }
             Timed::Range { server, request } => {
                 black_box(serialized_range_response(server, request));
@@ -879,6 +884,7 @@ fn run_benchmark() {
         .as_millis() as u64;
     let results = BenchResults {
         meta: BenchMeta {
+            point_calls_per_sample: POINT_CALLS_PER_SAMPLE,
             seed: BENCH_SEED,
             trials,
             stored_kappa: kappa,

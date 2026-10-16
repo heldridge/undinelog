@@ -2,8 +2,12 @@
 from __future__ import annotations
 
 import importlib.util
+import dataclasses
 import json
+import os
 import pathlib
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -139,7 +143,23 @@ class ManifestTests(unittest.TestCase):
             for measurement in self.manifest.measurements_for_job(job.id)
             if measurement.kind == "timing"
         }
-        self.assertEqual(rebuilds, {"rebuild"})
+        self.assertEqual(rebuilds, {"rebuild", "direct"})
+
+    def test_expensive_group_stops_independently_of_online_noise(self) -> None:
+        job = next(job for job in self.manifest.jobs.values()
+                   if job.benchmark == MODULE.PRIVATE_BENCHMARK
+                   and job.env_dict()[f"{MODULE.PRIVATE_PREFIX}_ROLE"] == "maintainer")
+        run_job = MODULE.RunJob(job, tuple(self.manifest.measurements_for_job(job.id)))
+        samples = {item.id: ([1., 100.] * 10 if item.sample_group == "online" else [100.] * 10)
+                   for item in run_job.measurements if item.kind == "timing"}
+        counts, warmups = MODULE.group_batch_plan(run_job, {"samples": samples}, "full")
+        self.assertEqual(counts, {"preprocess": 0, "online": 20, "update": 0})
+        self.assertEqual(warmups, {"preprocess": 0, "online": 3, "update": 0})
+        self.assertFalse(MODULE.job_complete({"samples": samples}, "full"))
+        for item in run_job.measurements:
+            if item.kind == "timing" and item.sample_group == "online":
+                samples[item.id] = [1., 100.] * (MODULE.DEFAULT_MAX_REPETITIONS // 2)
+        self.assertTrue(MODULE.job_complete({"samples": samples}, "full"))
 
     def test_treepir_class_sizes_cover_the_tree(self) -> None:
         for height in (1, 2, 3, 8, 16, 32):
@@ -147,6 +167,50 @@ class ManifestTests(unittest.TestCase):
             self.assertEqual(sum(sizes), (1 << (height + 1)) - 2)
             self.assertLessEqual(max(sizes) - min(sizes), 1)
             self.assertEqual(sizes, sorted(sizes))
+
+    def test_quick_gates_repeat_real_generated_reply_pairs(self) -> None:
+        for mode in ("smoke", "canary"):
+            with self.subTest(mode=mode):
+                run_job = next(
+                    job for job in MODULE.select_run_jobs(self.manifest, mode)
+                    if job.spec.id == "treepir-client-h32-generated"
+                )
+                samples = {
+                    item.id: [] for item in run_job.measurements if item.kind == "timing"
+                }
+                counts, warmups = MODULE.group_batch_plan(run_job, {"samples": samples}, mode)
+                self.assertEqual(counts, {"client": 1, "paired": 10})
+                self.assertEqual(warmups, {"client": 0, "paired": 3})
+                for item in run_job.measurements:
+                    if item.kind == "timing":
+                        samples[item.id] = [100.] * counts[item.sample_group]
+                counts, warmups = MODULE.group_batch_plan(run_job, {"samples": samples}, mode)
+                self.assertEqual(counts, {"client": 0, "paired": 0})
+                self.assertEqual(warmups, counts)
+
+    def test_full_client_sampling_keeps_its_first_look(self) -> None:
+        job = self.manifest.jobs["treepir-client-h32-generated"]
+        run_job = MODULE.RunJob(job, tuple(self.manifest.measurements_for_job(job.id)))
+        state = {"samples": {
+            item.id: [] for item in run_job.measurements if item.kind == "timing"
+        }}
+        for mode in ("full", "jobs"):
+            with self.subTest(mode=mode):
+                counts, warmups = MODULE.group_batch_plan(run_job, state, mode)
+                self.assertEqual(counts, {"client": 10, "paired": 10})
+                self.assertEqual(warmups, {"client": 3, "paired": 3})
+
+    def test_client_components_and_totals_have_the_same_sampling_history(self) -> None:
+        job = self.manifest.jobs["treepir-client-h32-generated"]
+        run_job = MODULE.RunJob(job, tuple(self.manifest.measurements_for_job(job.id)))
+        samples = {
+            item.id: ([1., 100.] * 5 if item.path == ("serialize_ns",) else [100.] * 10)
+            for item in run_job.measurements if item.kind == "timing"
+        }
+        counts, _ = MODULE.group_batch_plan(run_job, {"samples": samples}, "full")
+        self.assertEqual(counts, {"client": 10, "paired": 0})
+        self.assertTrue(all(item.sample_group == "client" for item in run_job.measurements
+                            if item.kind == "timing" and dict(item.selector)["role"] == "client"))
 
     def test_private_openings_are_measured_for_undine_only(self) -> None:
         jobs = [
@@ -189,7 +253,11 @@ class ManifestTests(unittest.TestCase):
                 self.assertEqual(measurement.sample_mode, "rebuild")
                 job = self.manifest.jobs[measurement.job_id]
                 run_job = MODULE.RunJob(job, tuple(self.manifest.measurements_for_job(job.id)))
-                self.assertEqual(MODULE.benchmark_warmup_repetitions(run_job, "full"), 1)
+                state = {"samples": {item.id: [] for item in run_job.measurements if item.kind == "timing"}}
+                counts, warmups = MODULE.group_batch_plan(run_job, state, "full")
+                self.assertEqual(counts["preprocess"], MODULE.DEFAULT_MIN_REPETITIONS)
+                self.assertEqual(warmups["preprocess"], MODULE.REBUILD_WARMUP_REPETITIONS)
+                self.assertEqual(warmups["online"], MODULE.DIRECT_WARMUP_REPETITIONS)
                 self.assertIn(f"{MODULE.PRIVATE_PREFIX}_HINT_CHECK_COLUMNS", job.env_dict())
                 self.assertNotIn(f"{MODULE.PRIVATE_PREFIX}_HINT_SAMPLE_COLUMNS", job.env_dict())
                 size = self.manifest.cells[f"{table}|{row}|preprocess-size"]
@@ -419,6 +487,37 @@ class ParsingTests(unittest.TestCase):
         self.assertEqual(raw["used"], [1000.0, 900.0, 800.0, 10.0, 11.0])
         self.assertEqual(timing["used"], [10.0, 11.0])
 
+    def test_group_counts_and_warmups_do_not_fabricate_samples(self) -> None:
+        measurements = [MODULE.MeasurementSpec(
+            id=group, job_id="job", selector=MODULE.selector(key=1), path=(group,),
+            kind="timing", sample_group=group,
+        ) for group in ("preprocess", "online", "update")]
+        empty = {"mean": 0, "p50": 0, "p95": 0, "trials": 0, "samples": []}
+        document = {
+            "meta": {"seed": 42, "trials": 5,
+                     "sample_groups": {"preprocess": 3, "online": 5, "update": 0}},
+            "entries": [{"key": 1, "preprocess": self.stats([900, 10, 11]),
+                         "online": self.stats([900, 800, 700, 20, 21]), "update": empty}],
+        }
+        timing, _, _, raw = MODULE.extract_measurements(
+            document, measurements, group_warmups={"preprocess": 1, "online": 3, "update": 0})
+        self.assertEqual(timing, {"preprocess": [10., 11.], "online": [20., 21.]})
+        self.assertEqual(len(raw["online"]), 5)
+        document["entries"][0]["update"] = self.stats([1])
+        with self.assertRaises(MODULE.PipelineError):
+            MODULE.extract_measurements(document, measurements)
+
+    def test_inner_repetitions_are_one_independent_sample(self) -> None:
+        measurement = MODULE.MeasurementSpec(id="used", job_id="job", selector=MODULE.selector(key=1),
+                                             path=("used",), kind="timing")
+        metric = self.stats([100, 101]) | {"inner_repetitions": 32}
+        document = {"meta": {"trials": 2}, "entries": [{"key": 1, "used": metric}]}
+        timing, _, _, _ = MODULE.extract_measurements(document, [measurement])
+        self.assertEqual(timing["used"], [100., 101.])
+        metric["inner_repetitions"] = 0
+        with self.assertRaises(MODULE.PipelineError):
+            MODULE.extract_measurements(document, [measurement])
+
     def test_append_warmup_discards_complete_sequences(self) -> None:
         measurement = MODULE.MeasurementSpec(
             id="append",
@@ -611,6 +710,106 @@ class CheckpointAndResumeTests(unittest.TestCase):
             MODULE.mark_run_completed(run_dir, state)
             self.assertEqual(state["status"], "completed")
             self.assertIn("finished_utc", state)
+
+
+class BuildIsolationTests(unittest.TestCase):
+    def test_build_cache_is_owned_by_one_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = pathlib.Path(raw)
+            target = MODULE.isolated_build_target(root, "first", "undine")
+            self.assertEqual(MODULE.isolated_build_target(root, "first", "undine"), target)
+            with self.assertRaisesRegex(MODULE.PipelineError, "unrecognized benchmark build cache"):
+                MODULE.isolated_build_target(root, "second", "undine")
+            (root / "build-targets" / "borg").mkdir()
+            with self.assertRaisesRegex(MODULE.PipelineError, "unrecognized benchmark build cache"):
+                MODULE.isolated_build_target(root, "first", "borg")
+
+    def test_timing_policy_rejects_an_old_client_executable(self) -> None:
+        manifest = MODULE.build_manifest()
+        job = manifest.jobs["treepir-client-h32-generated"]
+        run_job = MODULE.RunJob(job, tuple(manifest.measurements_for_job(job.id)))
+        document = {"meta": {"role": "client", "first_pass_warmup_calls": 0}}
+        with self.assertRaisesRegex(MODULE.PipelineError, "client_openings_per_sample"):
+            MODULE.validate_timing_policy(run_job, document)
+        document["meta"]["client_openings_per_sample"] = 8
+        MODULE.validate_timing_policy(run_job, document)
+
+    def test_client_means_are_checked_against_all_per_opening_timings(self) -> None:
+        manifest = MODULE.build_manifest()
+        job = manifest.jobs["treepir-client-h32-generated"]
+        run_job = MODULE.RunJob(job, tuple(manifest.measurements_for_job(job.id)))
+        metric = {"mean": 15, "p50": 10, "p95": 20, "trials": 2,
+                  "samples": [10, 20], "inner_repetitions": 8,
+                  "raw_call_samples": [10] * 8 + [20] * 8}
+        document = {"meta": {"role": "client", "first_pass_warmup_calls": 0,
+                             "client_openings_per_sample": 8},
+                    "entries": [{"role": "client", "index_ns": metric}]}
+        MODULE.validate_timing_policy(run_job, document)
+        metric["raw_call_samples"][0] = 90
+        with self.assertRaisesRegex(MODULE.PipelineError, "batch means disagree"):
+            MODULE.validate_timing_policy(run_job, document)
+
+    def test_inherited_benchmark_settings_are_removed(self) -> None:
+        with mock.patch.dict(os.environ, {
+            "BENCH_SAMPLE_GROUPS": "bad",
+            "BENCH_DIAGNOSTIC_TABLE_LEGACY": "1",
+            "BENCH_PRIVATE_OPENING_DEFAULT_PREFIX": "1",
+            "YPIR_PACK_PROFILE": "1",
+            "AUTH_WRITE_TRACE": "1",
+            "PATH": "preserved",
+        }):
+            environment = MODULE.clean_benchmark_environment()
+        self.assertFalse(any(key.startswith("BENCH_") for key in environment))
+        self.assertEqual(environment["PATH"], "preserved")
+        self.assertNotIn("YPIR_PACK_PROFILE", environment)
+        self.assertNotIn("AUTH_WRITE_TRACE", environment)
+
+    @unittest.skipUnless(shutil.which("cargo"), "Cargo is required for the stale-cache regression")
+    def test_rebuild_ignores_stale_executable_even_with_restored_source_mtime(self) -> None:
+        # Reproduce the failure mode: a modified source with an older mtime
+        # leaves a different executable in a shared Cargo target directory.
+        with tempfile.TemporaryDirectory() as raw:
+            root = pathlib.Path(raw)
+            crate = root / "crate"
+            (crate / "benches").mkdir(parents=True)
+            (crate / "Cargo.toml").write_text(
+                '[package]\nname="build-isolation-fixture"\nversion="0.1.0"\n'
+                'edition="2021"\n[features]\nbench=[]\n'
+                '[[bench]]\nname="probe"\nharness=false\n'
+            )
+            source = crate / "benches" / "probe.rs"
+            source.write_text('fn main() { println!("diagnostic"); }\n')
+            shared = root / "shared-target"
+            subprocess.run(
+                ["cargo", "bench", "--no-run", "--target-dir", str(shared),
+                 "--features", "bench", "--bench", "probe"],
+                cwd=crate, capture_output=True, check=True,
+            )
+            source.write_text('fn main() { println!("measured"); }\n')
+            os.utime(source, (1, 1))
+            manifest = MODULE.build_manifest()
+            original = next(iter(manifest.jobs.values()))
+            job = dataclasses.replace(original, layout="undine", benchmark="probe", features=("bench",))
+            run_job = MODULE.RunJob(job, ())
+            run_dir = root / "run"
+            run_dir.mkdir()
+            state = {"snapshot_id": "frozen", "binaries": {}}
+            with (
+                mock.patch.object(MODULE, "CRATE_ROOTS", {"undine": crate}),
+                mock.patch.object(MODULE, "validate_current_source_snapshot"),
+                mock.patch.dict(os.environ, {"CARGO_TARGET_DIR": str(shared)}),
+            ):
+                binary = MODULE.build_benchmark_binary(run_dir, state, run_job, timeout_seconds=60)
+                self.assertEqual(subprocess.check_output([str(binary)]).strip(), b"measured")
+                # Resume reuses only the hash-checked binary saved by this run.
+                self.assertEqual(MODULE.build_benchmark_binary(run_dir, state, run_job,
+                                                               timeout_seconds=60), binary)
+                state["binaries"][MODULE.build_key(run_job)]["source_snapshot_id"] = "other"
+                with self.assertRaisesRegex(MODULE.PipelineError, "matching source build"):
+                    MODULE.build_benchmark_binary(run_dir, state, run_job, timeout_seconds=60)
+            record = state["binaries"][MODULE.build_key(run_job)]
+            self.assertTrue(pathlib.Path(record["source_path"]).is_relative_to(run_dir))
+            self.assertIn("--target-dir", record["command"])
 
 
 class RuntimeEstimateTests(unittest.TestCase):

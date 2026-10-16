@@ -1,0 +1,14 @@
+{
+  "bench_append_only_log_on_the_fly_open_local": {
+    "path": "/tmp/undine-benchmark-audit-20261016-40tmfjsi/target-current/release/deps/bench_append_only_log_on_the_fly_open_local-e7d0b5569d641c17",
+    "sha256": "11aa37af66dab2a146b017a4b987e67ae95c0429d02f7446528bbb7daef04508"
+  },
+  "bench_private_opening_local": {
+    "path": "/tmp/undine-benchmark-audit-20261016-40tmfjsi/target-current/release/deps/bench_private_opening_local-3aa7d422f25b068d",
+    "sha256": "47fd0f8fa26a261bbd76327c7f7972ea81529ce3d53c08ca03f003bf139c11e8"
+  },
+  "bench_treepir_comparison_local": {
+    "path": "/tmp/undine-benchmark-audit-20261016-40tmfjsi/target-current/release/deps/bench_treepir_comparison_local-ff0f6c42a1ad7f68",
+    "sha256": "bd597af50c185431cc5d3831046f5afd0a677db6bedf0646536de50a3f3239cf"
+  }
+}

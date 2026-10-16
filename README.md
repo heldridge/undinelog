@@ -92,7 +92,7 @@ For unattended execution:
 nohup ./artifact full > artifact-run.log 2>&1 &
 ```
 
-Before starting the 70-job run, the command validates the manifest, runs the
+Before starting the 78-job run, the command validates the manifest, runs the
 pipeline unit tests and a smoke experiment, proves interruption/resume
 behavior, and executes a publication-sized canary. Gates are cached by source
 snapshot, so successful work is not repeated.
@@ -118,8 +118,8 @@ While the manifest is being extended, `./artifact jobs JOB...` runs the named
 jobs alone after the same preflight gates, with the sampling and the
 stopping rule of a full run. Its run directory has the mode `jobs`, lists
 only its own missing or unstable measurements, and is never publishable or
-packaged; the paper's renderer can overlay such a run on the reference run
-until the next full run replaces both.
+packaged. These partial runs support diagnostics; replacement paper results
+come from one completed, validated full run.
 
 ## Statistical Protocol
 
@@ -135,6 +135,33 @@ benchmarks discard one complete warmup sequence, and one independent append
 sample is a complete 64-batch sequence. Deterministic quantities must agree
 across observations. A full run is publication-ready only when every consumed
 measurement exists and all 476 timing series satisfy the stopping rule.
+
+Private server preparation, online work and updates stop independently. The
+TreePIR client comparison keeps component timings and directly timed totals
+together, with a separate real/generated-reply check. All groups retain the
+same minimum sample count and confidence target. Short helper timers average
+32 calls. TreePIR client samples average eight complete opening pairs, retaining
+every per-opening timing. Components run in their normal context, and each
+request/reply total is timed directly with fresh keys. Inner repetitions never
+count as extra independent observations. See `documentation/experiments.md`
+for the timing boundaries.
+
+The paired real/generated-reply timing check collects 10 retained pairs and
+three warmup pairs in smoke and canary runs too, so its 10% agreement check
+does not depend on a single timing pair.
+
+Untimed range fixtures and primary-column inputs are cached under each run's
+`fixtures/` directory. They are bound to the executable and workload and are
+checksum-verified before reuse; every mutable benchmark receives its own
+restored baseline. Hints, packing tables and all measured rebuild work remain
+outside this cache.
+
+Each run uses an isolated Cargo target directory tied to its source snapshot;
+the runner never reuses the crate's ordinary build cache. Compiler versions,
+flags and Cargo configurations are recorded, and archived executables are
+hash-checked on resume. Inherited benchmark and profiling flags are removed.
+The smoke gate also runs Rust tests for restored fixtures, selected records,
+dense/structured PIR agreement, updates and verified openings from these sources.
 
 Jobs of the two layouts use the same benchmark, the same workload variables,
 the same CPU, and the same protocol. They alternate in the schedule.
@@ -204,6 +231,9 @@ invariant, build, benchmark, or validation.
 - [Implementation](documentation/implementation.md)
 - [Experiments](documentation/experiments.md)
 - [Results and Provenance](documentation/results.md)
+- [Benchmark Validity Audit](documentation/benchmark-validity.md): the build,
+  sampling, correctness and implementation-comparison checks before the next
+  full run
 - [Troubleshooting](documentation/troubleshooting.md)
 - [The YPIR Backend](documentation/ypir-backend.md): the database, the
   messages, the preprocessing, and its patch after an append, which the

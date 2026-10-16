@@ -1,0 +1,23 @@
+{
+  "cpu": 2,
+  "groups": {
+    "client": 13,
+    "paired": 0
+  },
+  "openings_per_sample": 8,
+  "warmups": 3,
+  "retained": 10,
+  "jobs": [
+    [
+      "h16-real",
+      16,
+      "real"
+    ],
+    [
+      "h32-generated",
+      32,
+      "generated"
+    ]
+  ],
+  "purpose": "Preflight; whole-opening batches retain all per-opening timings and normal timing contexts."
+}

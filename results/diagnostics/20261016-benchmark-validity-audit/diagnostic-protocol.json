@@ -1,0 +1,39 @@
+{
+  "cpu": 2,
+  "warmups_discarded": 3,
+  "jobs": [
+    [
+      "client-h16-real",
+      "bench_treepir_comparison_local",
+      {
+        "BENCH_TREEPIR_COMPARISON_ROLE": "client",
+        "BENCH_TREEPIR_COMPARISON_HEIGHT": "16",
+        "BENCH_TREEPIR_COMPARISON_SEEDED_LEAVES": "65536",
+        "BENCH_TREEPIR_COMPARISON_REPLIES": "real",
+        "BENCH_TREEPIR_COMPARISON_TRIALS": "23",
+        "BENCH_SAMPLE_GROUPS": "{\"client\": 23, \"paired\": 0}"
+      }
+    ],
+    [
+      "client-h32-generated",
+      "bench_treepir_comparison_local",
+      {
+        "BENCH_TREEPIR_COMPARISON_ROLE": "client",
+        "BENCH_TREEPIR_COMPARISON_HEIGHT": "32",
+        "BENCH_TREEPIR_COMPARISON_SEEDED_LEAVES": "1048576",
+        "BENCH_TREEPIR_COMPARISON_REPLIES": "generated",
+        "BENCH_TREEPIR_COMPARISON_TRIALS": "23",
+        "BENCH_SAMPLE_GROUPS": "{\"client\": 23, \"paired\": 0}"
+      }
+    ],
+    [
+      "on-the-fly-k32",
+      "bench_append_only_log_on_the_fly_open_local",
+      {
+        "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_KAPPA": "32",
+        "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TRIALS": "43"
+      }
+    ]
+  ],
+  "purpose": "Preflight correctness, direct timings and fixed-size microcomponent samples; not publication results."
+}

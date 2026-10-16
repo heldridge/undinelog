@@ -2231,41 +2231,28 @@ impl TableDatabase {
 
     /// Write out every row of `database` and preprocess the table.
     pub fn from_database(database: &PirDatabase) -> Self {
-        let params = database.params;
         let shape = database.shape;
-        let db_rows = factored::simplepir_db_rows(params);
-        let db_cols = factored::simplepir_db_cols(params);
-        // `YServer::new` reads its input row by row.
-        let table = (0..db_rows).flat_map(|row| {
-            let mut cells = vec![0u16; db_cols];
-            if row < shape.patterns {
-                for slot in 0..shape.slots {
-                    let id = database.rows[row * shape.slots + slot];
-                    if id == NO_RECORD {
-                        continue;
-                    }
-                    let source = database.slot_cells(slot, id as usize);
-                    let full = shape.slot_bits(slot) / CELL_BITS;
-                    let base = shape.slot_offset(slot);
-                    cells[base..base + full].copy_from_slice(&source[..full]);
-                    // Independent bitwise reference for the suffix.
-                    for bit in 0..shape.slot_bits(slot) % CELL_BITS {
-                        let dest =
-                            shape.full_columns() * CELL_BITS + shape.tail_bit_offset(slot) + bit;
-                        cells[dest / CELL_BITS] |=
-                            ((source[full] >> bit) & 1) << (dest % CELL_BITS);
-                    }
+        // Use the same tiled construction and compact preprocessing as the
+        // dense TreePIR adapter. Keep the independent bitwise row packing
+        // below: this table also checks the structured adapter's packing.
+        Self::from_rows_timed(shape, |row, cells| {
+            for slot in 0..shape.slots {
+                let id = database.rows[row * shape.slots + slot];
+                if id == NO_RECORD {
+                    continue;
+                }
+                let source = database.slot_cells(slot, id as usize);
+                let full = shape.slot_bits(slot) / CELL_BITS;
+                let base = shape.slot_offset(slot);
+                cells[base..base + full].copy_from_slice(&source[..full]);
+                // Independent bitwise reference for the suffix.
+                for bit in 0..shape.slot_bits(slot) % CELL_BITS {
+                    let dest = shape.full_columns() * CELL_BITS + shape.tail_bit_offset(slot) + bit;
+                    cells[dest / CELL_BITS] |= ((source[full] >> bit) & 1) << (dest % CELL_BITS);
                 }
             }
-            cells
-        });
-        let server = YServer::<u16>::new(params, table, true, false, true);
-        let offline = server.perform_offline_precomputation_simplepir(None);
-        Self {
-            params,
-            server,
-            offline,
-        }
+        })
+        .0
     }
 
     /// The SimplePIR hint of the table.

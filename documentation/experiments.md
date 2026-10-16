@@ -131,7 +131,8 @@ its subtree meets and one entry per level above. Each repetition
 opens one position: the client's request
 (key generation, query, serialization), the maintainer's first pass, the
 complete answer from the serialized request to the serialized reply, and the
-client's decoding of the reply. Before each opening, the repetition rebuilds
+client's decoding of the reply. Preprocessing is sampled independently of
+online openings and append updates. Each preprocessing repetition rebuilds
 the entire hint, including padded columns, and all response-packing tables
 on one core, using the same constructor and timing boundaries as the TreePIR
 comparison. The artifact reports the two stages (`hint_ns`, `packing_ns`)
@@ -157,18 +158,22 @@ pattern sizes.
 
 **The table of complete openings** (`tab:private-table`). YPIR's server
 answers over a table with one complete opening per pattern, for the claim of
-the maintainer jobs at 1 and 4 GiB. Its reply is checked to equal the
-record-based reply byte for byte.
+the maintainer jobs at 1 and 4 GiB. It uses the tiled dense builder and compact
+packing preprocessing shared with TreePIR, while retaining an independent
+bitwise reference packer. Its reply is checked to equal the record-based
+reply byte for byte.
 
 **The client** (`tab:private-client`). On the 4 GiB log at every threshold
 and at threshold 256, and on the 8, 16, and 32 GiB logs at threshold 64,
 at the public
 grouping, each of `3 kappa` claims answers one request honestly, and the
 first `kappa` of them answer a second time with a lie about one node of the
-path. The client's work does not depend on the stored values or on how a
-reply was formed, so the setup skips what the client never sees: the claims
-hold the columns of a log of allocated, unwritten leaves, built without
-hashing the tree, and a claim's reply is the row the query selects encrypted
+path. Setup encodes only the group records and the records holding upper
+nodes touched by this opening, for all `3 kappa` claims, using the same
+segment encoder as a full fragment build. It respects the active prefix,
+including final-segment defaults and zero padding. This avoids allocating
+whole-tree fragments without changing any selected share. A claim's reply
+is the row the query selects encrypted
 under the client's key in the server's response format, in place of the
 server's preprocessing and answer; the opened leaf is unwritten. The client's
 request, its decoding plus Combine+Verify from `kappa` correct replies, from
@@ -185,9 +190,12 @@ the single server's decoded cells hash to the root, and that a decoded
 private reply equals the public reply of its claim.
 
 The input cells are built on all cores before the timed repetitions, which
-run on the pinned CPU. The maintainer and single-server jobs rebuild all
-preprocessing in every repetition and discard one warmup rebuild per process,
-as in the TreePIR server comparison. The result document records both CPU sets.
+run on the pinned CPU. The result document records both CPU sets. Each
+preprocessing batch discards one warmup rebuild; online and update batches
+discard three warmup samples. A group stops once all its measurements meet
+the existing precision target. If only online or update samples remain, one
+fresh untimed build supplies their database; measured preprocessing samples
+always rebuild it completely.
 
 ### UndineLog against TreePIR (`tab:treepir-server`, `tab:treepir-client`, `tab:treepir-check`)
 
@@ -200,8 +208,11 @@ TreePIR servers, and the same reply ciphertext count, which the runner checks.
 
 **Servers** (`tab:treepir-server`). Two jobs each pair one UndineLog claim with
 one TreePIR class: claim 0 with class 0, and claim 31 with class 31. Every
-repetition rebuilds both servers from the start, in an order that alternates,
-and answers one fresh query on each. They use the same valid Merkle tree as
+preprocessing repetition rebuilds both servers from the start, in an order
+that alternates, and checks a fresh query on each. Online samples stop
+independently: they are distributed over the requested builds. An online-only
+batch makes one untimed build of each system and serves its requested queries
+from it, retaining only one large server in memory at a time. They use the same valid Merkle tree as
 the client: `2^32 - 2^20` allocated, unwritten leaves followed by `2^20`
 seeded leaves. Every query opens a seeded leaf. UndineLog uses the existing
 `BulkLog::build_with_default_prefix`, and each rebuilt fragment's root must
@@ -213,8 +224,7 @@ full PIR inputs with normal padding and the backend's zero-block shortcut.
 The maintainer's fragment, including encoding the claim's primary columns and
 hashing the seeded suffix, is built once per process on every online CPU and
 kept in a temporary file; its wall time is recorded in the result, outside the
-timed series. Every repetition reloads it untimed and rebuilds both PIR
-servers. UndineLog's stages are the primary columns into PIR cells, the row
+timed series. Every build reloads it untimed and constructs fresh PIR state. UndineLog's stages are the primary columns into PIR cells, the row
 table and the upper nodes' cells, the hint (which gathers its columns from the cells), and
 the packing tables; TreePIR's are the class's nodes in database order, the
 database columns from their labels, the hint, and the packing tables. All
@@ -263,10 +273,67 @@ CPU, captures stdout and stderr, hashes the result and raw-sample documents,
 and checkpoints before and after every batch.
 
 Full runs sample at 10, 20, 40, 80, and 160 independent repetitions and stop
-as soon as all timing outputs of a job meet the familywise 95%, 5%
-relative-half-width target. Jobs are resumed from the next required look; a
+as soon as all timing outputs of each sample group meet the familywise 95%,
+5% relative-half-width target. A job completes after every group has stopped.
+Jobs are resumed from each group's next required look; a
 completed batch is never rerun. Smoke and canary modes use one measured
-repetition for path coverage and host calibration, not for publication claims.
+repetition for path coverage and host calibration, except that the paired
+real/generated-reply check collects 10 retained pairs and three warmup pairs.
+That check enforces a 10% tolerance between means and therefore needs repeated
+measurements even in a quick gate run. Neither mode supports publication claims.
 
 The list of deliberately omitted measurements is emitted in every run's
 `audit-report.md`.
+
+Independent groups keep expensive work from being repeated because a short
+operation is noisy. Private maintainer/single-server groups are preprocessing,
+online work, and (where applicable) updates. The TreePIR comparison separates
+server preparation from online work. Client components and directly timed
+totals share one group, so adaptive stopping never changes the allocation
+history between the two openings; the paired reply check has its own group.
+The benchmark echoes requested
+counts; the runner validates exact counts and group-specific warmups, saves
+all raw samples, and rechecks the schedule when resuming. Inactive groups
+emit no samples. The minimum, maximum, declared looks and confidence rule
+are unchanged.
+
+Short public range helper timers and on-the-fly point-answer timers average
+32 calls per sample. The JSON records `inner_repetitions = 32` or
+`point_calls_per_sample = 32`; each average counts as one independent sample.
+Response destruction stays inside the timer, as in the original single-call
+helper measurement. In the TreePIR client comparison, one sample averages
+eight complete opening pairs (`client_openings_per_sample = 8`). Each pair
+times the components of one opening and the request/reply totals directly on
+a separate opening; both use fresh keys and different leaves. Each operation
+runs once in its normal client context. No small component is repeatedly timed
+in isolation. The output retains every per-opening timing as
+`raw_call_samples`, and the runner re-derives the batch means. Inner openings
+do not increase the confidence interval's sample count. Reported percentiles
+are of batch means, not single-request latency quantiles.
+
+Untimed fixture caches under `results/runs/<run>/fixtures/` share exact input
+state between adaptive batches and compatible jobs. Keys include the complete
+workload and executable hash; loads verify the complete-file checksum and
+reject corrupted data. Range snapshots include the root, primary columns and
+auxiliary rows. Bulk snapshots include the append state and restore a fresh
+mutable instance for every process. Hints, packing tables and measured
+operations are never loaded from a cache. Partial writes are cache misses.
+
+Every measured first pass (structured, materialized, single-server or TreePIR)
+follows one untimed scan with the same query. This gives fresh and reused
+databases the same warmup policy; otherwise independent groups could mix a
+scan after a rebuild with scans after previous queries. JSON records
+`first_pass_warmup_calls = 1` for these server roles. The complete-answer
+timer still includes parsing and serialization. Historical first-pass results
+without this field used no per-query scan warmup and should be distinguished
+when comparing microbenchmarks; complete-answer timing boundaries are unchanged.
+
+Each run builds in its own `build-targets/<layout>/` directory, bound to the
+source snapshot. Crate-local Cargo caches and compiler wrappers are excluded.
+The snapshot includes the compiler versions, build flags and Cargo configuration
+hashes, and the runner checks it before and after building and before each
+batch. The archived executable is hashed and bound to that snapshot; resumption
+checks the executable again. Exact source and test files, including untracked
+additions, are retained under `provenance/source-tree/`. Only manifest-declared `BENCH_*` settings reach a
+benchmark, and profiling/tracing switches are removed. Build caches and untimed
+fixture files are not included in a packaged reference run.
