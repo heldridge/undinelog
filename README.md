@@ -134,7 +134,10 @@ samples. The 20,480-sample limit is a runtime bound; a series still outside
 the target at that limit remains flagged and prevents publication validation.
 
 Direct benchmarks discard three warmup repetitions per process, and the
-benchmarks whose repetition rebuilds a server discard one. Append
+benchmarks whose repetition rebuilds a server discard one. The maintainers'
+append-and-update samples discard none: they follow the preprocessing builds
+and online queries of the same process, and a replay without any discarded
+repetition put the first update within 1% of the rest. Append
 benchmarks discard one complete warmup sequence, and one independent append
 sample is a complete 64-batch sequence. Deterministic quantities must agree
 across observations. A full run is publication-ready only when every consumed
@@ -159,11 +162,14 @@ The paired real/generated-reply timing check collects 10 retained pairs and
 three warmup pairs in smoke and canary runs too, so its 10% agreement check
 does not depend on a single timing pair.
 
-Untimed range fixtures and primary-column inputs are cached under each run's
-`fixtures/` directory. They are bound to the executable and workload and are
-checksum-verified before reuse; every mutable benchmark receives its own
-restored baseline. Hints, packing tables and all measured rebuild work remain
-outside this cache.
+Untimed range fixtures and primary-column inputs are cached under
+`results/fixtures/`, shared by every run. Each entry is keyed by the
+benchmark executable's digest and the complete workload and is
+checksum-verified before reuse, so a run reuses an entry exactly when the
+measured binary and workload are unchanged and rebuilds it otherwise; every
+mutable benchmark receives its own restored baseline. Hints, packing tables
+and all measured rebuild work remain outside this cache. Each batch's
+`stderr.log` records whether its fixtures were hits or writes.
 
 Each run uses an isolated Cargo target directory tied to its source snapshot;
 the runner never reuses the crate's ordinary build cache. Compiler versions,

@@ -1194,5 +1194,30 @@ class ArtifactPackagingTests(unittest.TestCase):
                     self.check_file(f"results/diagnostics/audit/{relative}", content)
 
 
+
+class WarmupPolicyTests(unittest.TestCase):
+    def test_maintainer_groups_have_their_declared_warmups(self) -> None:
+        manifest = MODULE.build_manifest()
+        job = next(job for job in manifest.jobs.values()
+                   if job.benchmark == MODULE.PRIVATE_BENCHMARK
+                   and job.env_dict()[f"{MODULE.PRIVATE_PREFIX}_ROLE"] == "maintainer")
+        run_job = MODULE.RunJob(job, tuple(manifest.measurements_for_job(job.id)))
+        modes = {item.sample_group: item.sample_mode
+                 for item in run_job.measurements if item.kind == "timing"}
+        self.assertEqual(modes, {"preprocess": "rebuild", "online": "direct", "update": "update"})
+        state = {"samples": {item.id: [] for item in run_job.measurements if item.kind == "timing"}}
+        _, warmups = MODULE.group_batch_plan(run_job, state, "full")
+        self.assertEqual(warmups, {"preprocess": MODULE.REBUILD_WARMUP_REPETITIONS,
+                                   "online": MODULE.DIRECT_WARMUP_REPETITIONS,
+                                   "update": MODULE.UPDATE_WARMUP_REPETITIONS})
+        self.assertEqual(MODULE.REBUILD_WARMUP_REPETITIONS, 1)
+        self.assertEqual(MODULE.UPDATE_WARMUP_REPETITIONS, 0)
+
+    def test_fixture_cache_is_shared_and_ignored(self) -> None:
+        self.assertEqual(MODULE.FIXTURES_ROOT, MODULE.ROOT / "results" / "fixtures")
+        ignore = (MODULE.ROOT / ".gitignore").read_text().splitlines()
+        self.assertIn("/results/fixtures/", ignore)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -1,0 +1,1952 @@
+{
+  "run": "20261016T005529Z-full-2e1033e8d8",
+  "elapsed_hours": 15.57385830713643,
+  "timed_hours": 10.347325144418612,
+  "untimed_hours": 5.226533162717819,
+  "jobs": [
+    {
+      "job": "private-maintainer-undine-log1024gib-p19-k256",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 7022.755815505981,
+      "timed_seconds": 1670.4650890610003,
+      "untimed_seconds": 5352.290726444981,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 6808.966246843338,
+          "timed_seconds": 1653.0073047640003,
+          "untimed_seconds": 5155.958942079338,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1,
+            "update": 3
+          }
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 213.78956866264343,
+          "timed_seconds": 17.457784297,
+          "untimed_seconds": 196.33178436564344,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 0,
+            "update": 0
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 0,
+            "update": 0
+          }
+        }
+      ]
+    },
+    {
+      "job": "treepir-server-h32-m0-c0",
+      "benchmark": "bench_treepir_comparison_local",
+      "elapsed_seconds": 27168.07474255562,
+      "timed_seconds": 21870.597560382,
+      "untimed_seconds": 5297.4771821736185,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 3647.4349930286407,
+          "timed_seconds": 2771.5179467119997,
+          "untimed_seconds": 875.9170463166411,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1
+          }
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 3634.5866215229034,
+          "timed_seconds": 2727.9395082640003,
+          "untimed_seconds": 906.6471132589031,
+          "group_repetitions": {
+            "online": 0,
+            "preprocess": 10
+          },
+          "group_warmups": {
+            "online": 0,
+            "preprocess": 1
+          }
+        },
+        {
+          "index": 2,
+          "elapsed_seconds": 6791.305517435074,
+          "timed_seconds": 5464.073677193,
+          "untimed_seconds": 1327.2318402420742,
+          "group_repetitions": {
+            "online": 0,
+            "preprocess": 20
+          },
+          "group_warmups": {
+            "online": 0,
+            "preprocess": 1
+          }
+        },
+        {
+          "index": 3,
+          "elapsed_seconds": 13094.747610569,
+          "timed_seconds": 10907.066428213,
+          "untimed_seconds": 2187.681182356,
+          "group_repetitions": {
+            "online": 0,
+            "preprocess": 40
+          },
+          "group_warmups": {
+            "online": 0,
+            "preprocess": 1
+          }
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log256gib-p17-k64",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 3086.0360713005066,
+      "timed_seconds": 1591.540757964,
+      "untimed_seconds": 1494.4953133365066,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 3086.0360713005066,
+          "timed_seconds": 1591.540757964,
+          "untimed_seconds": 1494.4953133365066,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1,
+            "update": 3
+          }
+        }
+      ]
+    },
+    {
+      "job": "treepir-server-h32-m31-c31",
+      "benchmark": "bench_treepir_comparison_local",
+      "elapsed_seconds": 4202.524092674255,
+      "timed_seconds": 2798.244951434,
+      "untimed_seconds": 1404.2791412402553,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 3642.9480793476105,
+          "timed_seconds": 2758.615853407,
+          "untimed_seconds": 884.3322259406104,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1
+          }
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 559.5760133266449,
+          "timed_seconds": 39.629098027,
+          "untimed_seconds": 519.9469152996448,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 0
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 0
+          }
+        }
+      ]
+    },
+    {
+      "job": "treepir-client-h32-generated",
+      "benchmark": "bench_treepir_comparison_local",
+      "elapsed_seconds": 973.7644762992859,
+      "timed_seconds": 363.81093709600003,
+      "untimed_seconds": 609.9535392032859,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 434.2886550426483,
+          "timed_seconds": 22.739750525999995,
+          "untimed_seconds": 411.54890451664835,
+          "group_repetitions": {
+            "components": 10,
+            "paired": 10,
+            "totals": 10
+          },
+          "group_warmups": {
+            "components": 3,
+            "paired": 3,
+            "totals": 3
+          }
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 45.235424518585205,
+          "timed_seconds": 22.762404191,
+          "untimed_seconds": 22.473020327585203,
+          "group_repetitions": {
+            "components": 10,
+            "paired": 0,
+            "totals": 0
+          },
+          "group_warmups": {
+            "components": 3,
+            "paired": 0,
+            "totals": 0
+          }
+        },
+        {
+          "index": 2,
+          "elapsed_seconds": 77.69047999382019,
+          "timed_seconds": 45.460704038999985,
+          "untimed_seconds": 32.229775954820205,
+          "group_repetitions": {
+            "components": 20,
+            "paired": 0,
+            "totals": 0
+          },
+          "group_warmups": {
+            "components": 3,
+            "paired": 0,
+            "totals": 0
+          }
+        },
+        {
+          "index": 3,
+          "elapsed_seconds": 143.24205780029297,
+          "timed_seconds": 91.031477277,
+          "untimed_seconds": 52.210580523292975,
+          "group_repetitions": {
+            "components": 40,
+            "paired": 0,
+            "totals": 0
+          },
+          "group_warmups": {
+            "components": 3,
+            "paired": 0,
+            "totals": 0
+          }
+        },
+        {
+          "index": 4,
+          "elapsed_seconds": 273.3078589439392,
+          "timed_seconds": 181.81660106300006,
+          "untimed_seconds": 91.49125788093914,
+          "group_repetitions": {
+            "components": 80,
+            "paired": 0,
+            "totals": 0
+          },
+          "group_warmups": {
+            "components": 3,
+            "paired": 0,
+            "totals": 0
+          }
+        }
+      ]
+    },
+    {
+      "job": "range-client-borg-k64",
+      "benchmark": "bench_append_only_log_range_open_local",
+      "elapsed_seconds": 1169.6325545310974,
+      "timed_seconds": 744.862498537,
+      "untimed_seconds": 424.77005599409745,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 1169.6325545310974,
+          "timed_seconds": 744.862498537,
+          "untimed_seconds": 424.77005599409745,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log64gib-p16-k64",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 985.9615592956543,
+      "timed_seconds": 588.213119307,
+      "untimed_seconds": 397.74843998865424,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 985.9615592956543,
+          "timed_seconds": 588.213119307,
+          "untimed_seconds": 397.74843998865424,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1,
+            "update": 3
+          }
+        }
+      ]
+    },
+    {
+      "job": "reconfig-borg-k64",
+      "benchmark": "bench_append_only_log_one_server_kappa_rescale_local",
+      "elapsed_seconds": 393.63699173927307,
+      "timed_seconds": 7.183870174999999,
+      "untimed_seconds": 386.4531215642731,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 196.7933487892151,
+          "timed_seconds": 3.593262015,
+          "untimed_seconds": 193.2000867742151,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 196.84364295005798,
+          "timed_seconds": 3.5906081599999995,
+          "untimed_seconds": 193.253034790058,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "range-client-undine-k64",
+      "benchmark": "bench_append_only_log_range_open_local",
+      "elapsed_seconds": 997.334757566452,
+      "timed_seconds": 653.0633613630001,
+      "untimed_seconds": 344.2713962034519,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 997.334757566452,
+          "timed_seconds": 653.0633613630001,
+          "untimed_seconds": 344.2713962034519,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "treepir-client-h16-real",
+      "benchmark": "bench_treepir_comparison_local",
+      "elapsed_seconds": 386.5782346725464,
+      "timed_seconds": 91.35160623600001,
+      "untimed_seconds": 295.2266284365464,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 63.5049569606781,
+          "timed_seconds": 5.7108200810000005,
+          "untimed_seconds": 57.7941368796781,
+          "group_repetitions": {
+            "components": 10,
+            "totals": 10
+          },
+          "group_warmups": {
+            "components": 3,
+            "totals": 3
+          }
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 48.77366495132446,
+          "timed_seconds": 5.683254554,
+          "untimed_seconds": 43.09041039732446,
+          "group_repetitions": {
+            "components": 10,
+            "totals": 0
+          },
+          "group_warmups": {
+            "components": 3,
+            "totals": 0
+          }
+        },
+        {
+          "index": 2,
+          "elapsed_seconds": 60.23547554016113,
+          "timed_seconds": 11.383299716,
+          "untimed_seconds": 48.85217582416114,
+          "group_repetitions": {
+            "components": 20,
+            "totals": 0
+          },
+          "group_warmups": {
+            "components": 3,
+            "totals": 0
+          }
+        },
+        {
+          "index": 3,
+          "elapsed_seconds": 83.45268678665161,
+          "timed_seconds": 22.832592448999996,
+          "untimed_seconds": 60.620094337651615,
+          "group_repetitions": {
+            "components": 40,
+            "totals": 0
+          },
+          "group_warmups": {
+            "components": 3,
+            "totals": 0
+          }
+        },
+        {
+          "index": 4,
+          "elapsed_seconds": 130.61145043373108,
+          "timed_seconds": 45.74163943600001,
+          "untimed_seconds": 84.86981099773107,
+          "group_repetitions": {
+            "components": 80,
+            "totals": 0
+          },
+          "group_warmups": {
+            "components": 3,
+            "totals": 0
+          }
+        }
+      ]
+    },
+    {
+      "job": "range-helper-borg-k64",
+      "benchmark": "bench_append_only_log_range_open_local",
+      "elapsed_seconds": 269.05129194259644,
+      "timed_seconds": 2.219469408,
+      "untimed_seconds": 266.8318225345964,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 269.05129194259644,
+          "timed_seconds": 2.219469408,
+          "untimed_seconds": 266.8318225345964,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "range-helper-undine-k64",
+      "benchmark": "bench_append_only_log_range_open_local",
+      "elapsed_seconds": 219.14113640785217,
+      "timed_seconds": 1.4269566400000002,
+      "untimed_seconds": 217.71417976785216,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 219.14113640785217,
+          "timed_seconds": 1.4269566400000002,
+          "untimed_seconds": 217.71417976785216,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log64gib-p17-k64",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 1141.4447975158691,
+      "timed_seconds": 951.826457854,
+      "untimed_seconds": 189.6183396618692,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 1141.4447975158691,
+          "timed_seconds": 951.826457854,
+          "untimed_seconds": 189.6183396618692,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1,
+            "update": 3
+          }
+        }
+      ]
+    },
+    {
+      "job": "reconfig-undine-k64",
+      "benchmark": "bench_append_only_log_one_server_kappa_rescale_local",
+      "elapsed_seconds": 180.1597671508789,
+      "timed_seconds": 1.381169625,
+      "untimed_seconds": 178.77859752587892,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 59.928022146224976,
+          "timed_seconds": 0.34270191099999997,
+          "untimed_seconds": 59.58532023522498,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 59.927656412124634,
+          "timed_seconds": 0.347581386,
+          "untimed_seconds": 59.58007502612463,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 2,
+          "elapsed_seconds": 60.3040885925293,
+          "timed_seconds": 0.690886328,
+          "untimed_seconds": 59.6132022645293,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log64gib-p15-k64",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 689.8944642543793,
+      "timed_seconds": 515.4116982840001,
+      "untimed_seconds": 174.48276597037923,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 512.7965002059937,
+          "timed_seconds": 423.81895319800003,
+          "untimed_seconds": 88.97754700799362,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1,
+            "update": 3
+          }
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 177.09796404838562,
+          "timed_seconds": 91.59274508600001,
+          "untimed_seconds": 85.50521896238561,
+          "group_repetitions": {
+            "online": 0,
+            "preprocess": 0,
+            "update": 10
+          },
+          "group_warmups": {
+            "online": 0,
+            "preprocess": 0,
+            "update": 3
+          }
+        }
+      ]
+    },
+    {
+      "job": "private-single-undine-log4gib-p11",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 1438.2127330303192,
+      "timed_seconds": 1267.3383264650001,
+      "untimed_seconds": 170.87440656531908,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 1438.2127330303192,
+          "timed_seconds": 1267.3383264650001,
+          "untimed_seconds": 170.87440656531908,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1
+          }
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log16gib-p15-k64",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 368.2193477153778,
+      "timed_seconds": 252.62895958300004,
+      "untimed_seconds": 115.59038813237777,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 368.2193477153778,
+          "timed_seconds": 252.62895958300004,
+          "untimed_seconds": 115.59038813237777,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1,
+            "update": 3
+          }
+        }
+      ]
+    },
+    {
+      "job": "reconfig-borg-k32",
+      "benchmark": "bench_append_only_log_one_server_kappa_rescale_local",
+      "elapsed_seconds": 95.70670437812805,
+      "timed_seconds": 3.4953737900000004,
+      "untimed_seconds": 92.21133058812805,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 95.70670437812805,
+          "timed_seconds": 3.4953737900000004,
+          "untimed_seconds": 92.21133058812805,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "append-4mib-borg-k8",
+      "benchmark": "bench_append_only_log_bulk_updates_append_local",
+      "elapsed_seconds": 252.9632213115692,
+      "timed_seconds": 167.711533976,
+      "untimed_seconds": 85.25168733556922,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 252.9632213115692,
+          "timed_seconds": 167.711533976,
+          "untimed_seconds": 85.25168733556922,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log64gib-p14-k64",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 445.3604781627655,
+      "timed_seconds": 362.453437786,
+      "untimed_seconds": 82.90704037676551,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 445.3604781627655,
+          "timed_seconds": 362.453437786,
+          "untimed_seconds": 82.90704037676551,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1,
+            "update": 3
+          }
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log4gib-p12-k8",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 397.3754029273987,
+      "timed_seconds": 316.90861208900003,
+      "untimed_seconds": 80.46679083839865,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 397.3754029273987,
+          "timed_seconds": 316.90861208900003,
+          "untimed_seconds": 80.46679083839865,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1,
+            "update": 3
+          }
+        }
+      ]
+    },
+    {
+      "job": "private-single-undine-log1gib-p11",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 691.2769713401794,
+      "timed_seconds": 616.017322693,
+      "untimed_seconds": 75.25964864717946,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 691.2769713401794,
+          "timed_seconds": 616.017322693,
+          "untimed_seconds": 75.25964864717946,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1
+          }
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log4gib-p13-k16",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 322.21396136283875,
+      "timed_seconds": 253.852431954,
+      "untimed_seconds": 68.36152940883875,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 322.21396136283875,
+          "timed_seconds": 253.852431954,
+          "untimed_seconds": 68.36152940883875,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1,
+            "update": 3
+          }
+        }
+      ]
+    },
+    {
+      "job": "point-client-borg-k64",
+      "benchmark": "bench_append_only_log_client_point_open_local",
+      "elapsed_seconds": 63.54540395736694,
+      "timed_seconds": 9.211043959,
+      "untimed_seconds": 54.33435999836694,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 11.452309370040894,
+          "timed_seconds": 0.582181673,
+          "untimed_seconds": 10.870127697040893,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 11.42875337600708,
+          "timed_seconds": 0.5853158239999999,
+          "untimed_seconds": 10.84343755200708,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 2,
+          "elapsed_seconds": 12.039258003234863,
+          "timed_seconds": 1.16185596,
+          "untimed_seconds": 10.877402043234863,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 3,
+          "elapsed_seconds": 13.167903423309326,
+          "timed_seconds": 2.302502047,
+          "untimed_seconds": 10.865401376309325,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 4,
+          "elapsed_seconds": 15.45717978477478,
+          "timed_seconds": 4.579188455,
+          "untimed_seconds": 10.87799132977478,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "append-4mib-borg-k16",
+      "benchmark": "bench_append_only_log_bulk_updates_append_local",
+      "elapsed_seconds": 201.8762390613556,
+      "timed_seconds": 147.744451754,
+      "untimed_seconds": 54.13178730735558,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 201.8762390613556,
+          "timed_seconds": 147.744451754,
+          "untimed_seconds": 54.13178730735558,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-single-undine-log1gib-p10",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 472.0283954143524,
+      "timed_seconds": 419.9702328,
+      "untimed_seconds": 52.0581626143524,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 472.0283954143524,
+          "timed_seconds": 419.9702328,
+          "untimed_seconds": 52.0581626143524,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1
+          }
+        }
+      ]
+    },
+    {
+      "job": "reconfig-borg-k16",
+      "benchmark": "bench_append_only_log_one_server_kappa_rescale_local",
+      "elapsed_seconds": 53.19764471054077,
+      "timed_seconds": 4.197608435999999,
+      "untimed_seconds": 49.000036274540776,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 53.19764471054077,
+          "timed_seconds": 4.197608435999999,
+          "untimed_seconds": 49.000036274540776,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "repair-borg-k64",
+      "benchmark": "bench_append_only_log_repair_kernels_local",
+      "elapsed_seconds": 51.14421200752258,
+      "timed_seconds": 2.4277548280000003,
+      "untimed_seconds": 48.716457179522585,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 51.14421200752258,
+          "timed_seconds": 2.4277548280000003,
+          "untimed_seconds": 48.716457179522585,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "append-4mib-borg-k32",
+      "benchmark": "bench_append_only_log_bulk_updates_append_local",
+      "elapsed_seconds": 190.57576155662537,
+      "timed_seconds": 143.911659814,
+      "untimed_seconds": 46.66410174262538,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 190.57576155662537,
+          "timed_seconds": 143.911659814,
+          "untimed_seconds": 46.66410174262538,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "append-4mib-borg-k64",
+      "benchmark": "bench_append_only_log_bulk_updates_append_local",
+      "elapsed_seconds": 197.36312198638916,
+      "timed_seconds": 151.502908246,
+      "untimed_seconds": 45.860213740389156,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 197.36312198638916,
+          "timed_seconds": 151.502908246,
+          "untimed_seconds": 45.860213740389156,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-single-undine-log1gib-p9",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 375.86158418655396,
+      "timed_seconds": 331.11253203099994,
+      "untimed_seconds": 44.74905215555401,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 375.86158418655396,
+          "timed_seconds": 331.11253203099994,
+          "untimed_seconds": 44.74905215555401,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1
+          }
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log4gib-p14-k64",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 176.06647372245789,
+      "timed_seconds": 132.35448912,
+      "untimed_seconds": 43.711984602457875,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 176.06647372245789,
+          "timed_seconds": 132.35448912,
+          "untimed_seconds": 43.711984602457875,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1,
+            "update": 3
+          }
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log4gib-p13-k32",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 172.6476891040802,
+      "timed_seconds": 129.281721958,
+      "untimed_seconds": 43.36596714608021,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 172.6476891040802,
+          "timed_seconds": 129.281721958,
+          "untimed_seconds": 43.36596714608021,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1,
+            "update": 3
+          }
+        }
+      ]
+    },
+    {
+      "job": "reconfig-borg-k8",
+      "benchmark": "bench_append_only_log_one_server_kappa_rescale_local",
+      "elapsed_seconds": 47.842259645462036,
+      "timed_seconds": 11.602697736999998,
+      "untimed_seconds": 36.239561908462036,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 47.842259645462036,
+          "timed_seconds": 11.602697736999998,
+          "untimed_seconds": 36.239561908462036,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-client-undine-k256",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 82.4363842010498,
+      "timed_seconds": 51.632033489,
+      "untimed_seconds": 30.804350712049803,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 82.4363842010498,
+          "timed_seconds": 51.632033489,
+          "untimed_seconds": 30.804350712049803,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "reconfig-undine-k32",
+      "benchmark": "bench_append_only_log_one_server_kappa_rescale_local",
+      "elapsed_seconds": 29.936166286468506,
+      "timed_seconds": 0.361524224,
+      "untimed_seconds": 29.574642062468506,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 29.936166286468506,
+          "timed_seconds": 0.361524224,
+          "untimed_seconds": 29.574642062468506,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "append-4mib-undine-k64",
+      "benchmark": "bench_append_only_log_bulk_updates_append_local",
+      "elapsed_seconds": 135.5234887599945,
+      "timed_seconds": 106.297597865,
+      "untimed_seconds": 29.225890894994507,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 135.5234887599945,
+          "timed_seconds": 106.297597865,
+          "untimed_seconds": 29.225890894994507,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "repair-undine-k64",
+      "benchmark": "bench_append_only_log_repair_kernels_local",
+      "elapsed_seconds": 29.412925243377686,
+      "timed_seconds": 0.451138869,
+      "untimed_seconds": 28.961786374377684,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 29.412925243377686,
+          "timed_seconds": 0.451138869,
+          "untimed_seconds": 28.961786374377684,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "append-4mib-undine-k8",
+      "benchmark": "bench_append_only_log_bulk_updates_append_local",
+      "elapsed_seconds": 132.9342646598816,
+      "timed_seconds": 104.006797421,
+      "untimed_seconds": 28.92746723888159,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 132.9342646598816,
+          "timed_seconds": 104.006797421,
+          "untimed_seconds": 28.92746723888159,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "append-4mib-undine-k16",
+      "benchmark": "bench_append_only_log_bulk_updates_append_local",
+      "elapsed_seconds": 131.6930866241455,
+      "timed_seconds": 103.360429612,
+      "untimed_seconds": 28.332657012145503,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 131.6930866241455,
+          "timed_seconds": 103.360429612,
+          "untimed_seconds": 28.332657012145503,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "append-4mib-undine-k32",
+      "benchmark": "bench_append_only_log_bulk_updates_append_local",
+      "elapsed_seconds": 130.96279072761536,
+      "timed_seconds": 102.67834727,
+      "untimed_seconds": 28.284443457615353,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 130.96279072761536,
+          "timed_seconds": 102.67834727,
+          "untimed_seconds": 28.284443457615353,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "repair-borg-k32",
+      "benchmark": "bench_append_only_log_repair_kernels_local",
+      "elapsed_seconds": 28.80353546142578,
+      "timed_seconds": 3.4445218530000004,
+      "untimed_seconds": 25.35901360842578,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 28.80353546142578,
+          "timed_seconds": 3.4445218530000004,
+          "untimed_seconds": 25.35901360842578,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log1gib-p13-k64",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 87.98465323448181,
+      "timed_seconds": 64.869917543,
+      "untimed_seconds": 23.11473569148181,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 82.81307625770569,
+          "timed_seconds": 63.995986393,
+          "untimed_seconds": 18.817089864705686,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 1,
+            "update": 3
+          }
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 5.171576976776123,
+          "timed_seconds": 0.87393115,
+          "untimed_seconds": 4.297645826776123,
+          "group_repetitions": {
+            "online": 10,
+            "preprocess": 0,
+            "update": 0
+          },
+          "group_warmups": {
+            "online": 3,
+            "preprocess": 0,
+            "update": 0
+          }
+        }
+      ]
+    },
+    {
+      "job": "repair-undine-k8",
+      "benchmark": "bench_append_only_log_repair_kernels_local",
+      "elapsed_seconds": 25.182750701904297,
+      "timed_seconds": 4.846600254,
+      "untimed_seconds": 20.336150447904295,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 8.036545753479004,
+          "timed_seconds": 1.254187779,
+          "untimed_seconds": 6.7823579744790035,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 7.99574613571167,
+          "timed_seconds": 1.2355898760000001,
+          "untimed_seconds": 6.760156259711669,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 2,
+          "elapsed_seconds": 9.150458812713623,
+          "timed_seconds": 2.356822599,
+          "untimed_seconds": 6.793636213713623,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "repair-borg-k8",
+      "benchmark": "bench_append_only_log_repair_kernels_local",
+      "elapsed_seconds": 33.23264765739441,
+      "timed_seconds": 15.545859635000001,
+      "untimed_seconds": 17.68678802239441,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 33.23264765739441,
+          "timed_seconds": 15.545859635000001,
+          "untimed_seconds": 17.68678802239441,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "repair-borg-k16",
+      "benchmark": "bench_append_only_log_repair_kernels_local",
+      "elapsed_seconds": 21.77296233177185,
+      "timed_seconds": 5.312370338,
+      "untimed_seconds": 16.46059199377185,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 21.77296233177185,
+          "timed_seconds": 5.312370338,
+          "untimed_seconds": 16.46059199377185,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "reconfig-undine-k16",
+      "benchmark": "bench_append_only_log_one_server_kappa_rescale_local",
+      "elapsed_seconds": 15.84632658958435,
+      "timed_seconds": 0.441064498,
+      "untimed_seconds": 15.405262091584351,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 15.84632658958435,
+          "timed_seconds": 0.441064498,
+          "untimed_seconds": 15.405262091584351,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "repair-undine-k32",
+      "benchmark": "bench_append_only_log_repair_kernels_local",
+      "elapsed_seconds": 15.845494031906128,
+      "timed_seconds": 0.483492279,
+      "untimed_seconds": 15.362001752906128,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 15.845494031906128,
+          "timed_seconds": 0.483492279,
+          "untimed_seconds": 15.362001752906128,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-table-undine-log4gib-k64",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 13.846885681152344,
+      "timed_seconds": 1.200197254,
+      "untimed_seconds": 12.646688427152343,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 13.846885681152344,
+          "timed_seconds": 1.200197254,
+          "untimed_seconds": 12.646688427152343,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "point-client-borg-k8",
+      "benchmark": "bench_append_only_log_client_point_open_local",
+      "elapsed_seconds": 12.06417727470398,
+      "timed_seconds": 0.039268695,
+      "untimed_seconds": 12.024908579703979,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 3.9855170249938965,
+          "timed_seconds": 0.009935873000000001,
+          "untimed_seconds": 3.9755811519938966,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 4.041229486465454,
+          "timed_seconds": 0.009864666,
+          "untimed_seconds": 4.031364820465454,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 2,
+          "elapsed_seconds": 4.037430763244629,
+          "timed_seconds": 0.019468156,
+          "untimed_seconds": 4.017962607244629,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-client-undine-log16gib-k64",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 39.835511922836304,
+      "timed_seconds": 28.902409423,
+      "untimed_seconds": 10.933102499836304,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 19.871634483337402,
+          "timed_seconds": 14.420649076,
+          "untimed_seconds": 5.450985407337402,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 19.9638774394989,
+          "timed_seconds": 14.481760347,
+          "untimed_seconds": 5.482117092498902,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "point-client-undine-k64",
+      "benchmark": "bench_append_only_log_client_point_open_local",
+      "elapsed_seconds": 10.159471988677979,
+      "timed_seconds": 0.5591657,
+      "untimed_seconds": 9.600306288677979,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 10.159471988677979,
+          "timed_seconds": 0.5591657,
+          "untimed_seconds": 9.600306288677979,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "repair-undine-k16",
+      "benchmark": "bench_append_only_log_repair_kernels_local",
+      "elapsed_seconds": 9.950569868087769,
+      "timed_seconds": 0.672217326,
+      "untimed_seconds": 9.278352542087768,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 9.950569868087769,
+          "timed_seconds": 0.672217326,
+          "untimed_seconds": 9.278352542087768,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "on-the-fly-undine-k64",
+      "benchmark": "bench_append_only_log_on_the_fly_open_local",
+      "elapsed_seconds": 22.853157997131348,
+      "timed_seconds": 13.66833299,
+      "untimed_seconds": 9.184825007131348,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 2.645113229751587,
+          "timed_seconds": 0.859018446,
+          "untimed_seconds": 1.786094783751587,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 2.641437530517578,
+          "timed_seconds": 0.852220957,
+          "untimed_seconds": 1.789216573517578,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 2,
+          "elapsed_seconds": 3.524881601333618,
+          "timed_seconds": 1.708872624,
+          "untimed_seconds": 1.816008977333618,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 3,
+          "elapsed_seconds": 5.270930767059326,
+          "timed_seconds": 3.4293536949999996,
+          "untimed_seconds": 1.8415770720593265,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 4,
+          "elapsed_seconds": 8.770794868469238,
+          "timed_seconds": 6.818867268,
+          "untimed_seconds": 1.9519276004692383,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "reconfig-undine-k8",
+      "benchmark": "bench_append_only_log_one_server_kappa_rescale_local",
+      "elapsed_seconds": 9.25467848777771,
+      "timed_seconds": 0.626668641,
+      "untimed_seconds": 8.62800984677771,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 9.25467848777771,
+          "timed_seconds": 0.626668641,
+          "untimed_seconds": 8.62800984677771,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "on-the-fly-undine-k32",
+      "benchmark": "bench_append_only_log_on_the_fly_open_local",
+      "elapsed_seconds": 12.01229190826416,
+      "timed_seconds": 4.095705114,
+      "untimed_seconds": 7.91658679426416,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 1.7911536693572998,
+          "timed_seconds": 0.25685310599999994,
+          "untimed_seconds": 1.5343005633573,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 1.8004674911499023,
+          "timed_seconds": 0.256265799,
+          "untimed_seconds": 1.5442016921499024,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 2,
+          "elapsed_seconds": 2.0589332580566406,
+          "timed_seconds": 0.512006527,
+          "untimed_seconds": 1.5469267310566406,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 3,
+          "elapsed_seconds": 2.643461227416992,
+          "timed_seconds": 1.025453416,
+          "untimed_seconds": 1.6180078114169922,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 4,
+          "elapsed_seconds": 3.718276262283325,
+          "timed_seconds": 2.0451262660000005,
+          "untimed_seconds": 1.6731499962833247,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "on-the-fly-undine-k8",
+      "benchmark": "bench_append_only_log_on_the_fly_open_local",
+      "elapsed_seconds": 9.21357774734497,
+      "timed_seconds": 2.194183758,
+      "untimed_seconds": 7.01939398934497,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 1.9219176769256592,
+          "timed_seconds": 0.27362936,
+          "untimed_seconds": 1.6482883169256592,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 1.9311587810516357,
+          "timed_seconds": 0.274669975,
+          "untimed_seconds": 1.6564888060516356,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 2,
+          "elapsed_seconds": 2.3033928871154785,
+          "timed_seconds": 0.5487794460000001,
+          "untimed_seconds": 1.7546134411154783,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 3,
+          "elapsed_seconds": 3.0571084022521973,
+          "timed_seconds": 1.0971049769999999,
+          "untimed_seconds": 1.9600034252521974,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "point-client-borg-k32",
+      "benchmark": "bench_append_only_log_client_point_open_local",
+      "elapsed_seconds": 6.860509634017944,
+      "timed_seconds": 0.15144079600000002,
+      "untimed_seconds": 6.709068838017944,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 6.860509634017944,
+          "timed_seconds": 0.15144079600000002,
+          "untimed_seconds": 6.709068838017944,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-table-undine-log1gib-k64",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 7.127186298370361,
+      "timed_seconds": 0.532865496,
+      "untimed_seconds": 6.594320802370361,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 7.127186298370361,
+          "timed_seconds": 0.532865496,
+          "untimed_seconds": 6.594320802370361,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "on-the-fly-undine-k16",
+      "benchmark": "bench_append_only_log_on_the_fly_open_local",
+      "elapsed_seconds": 7.615227460861206,
+      "timed_seconds": 1.336268687,
+      "untimed_seconds": 6.2789587738612065,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 1.69476318359375,
+          "timed_seconds": 0.16750319,
+          "untimed_seconds": 1.52725999359375,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 1.7058460712432861,
+          "timed_seconds": 0.16821041599999997,
+          "untimed_seconds": 1.5376356552432862,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 2,
+          "elapsed_seconds": 1.912886381149292,
+          "timed_seconds": 0.333848803,
+          "untimed_seconds": 1.579037578149292,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 3,
+          "elapsed_seconds": 2.301731824874878,
+          "timed_seconds": 0.666706278,
+          "untimed_seconds": 1.635025546874878,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-client-undine-log32gib-k64",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 20.106751680374146,
+      "timed_seconds": 14.582026530000002,
+      "untimed_seconds": 5.5247251503741435,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 20.106751680374146,
+          "timed_seconds": 14.582026530000002,
+          "untimed_seconds": 5.5247251503741435,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "point-client-undine-k32",
+      "benchmark": "bench_append_only_log_client_point_open_local",
+      "elapsed_seconds": 5.215709447860718,
+      "timed_seconds": 0.147676406,
+      "untimed_seconds": 5.068033041860717,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 5.215709447860718,
+          "timed_seconds": 0.147676406,
+          "untimed_seconds": 5.068033041860717,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "point-client-borg-k16",
+      "benchmark": "bench_append_only_log_client_point_open_local",
+      "elapsed_seconds": 4.780377626419067,
+      "timed_seconds": 0.034377987,
+      "untimed_seconds": 4.745999639419067,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 4.780377626419067,
+          "timed_seconds": 0.034377987,
+          "untimed_seconds": 4.745999639419067,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-client-undine-k64",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 13.07424807548523,
+      "timed_seconds": 9.484905573999999,
+      "untimed_seconds": 3.5893425014852305,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 13.07424807548523,
+          "timed_seconds": 9.484905573999999,
+          "untimed_seconds": 3.5893425014852305,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-client-undine-log8gib-k64",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 13.101752996444702,
+      "timed_seconds": 9.513449818000002,
+      "untimed_seconds": 3.5883031784447006,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 13.101752996444702,
+          "timed_seconds": 9.513449818000002,
+          "untimed_seconds": 3.5883031784447006,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "point-client-undine-k16",
+      "benchmark": "bench_append_only_log_client_point_open_local",
+      "elapsed_seconds": 3.163071632385254,
+      "timed_seconds": 0.032623919,
+      "untimed_seconds": 3.1304477133852537,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 3.163071632385254,
+          "timed_seconds": 0.032623919,
+          "untimed_seconds": 3.1304477133852537,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-client-undine-k8",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 18.93895673751831,
+      "timed_seconds": 16.029909248,
+      "untimed_seconds": 2.90904748951831,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 2.7284185886383057,
+          "timed_seconds": 2.01084599,
+          "untimed_seconds": 0.7175725986383057,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 2.7127597332000732,
+          "timed_seconds": 2.001452441,
+          "untimed_seconds": 0.7113072922000732,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 2,
+          "elapsed_seconds": 4.716030597686768,
+          "timed_seconds": 3.981580192,
+          "untimed_seconds": 0.7344504056867676,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 3,
+          "elapsed_seconds": 8.781747817993164,
+          "timed_seconds": 8.036030625,
+          "untimed_seconds": 0.7457171929931636,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "point-helper-undine-k64",
+      "benchmark": "bench_append_only_log_point_open_local",
+      "elapsed_seconds": 2.3887293338775635,
+      "timed_seconds": 0.000160396,
+      "untimed_seconds": 2.3885689378775634,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 1.188915729522705,
+          "timed_seconds": 8.2121e-05,
+          "untimed_seconds": 1.1888336085227051,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 1.1998136043548584,
+          "timed_seconds": 7.8275e-05,
+          "untimed_seconds": 1.1997353293548585,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "point-helper-undine-k16",
+      "benchmark": "bench_append_only_log_point_open_local",
+      "elapsed_seconds": 2.336932420730591,
+      "timed_seconds": 0.00017030799999999998,
+      "untimed_seconds": 2.336762112730591,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 1.176572322845459,
+          "timed_seconds": 8.5712e-05,
+          "untimed_seconds": 1.176486610845459,
+          "group_repetitions": {},
+          "group_warmups": {}
+        },
+        {
+          "index": 1,
+          "elapsed_seconds": 1.1603600978851318,
+          "timed_seconds": 8.4596e-05,
+          "untimed_seconds": 1.1602755018851318,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "point-client-undine-k8",
+      "benchmark": "bench_append_only_log_client_point_open_local",
+      "elapsed_seconds": 2.3210067749023438,
+      "timed_seconds": 0.008262008000000001,
+      "untimed_seconds": 2.3127447669023438,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 2.3210067749023438,
+          "timed_seconds": 0.008262008000000001,
+          "untimed_seconds": 2.3127447669023438,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "point-helper-borg-k8",
+      "benchmark": "bench_append_only_log_point_open_local",
+      "elapsed_seconds": 1.650278091430664,
+      "timed_seconds": 0.001779682,
+      "untimed_seconds": 1.648498409430664,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 1.650278091430664,
+          "timed_seconds": 0.001779682,
+          "untimed_seconds": 1.648498409430664,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "point-helper-borg-k64",
+      "benchmark": "bench_append_only_log_point_open_local",
+      "elapsed_seconds": 1.4960846900939941,
+      "timed_seconds": 0.003062063,
+      "untimed_seconds": 1.4930226270939941,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 1.4960846900939941,
+          "timed_seconds": 0.003062063,
+          "untimed_seconds": 1.4930226270939941,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "point-helper-borg-k16",
+      "benchmark": "bench_append_only_log_point_open_local",
+      "elapsed_seconds": 1.4493234157562256,
+      "timed_seconds": 0.001930957,
+      "untimed_seconds": 1.4473924587562257,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 1.4493234157562256,
+          "timed_seconds": 0.001930957,
+          "untimed_seconds": 1.4473924587562257,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-client-undine-k32",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 5.356632471084595,
+      "timed_seconds": 3.9139704799999993,
+      "untimed_seconds": 1.4426619910845955,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 5.356632471084595,
+          "timed_seconds": 3.9139704799999993,
+          "untimed_seconds": 1.4426619910845955,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "point-helper-borg-k32",
+      "benchmark": "bench_append_only_log_point_open_local",
+      "elapsed_seconds": 1.433457374572754,
+      "timed_seconds": 0.002295747,
+      "untimed_seconds": 1.431161627572754,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 1.433457374572754,
+          "timed_seconds": 0.002295747,
+          "untimed_seconds": 1.431161627572754,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "private-client-undine-k16",
+      "benchmark": "bench_private_opening_local",
+      "elapsed_seconds": 4.887102842330933,
+      "timed_seconds": 3.580723291,
+      "untimed_seconds": 1.3063795513309326,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 4.887102842330933,
+          "timed_seconds": 3.580723291,
+          "untimed_seconds": 1.3063795513309326,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "point-helper-undine-k32",
+      "benchmark": "bench_append_only_log_point_open_local",
+      "elapsed_seconds": 1.18996000289917,
+      "timed_seconds": 8.4598e-05,
+      "untimed_seconds": 1.18987540489917,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 1.18996000289917,
+          "timed_seconds": 8.4598e-05,
+          "untimed_seconds": 1.18987540489917,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    },
+    {
+      "job": "point-helper-undine-k8",
+      "benchmark": "bench_append_only_log_point_open_local",
+      "elapsed_seconds": 1.1704483032226562,
+      "timed_seconds": 8.948e-05,
+      "untimed_seconds": 1.1703588232226563,
+      "batches": [
+        {
+          "index": 0,
+          "elapsed_seconds": 1.1704483032226562,
+          "timed_seconds": 8.948e-05,
+          "untimed_seconds": 1.1703588232226563,
+          "group_repetitions": {},
+          "group_warmups": {}
+        }
+      ]
+    }
+  ]
+}

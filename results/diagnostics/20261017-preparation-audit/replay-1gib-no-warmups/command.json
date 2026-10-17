@@ -1,0 +1,26 @@
+{
+  "binary": "results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+  "binary_sha256_prefix": "177282142665a14a",
+  "command": [
+    "taskset",
+    "--cpu-list",
+    "2",
+    "<binary>",
+    "--bench"
+  ],
+  "cwd": "a scratch directory outside the repository",
+  "env": {
+    "BENCH_FIXTURE_DIR": "<scratch fixture dir>",
+    "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
+    "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
+    "BENCH_PRIVATE_OPENING_KAPPA": "64",
+    "BENCH_PRIVATE_OPENING_LEAVES": "33554432",
+    "BENCH_PRIVATE_OPENING_PATTERN_BITS": "13",
+    "BENCH_PRIVATE_OPENING_ROLE": "maintainer",
+    "BENCH_PRIVATE_OPENING_SEGMENTS_PER_RECORD": "1",
+    "BENCH_PRIVATE_OPENING_TREE_HEIGHT": "50",
+    "BENCH_PRIVATE_OPENING_TRIALS": "3",
+    "BENCH_SAMPLE_GROUPS": "{\"online\": 3, \"preprocess\": 3, \"update\": 3}"
+  },
+  "purpose": "The job private-maintainer-undine-log1gib-p13-k64 of the stopped run, replayed with no discarded warmups and three retained samples per group, to measure the first build and first update of a process directly."
+}

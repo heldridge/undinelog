@@ -35,6 +35,11 @@ from typing import Any, Iterable, Iterator, Mapping, Sequence
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RUNS_ROOT = ROOT / "results" / "runs"
 GATES_ROOT = ROOT / "results" / "gates"
+# Untimed fixtures (seeded primary columns, range snapshots) are shared by every
+# run. Each entry is keyed by the benchmark executable's digest and the complete
+# workload and is checksum-verified on load, so a run reuses an entry exactly
+# when the measured binary and workload are unchanged, and rebuilds it otherwise.
+FIXTURES_ROOT = ROOT / "results" / "fixtures"
 PIPELINE_VERSION = 2
 FIELD_BYTES = 32
 TREE_HEIGHT = 50
@@ -44,8 +49,15 @@ DEFAULT_MIN_REPETITIONS = 10
 DIRECT_WARMUP_REPETITIONS = 3
 APPEND_WARMUP_REPETITIONS = 1
 # A repetition that rebuilds a server from the start has warm code and a warm
-# allocator after one rebuild.
+# allocator after one rebuild. A replay of the 1 GiB maintainer job without
+# any discarded repetition (results/diagnostics/20261017-preparation-audit)
+# measured the first build of a process 3-5% slower than the following ones,
+# so this warmup stays.
 REBUILD_WARMUP_REPETITIONS = 1
+# The maintainer's append-and-update samples follow the preprocessing builds
+# and online queries of the same process. The same replay measured the first
+# update within 1% of the following ones, so none is discarded.
+UPDATE_WARMUP_REPETITIONS = 0
 DEFAULT_RELATIVE_HALF_WIDTH = 0.05
 # Short operations can need thousands of observations when occasional delays
 # dominate their variance. Declare the entire schedule before a run; the
@@ -1636,7 +1648,9 @@ def _private_outputs(
                      else "update" if name.startswith("update_") else "online")
         outputs[name] = ensure_output(
             manifest, job, f"{tag}{name}", entry_selector=match, path=name,
-            kind="timing", unit="ns", sample_mode="rebuild" if group == "preprocess" else sample_mode,
+            kind="timing", unit="ns",
+            sample_mode=("rebuild" if group == "preprocess"
+                         else "update" if group == "update" else sample_mode),
             sample_group=group, description=description,
         )
     return outputs
@@ -2709,6 +2723,8 @@ def benchmark_warmup_repetitions(run_job: RunJob, mode: str) -> int:
         return DIRECT_WARMUP_REPETITIONS
     if modes == {"rebuild"}:
         return REBUILD_WARMUP_REPETITIONS
+    if modes == {"update"}:
+        return UPDATE_WARMUP_REPETITIONS
     groups = {item.sample_group for item in run_job.measurements if item.kind == "timing"}
     if len(groups) > 1:
         return max(benchmark_warmup_repetitions(
@@ -3589,7 +3605,7 @@ def extract_measurements(
             raise PipelineError(
                 f"{measurement.id}: trials={declared_trials}, samples={len(numeric)}"
             )
-        if measurement.sample_mode in {"direct", "rebuild"}:
+        if measurement.sample_mode in {"direct", "rebuild", "update"}:
             if len(numeric) != expected_trials:
                 raise PipelineError(
                     f"{measurement.id}: expected {expected_trials} direct samples, "
@@ -4163,8 +4179,10 @@ def execute_batch(
     environment["GIT_WORK_TREE"] = str(ROOT)
     effective_env = run_job.effective_env()
     # Only immutable, untimed inputs live here. Benchmarks bind each entry
-    # to their executable and workload and verify its complete-file checksum.
-    effective_env["BENCH_FIXTURE_DIR"] = str(run_dir / "fixtures")
+    # to their executable and workload and verify its complete-file checksum,
+    # so the cache is shared by every run instead of rebuilt per run.
+    FIXTURES_ROOT.mkdir(parents=True, exist_ok=True)
+    effective_env["BENCH_FIXTURE_DIR"] = str(FIXTURES_ROOT)
     for key, value in list(effective_env.items()):
         effective_env[key] = value.replace("{RESULT_PATH}", str(result_path))
     effective_env[run_job.spec.trial_env] = str(invocation_repetitions)
@@ -4887,6 +4905,7 @@ def write_summary_outputs(
             "append_independent_unit": "one complete 64-batch sequence",
             "direct_warmup_repetitions_per_process": DIRECT_WARMUP_REPETITIONS,
             "rebuild_warmup_repetitions_per_process": REBUILD_WARMUP_REPETITIONS,
+            "update_warmup_repetitions_per_process": UPDATE_WARMUP_REPETITIONS,
             "append_warmup_sequences_per_process": APPEND_WARMUP_REPETITIONS,
         },
         "records": records,

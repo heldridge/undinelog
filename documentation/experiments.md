@@ -192,8 +192,12 @@ private reply equals the public reply of its claim.
 
 The input cells are built on all cores before the timed repetitions, which
 run on the pinned CPU. The result document records both CPU sets. Each
-preprocessing batch discards one warmup rebuild; online and update batches
-discard three warmup samples. A group stops once all its measurements meet
+preprocessing batch discards one warmup rebuild and online batches discard
+three warmup samples. Update batches discard none: the appends follow the
+preprocessing builds and online queries of the same process, and the
+[preparation audit](../results/diagnostics/20261017-preparation-audit/README.md)
+measured the first update within 1% of the following ones while the first
+build of a process was 3-5% slower. A group stops once all its measurements meet
 the existing precision target. If only online or update samples remain, one
 fresh untimed build supplies their database; measured preprocessing samples
 always rebuild it completely.
@@ -369,10 +373,12 @@ in isolation. The output retains every per-opening timing as
 do not increase the confidence interval's sample count. Reported percentiles
 are of batch means, not single-request latency quantiles.
 
-Untimed fixture caches under `results/runs/<run>/fixtures/` share exact input
-state between adaptive batches and compatible jobs. Keys include the complete
-workload and executable hash; loads verify the complete-file checksum and
-reject corrupted data. Range snapshots include the root, primary columns and
+Untimed fixture caches under `results/fixtures/`, shared by every run, share
+exact input state between adaptive batches, compatible jobs and successive
+runs. Keys include the complete workload and executable hash, so a changed
+benchmark binary never reuses an entry; loads verify the complete-file
+checksum and reject corrupted data. Each batch's `stderr.log` records its
+hits and writes. Range snapshots include the root, primary columns and
 auxiliary rows. Bulk snapshots include the append state and restore a fresh
 mutable instance for every process. Hints, packing tables and measured
 operations are never loaded from a cache. Partial writes are cache misses.
@@ -393,5 +399,5 @@ hashes, and the runner checks it before and after building and before each
 batch. The archived executable is hashed and bound to that snapshot; resumption
 checks the executable again. Exact source and test files, including untracked
 additions, are retained under `provenance/source-tree/`. Only manifest-declared `BENCH_*` settings reach a
-benchmark, and profiling/tracing switches are removed. Build caches and untimed
-fixture files are not included in a packaged reference run.
+benchmark, and profiling/tracing switches are removed. Build caches and the
+shared untimed fixture files are not included in a packaged reference run.

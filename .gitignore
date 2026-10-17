@@ -2,6 +2,8 @@
 /borg/target/
 /results/runs/
 /results/gates/
+# Untimed fixtures shared by every run; each entry is bound to a binary digest.
+/results/fixtures/
 # Reviewed diagnostic evidence is added explicitly; scratch outputs stay local.
 /results/diagnostics/
 /artifact-run.log

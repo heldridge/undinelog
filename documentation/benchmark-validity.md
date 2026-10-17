@@ -161,3 +161,33 @@ artifact runner under `results/runs/`, so the standalone Cargo command and its
 crate-local output are no longer needed. The next full run starts fresh;
 neither the earlier stopped run nor the standalone correctness check supplies
 its published samples. The paper comparison remains at height 32.
+
+## October 17 preparation audit
+
+The completed full run `20261016T005529Z-full-2e1033e8d8` took 15.6 h: 10.3 h
+of timed samples and 5.2 h of untimed setup, warmups and verification. The
+[preparation audit](../results/diagnostics/20261017-preparation-audit/README.md)
+breaks the untimed time down per job. Beyond the TreePIR over-sampling that
+the precision policy above removes, two costs were avoidable without changing
+any measured operation.
+
+Fixtures were rebuilt from scratch in every run because the cache lived in the
+run's own directory: 85 minutes for the 1 TiB maintainer's primary columns,
+25 minutes for the 256 GiB ones, and about 2 h in all, repeated identically by
+the stopped run of October 17. The cache now lives in `results/fixtures/`,
+shared by every run. Its keys already include the benchmark executable's
+digest and the complete workload, and loads verify the complete-file checksum,
+so an entry is reused exactly when the measured binary and workload are
+unchanged. Builds are reproducible: the nine benchmark binaries had identical
+digests across the four full runs of October 16 and 17.
+
+Warmups were checked by replaying the 1 GiB maintainer job with no discarded
+repetition and three retained samples per group. The first build of the
+process was 3.1% slower for the hint, 4.6% for the packing tables and 4.2%
+for their sum than the following builds, so preprocessing batches keep their
+one discarded rebuild. The first append-and-update was within 1% of the
+following ones (0.993 for the hint patch, 1.005 for the packing rebuild), so
+update batches discard none of their three former warmups. Online batches
+keep three, which cost seconds. Update timings now carry the sample mode
+`update`; the manifest, checkpoint and summary record the policy, and a
+resumed run must agree with it.
