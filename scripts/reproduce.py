@@ -55,9 +55,12 @@ APPEND_WARMUP_REPETITIONS = 1
 # so this warmup stays.
 REBUILD_WARMUP_REPETITIONS = 1
 # The maintainer's append-and-update samples follow the preprocessing builds
-# and online queries of the same process. The same replay measured the first
-# update within 1% of the following ones, so none is discarded.
-UPDATE_WARMUP_REPETITIONS = 0
+# and online queries of the same process. Replays at 1 GiB and 64 GiB put the
+# first update within 1.3% of the following ones, but the full run
+# 20261017T171200Z measured the first hint patch of a process 14-21% slower at
+# 64 GiB and 4.5 times slower at 1 TiB, and the second one up to 11% slower,
+# so update batches keep the three discarded repetitions of direct benchmarks.
+UPDATE_WARMUP_REPETITIONS = 3
 DEFAULT_RELATIVE_HALF_WIDTH = 0.05
 # Short operations can need thousands of observations when occasional delays
 # dominate their variance. Declare the entire schedule before a run; the

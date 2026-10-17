@@ -1211,7 +1211,7 @@ class WarmupPolicyTests(unittest.TestCase):
                                    "online": MODULE.DIRECT_WARMUP_REPETITIONS,
                                    "update": MODULE.UPDATE_WARMUP_REPETITIONS})
         self.assertEqual(MODULE.REBUILD_WARMUP_REPETITIONS, 1)
-        self.assertEqual(MODULE.UPDATE_WARMUP_REPETITIONS, 0)
+        self.assertEqual(MODULE.UPDATE_WARMUP_REPETITIONS, 3)
 
     def test_fixture_cache_is_shared_and_ignored(self) -> None:
         self.assertEqual(MODULE.FIXTURES_ROOT, MODULE.ROOT / "results" / "fixtures")

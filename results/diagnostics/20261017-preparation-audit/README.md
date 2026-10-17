@@ -20,7 +20,7 @@ and 5.2 h untimed. The largest untimed items were:
 | --- | --- | --- |
 | TreePIR server job sampled to 80 rebuilds for a 75 ms stage | 6.3 h of its 7.5 h | precision policy (see `benchmark-validity.md`) |
 | Fixtures rebuilt from scratch in every run | about 2 h (85 min for the 1 TiB primary columns, 25 min for 256 GiB) | shared fixture cache |
-| Discarded warmup repetitions | 54 min (18 min TreePIR rebuilds, 12 min preprocessing builds, 8 min updates, the rest online) | update warmups dropped; rebuild warmup kept |
+| Discarded warmup repetitions | 54 min (18 min TreePIR rebuilds, 12 min preprocessing builds, 8 min updates, the rest online) | all kept; see the warmup replay and its full-run check below |
 | Repeat batches forced by sub-millisecond timers outside TreePIR | 25 min, mostly process setup repeated per batch | unchanged |
 
 The 1 TiB maintainer job spent 89 min untimed in its first batch, writing its
@@ -61,10 +61,38 @@ samples, against the shared fixture cache:
 The first build of a process is 3-5% slower than the following ones, ten
 times the 0.3% coefficient of variation of the retained preprocessing samples
 in the full runs, so preprocessing batches keep their one discarded rebuild.
-The first update is within 1.3% of the following ones at both sizes, inside
-the batch-to-batch variation of those series in the full runs, so update
-batches discard none of their former three warmups, which cost 35 s each at
-the large log sizes. Online warmups cost seconds and are unchanged.
+The first update is within 1.3% of the following ones in both replays, and
+the update warmups were dropped on that evidence. The full run below showed
+that the replays, each a single process, had missed a cold first update that
+appears at 64 GiB and above, so update batches keep their three discarded
+repetitions. Online warmups cost seconds and are unchanged.
+
+## Full-run check of the dropped update warmups
+
+The full run `20261017T171200Z-full-4bda1ee20f` ran with no discarded update
+repetition and was stopped after 59 of 78 jobs (its checkpoint under
+`results/runs/` is the evidence; it supplies no published value). For each
+maintainer process, the first retained hint-patch samples divided by the
+median of the whole series:
+
+| Job | Processes | First sample / median | Second sample / median |
+| --- | --- | --- | --- |
+| 1 TiB, pattern 19, kappa 256 | 5 | 4.50, 1.09, 1.08, 1.11, 1.06 | 1.11, 0.99, 0.98, 1.05, 0.98 |
+| 64 GiB, pattern 14 | 3 | 1.21, 1.20, 1.01 | 1.01, 1.00, 1.05 |
+| 64 GiB, pattern 15 | 2 | 1.19, 1.04 | 1.00, 0.98 |
+| 64 GiB, pattern 16 | 2 | 1.14, 1.02 | 1.11, 1.00 |
+| 64 GiB, pattern 17 | 1 | 1.00 | 0.98 |
+| 256 GiB, pattern 17 | 1 | 1.03 | 1.00 |
+| 1 GiB to 16 GiB (six jobs) | 1 each | 0.97 to 1.01 | 0.97 to 1.05 |
+
+The packing-table rebuilds of the same processes were within 1.6% of their
+medians in every position. The 1 TiB hint-patch series had 160 samples with
+median 324 ms; the one 1456 ms cold sample gave the series a sequential
+relative half-width of 6.3% against the 5% target, so the pipeline kept
+re-sampling it at about 37 s per repetition. Without that sample the series
+met the target at 20 repetitions. Three discarded update repetitions cost
+about 8 min per full run and remove the effect. The two replays above, one
+process each, did not show it.
 
 ## Fixture reuse does not move the timed series
 

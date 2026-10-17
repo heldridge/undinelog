@@ -187,10 +187,18 @@ pattern 14 with four retained update samples. The first build of the
 process was 3.1% slower for the hint, 4.6% for the packing tables and 4.2%
 for their sum than the following builds, so preprocessing batches keep their
 one discarded rebuild. The first append-and-update was within 1.3% of the
-following ones at both sizes (hint patch 0.993 and 0.987, packing rebuild
-1.005 and 1.008), so update batches discard none of their three former
-warmups. Timed series measured after a fixture cache hit agree with the same
-series after an in-process fixture build to within 1.7% in the full runs. Online batches
-keep three, which cost seconds. Update timings now carry the sample mode
-`update`; the manifest, checkpoint and summary record the policy, and a
-resumed run must agree with it.
+following ones in both replays (hint patch 0.993 and 0.987, packing rebuild
+1.005 and 1.008), and the update warmups were dropped on that evidence. The
+full run `20261017T171200Z-full-4bda1ee20f` then contradicted the replays:
+the first hint patch of a process was 14-21% slower than the series median
+in three of the four 64 GiB maintainer jobs and 4.5 times slower at 1 TiB,
+where the second one was 11% slower as well. That single cold sample kept
+the 1 TiB hint patch series from converging through 160 repetitions, so the
+run was stopped, update batches again discard three repetitions, and the
+next full run starts fresh. The stopped run's samples are the evidence and
+supply nothing else. Timed series measured after a fixture cache hit agree
+with the same series after an in-process fixture build to within 1.7% in the
+full runs that discarded three update warmups, so the shared cache stays.
+Online batches keep three, which cost seconds. Update timings now carry the
+sample mode `update`; the manifest, checkpoint and summary record the
+policy, and a resumed run must agree with it.

@@ -135,9 +135,9 @@ the target at that limit remains flagged and prevents publication validation.
 
 Direct benchmarks discard three warmup repetitions per process, and the
 benchmarks whose repetition rebuilds a server discard one. The maintainers'
-append-and-update samples discard none: they follow the preprocessing builds
-and online queries of the same process, and a replay without any discarded
-repetition put the first update within 1% of the rest. Append
+append-and-update samples discard three as well: the first hint patch of a
+process measured 14-21% slower at 64 GiB and 4.5 times slower at 1 TiB in
+the stopped full run of October 17. Append
 benchmarks discard one complete warmup sequence, and one independent append
 sample is a complete 64-batch sequence. Deterministic quantities must agree
 across observations. A full run is publication-ready only when every consumed

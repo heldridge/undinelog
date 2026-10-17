@@ -192,12 +192,12 @@ private reply equals the public reply of its claim.
 
 The input cells are built on all cores before the timed repetitions, which
 run on the pinned CPU. The result document records both CPU sets. Each
-preprocessing batch discards one warmup rebuild and online batches discard
-three warmup samples. Update batches discard none: the appends follow the
-preprocessing builds and online queries of the same process, and the
+preprocessing batch discards one warmup rebuild; online and update batches
+discard three warmup samples. The
 [preparation audit](../results/diagnostics/20261017-preparation-audit/README.md)
-measured the first update within 1% of the following ones while the first
-build of a process was 3-5% slower. A group stops once all its measurements meet
+records why: the first build of a process is 3-5% slower than the following
+ones, and the first hint patch of a process is 14-21% slower at 64 GiB and
+4.5 times slower at 1 TiB. A group stops once all its measurements meet
 the existing precision target. If only online or update samples remain, one
 fresh untimed build supplies their database; measured preprocessing samples
 always rebuild it completely.
