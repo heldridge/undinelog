@@ -380,7 +380,7 @@
           "original_sha256": "6db67222e0d713814544ab3cdf479ce7227e03d4ace3c0b52757d7df8506b184"
         }
       },
-      "commit": "6c7c26cbeefa31f76117c4a85056164ab0a15034",
+      "commit": "ec6c75dd02ca3ec5ef24cb572b11ca7247fd01c3",
       "files": {
         "undine/Cargo.lock": {
           "bytes": 30683,
@@ -483,8 +483,8 @@
           "sha256": "d45ae6ee862c80bd52c267ea5de5bdd8603ca2b15f318c929370b354c8be6fc0"
         },
         "undine/benches/bench_treepir_comparison_local.rs": {
-          "bytes": 73197,
-          "sha256": "d2e24b7aa94211a2a133644a0459e6215ce2f58ca7bd8d5c862ad3aff675b615"
+          "bytes": 73405,
+          "sha256": "4e8ded7b0b6732ebaa36d52834e18cb02ecac14ff31054838cf893f6a119927a"
         },
         "undine/benches/support/append_only_log_repair.rs": {
           "bytes": 45006,

@@ -766,15 +766,17 @@ fn run_server(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
         let (cells, gather_cells_ns) = timed(|| PirDatabase::cells_from_entries(&layout, &entries));
         drop(entries);
         let (database, times) = PirDatabase::from_cells_timed(&layout, cells, 1);
+        // Every recorded stage is at least 1 ns, and the prepare total is the
+        // sum of the recorded stages, so the validator's paired-sum check holds.
         let stages = [
             gather_cells_ns,
-            times.gather.as_nanos() as u64,
-            times.hint.as_nanos() as u64,
-            times.packing.as_nanos() as u64,
+            (times.gather.as_nanos() as u64).max(1),
+            (times.hint.as_nanos() as u64).max(1),
+            (times.packing.as_nanos() as u64).max(1),
         ];
         if trial < preprocess_count {
             samples.push("gather_cells", stages[0]);
-            samples.push("gather_upper", stages[1].max(1));
+            samples.push("gather_upper", stages[1]);
             samples.push("hint", stages[2]);
             samples.push("packing", stages[3]);
             samples.push("prepare", stages.iter().sum());
@@ -838,9 +840,9 @@ fn run_server(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
             drop(nodes);
             let stages = [
                 enumerate_ns,
-                columns.as_nanos() as u64,
-                times.hint.as_nanos() as u64,
-                times.packing.as_nanos() as u64,
+                (columns.as_nanos() as u64).max(1),
+                (times.hint.as_nanos() as u64).max(1),
+                (times.packing.as_nanos() as u64).max(1),
             ];
             if trial < preprocess_count {
                 samples.push("enumerate", stages[0]);
