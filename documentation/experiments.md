@@ -10,10 +10,10 @@ deduplicated.
 The complete manifest contains:
 
 - 12 result groups;
-- 1,001 exact result cells;
-- 465 timing series, of which 434 require precision and 31 are diagnostics;
-- 77 deduplicated benchmark jobs: 22 per layout for the paired groups, 4
-  for the UndineLog on-the-fly openings, 26 for the private openings, and 3
+- 1,037 exact result cells;
+- 484 timing series, of which 440 require precision and 44 are diagnostics;
+- 78 deduplicated benchmark jobs: 22 per layout for the paired groups, 4
+  for the UndineLog on-the-fly openings, 26 for the private openings, and 4
   for the comparison with TreePIR.
 
 Manifest validation rejects uncovered cells, measurements without consumers,
@@ -23,8 +23,8 @@ deterministic outputs that vary across repetitions.
 ## Operating Points
 
 Every job of the first nine result groups uses Merkle height 50; the
-comparison with TreePIR uses a tree of height 32 with `kappa = h`. Height 16
-is reserved for the standalone correctness check below. The thresholds are
+comparison with TreePIR uses trees of height 32 and, for the artifact-only
+client results, height 16, with `kappa = h`. The thresholds are
 8, 16, 32, and 64, each with segment size `kappa^2`: 64, 256, 1,024, and 4,096.
 UndineLog benchmarks
 take the threshold. BorgLog benchmarks take the segment size together with
@@ -243,7 +243,8 @@ skips, and those that lie in the padding columns. The runner checks that
 every zero block count lies between the padding blocks and all blocks.
 
 **Clients** (`tab:treepir-client`). At `h = 32` the tree has `2^32 - 2^20`
-allocated, unwritten leaves followed by `2^20` seeded ones.
+allocated, unwritten leaves followed by `2^20` seeded ones. At `h = 16` every
+leaf is seeded.
 Every opening is of a seeded leaf, so it returns and verifies
 real content. Each repetition times
 both clients, alternating: the requests in parts (indexing, key generation,
@@ -252,9 +253,10 @@ on a second; then the processing of every reply into a verified opening, in
 parts (decrypting the replies, UndineLog's Combine+Verify, the root from the
 recovered path) and as a whole. UndineLog uses one secret key and one request
 for its `kappa` maintainers; TreePIR uses one secret key per request, since
-the backend reuses a public query matrix. Reconstruction is fault-free. Each
-reply is the row its server returns, read from the tree without building the
-server and encrypted under the client's key in the server's format.
+the backend reuses a public query matrix. Reconstruction is fault-free. At
+`h = 16`, all replies come from real servers. At `h = 32`, each reply is the
+row its server returns, read from the tree without building the server and
+encrypted under the client's key in the server's format.
 
 **Generated and real replies** (`tab:treepir-check`). The `h = 32` client job
 also builds UndineLog claim 0 and TreePIR class 0 on the opening tree. For
@@ -263,33 +265,34 @@ and query decode to the same row (checked exactly), and both are decoded in
 turn. The runner rejects a batch whose mean decoding times differ by more
 than 10%.
 
-#### Height-16 correctness check
+#### Height-16 artifact results
 
-Height 16 tests the generated-reply method against every real server of both
-systems. Every leaf is seeded, each real reply must decode to the same row
-as its generated counterpart, and every opening must verify. This is a
-correctness check, not a timing result: it has no rows in the publication
-tables and no adaptive sampling or precision target.
+The full run includes `treepir-client-h16-real` as an artifact-only client
+comparison at `h = kappa = 16`. All 65,536 leaves are seeded, each real
+server's reply must match its generated counterpart in decoded contents and
+serialized length, and every opening must verify. The artifact's client table
+reports request preparation, reply processing, total client CPU and
+communication alongside height 32. The paper selects only height 32.
 
-The smoke gate separately runs the `treepir` Rust integration tests, including
-an opening through every real color server on a small tree. Removing height 16
-from the timing manifest therefore preserves automatic correctness coverage.
+The height-16 totals use the same warmups, eight-opening-pair samples,
+adaptive stopping rule and 5% precision target as height 32. Component timers
+remain diagnostics and cannot force additional repetitions after the totals
+converge. The smoke gate exercises the all-real-server job at height 8, and
+the canary uses height 16. The existing `treepir` integration tests also remain
+in the smoke correctness gate.
 
-To run it once from the repository root:
+For a diagnostic run of this job alone, use the artifact runner from the
+repository root:
 
 ```bash
-BENCH_TREEPIR_COMPARISON_ROLE=client \
-BENCH_TREEPIR_COMPARISON_HEIGHT=16 \
-BENCH_TREEPIR_COMPARISON_SEEDED_LEAVES=65536 \
-BENCH_TREEPIR_COMPARISON_REPLIES=real \
-BENCH_TREEPIR_COMPARISON_TRIALS=1 \
-BENCH_SAMPLE_GROUPS='{"client":1}' \
-cargo bench --locked --manifest-path undine/Cargo.toml \
-  --features bench --bench bench_treepir_comparison_local
+./artifact jobs treepir-client-h16-real
 ```
 
-A successful invocation exits with status 0 after checking eight opening
-pairs per system. Its diagnostic JSON is not input to the publication tables.
+This command uses the normal preflight gates and adaptive sampling. It saves
+the benchmark JSON, raw samples, logs and provenance under `results/runs/`,
+without writing into `undine/results/`. As with every selected-job run, its
+results are diagnostic; published artifact results come from the next
+completed, validated full run.
 
 ## Execution and Sampling
 

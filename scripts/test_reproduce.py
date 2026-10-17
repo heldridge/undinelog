@@ -136,6 +136,7 @@ class ManifestTests(unittest.TestCase):
             {
                 ("server", MODULE.TREEPIR_HEIGHT),
                 ("client", MODULE.TREEPIR_HEIGHT),
+                ("client", MODULE.TREEPIR_ARTIFACT_HEIGHT),
             },
         )
         rebuilds = {
@@ -197,39 +198,45 @@ class ManifestTests(unittest.TestCase):
                 self.assertEqual(warmups, counts)
 
     def test_full_client_sampling_keeps_its_first_look(self) -> None:
-        job = self.manifest.jobs["treepir-client-h32-generated"]
-        run_job = MODULE.RunJob(job, tuple(self.manifest.measurements_for_job(job.id)))
-        state = {"samples": {
-            item.id: [] for item in run_job.measurements if item.kind == "timing"
-        }}
-        for mode in ("full", "jobs"):
-            with self.subTest(mode=mode):
-                counts, warmups = MODULE.group_batch_plan(run_job, state, mode)
-                self.assertEqual(counts, {"client": 10, "paired": 10})
-                self.assertEqual(warmups, {"client": 3, "paired": 3})
+        for job_id in ("treepir-client-h16-real", "treepir-client-h32-generated"):
+            job = self.manifest.jobs[job_id]
+            run_job = MODULE.RunJob(job, tuple(self.manifest.measurements_for_job(job.id)))
+            state = {"samples": {
+                item.id: [] for item in run_job.measurements if item.kind == "timing"
+            }}
+            groups = {item.sample_group for item in run_job.measurements if item.kind == "timing"}
+            for mode in ("full", "jobs"):
+                with self.subTest(job=job_id, mode=mode):
+                    counts, warmups = MODULE.group_batch_plan(run_job, state, mode)
+                    self.assertEqual(counts, {group: 10 for group in groups})
+                    self.assertEqual(warmups, {group: 3 for group in groups})
 
     def test_client_substeps_cannot_restart_converged_totals(self) -> None:
-        job = self.manifest.jobs["treepir-client-h32-generated"]
-        run_job = MODULE.RunJob(job, tuple(self.manifest.measurements_for_job(job.id)))
-        samples = {
-            item.id: ([1., 100.] * 5 if not item.precision_required else [100.] * 10)
-            for item in run_job.measurements if item.kind == "timing"
-        }
-        counts, _ = MODULE.group_batch_plan(run_job, {"samples": samples}, "full")
-        self.assertEqual(counts, {"client": 0, "paired": 0})
-        self.assertTrue(MODULE.job_complete({"samples": samples}, "full", run_job.measurements))
-        required = {item.path for item in run_job.measurements
-                    if item.kind == "timing" and dict(item.selector)["role"] == "client"
-                    and item.precision_required}
-        self.assertEqual(required, {("request_total_ns",), ("process_total_ns",), ("client_total_ns",)})
-        # Changing the stopping decision must not alter the two-opening workload.
-        self.assertTrue(all(item.sample_group == "client" for item in run_job.measurements
-                            if item.kind == "timing" and dict(item.selector)["role"] == "client"))
-        request = next(item for item in run_job.measurements if item.path == ("request_total_ns",))
-        samples[request.id] = [1., 100.] * 5
-        counts, _ = MODULE.group_batch_plan(run_job, {"samples": samples}, "full")
-        self.assertEqual(counts, {"client": 10, "paired": 0})
-        self.assertFalse(MODULE.job_complete({"samples": samples}, "full", run_job.measurements))
+        for job_id in ("treepir-client-h16-real", "treepir-client-h32-generated"):
+            with self.subTest(job=job_id):
+                job = self.manifest.jobs[job_id]
+                run_job = MODULE.RunJob(job, tuple(self.manifest.measurements_for_job(job.id)))
+                samples = {
+                    item.id: ([1., 100.] * 5 if not item.precision_required else [100.] * 10)
+                    for item in run_job.measurements if item.kind == "timing"
+                }
+                groups = {item.sample_group for item in run_job.measurements if item.kind == "timing"}
+                stopped = {group: 0 for group in groups}
+                counts, _ = MODULE.group_batch_plan(run_job, {"samples": samples}, "full")
+                self.assertEqual(counts, stopped)
+                self.assertTrue(MODULE.job_complete({"samples": samples}, "full", run_job.measurements))
+                required = {item.path for item in run_job.measurements
+                            if item.kind == "timing" and dict(item.selector)["role"] == "client"
+                            and item.precision_required}
+                self.assertEqual(required, {("request_total_ns",), ("process_total_ns",), ("client_total_ns",)})
+                # Changing the stopping decision must not alter the two-opening workload.
+                self.assertTrue(all(item.sample_group == "client" for item in run_job.measurements
+                                    if item.kind == "timing" and dict(item.selector)["role"] == "client"))
+                request = next(item for item in run_job.measurements if item.path == ("request_total_ns",))
+                samples[request.id] = [1., 100.] * 5
+                counts, _ = MODULE.group_batch_plan(run_job, {"samples": samples}, "full")
+                self.assertEqual(counts, stopped | {"client": 10})
+                self.assertFalse(MODULE.job_complete({"samples": samples}, "full", run_job.measurements))
 
     def test_server_gather_cannot_restart_converged_combined_costs(self) -> None:
         job = self.manifest.jobs["treepir-server-h32-m31-c31"]
@@ -399,28 +406,35 @@ class ManifestTests(unittest.TestCase):
             MODULE.select_run_jobs(self.manifest, "jobs", [])
 
     def test_exact_full_job_count_is_stable(self) -> None:
-        self.assertEqual(len(self.manifest.jobs), 77)
-        self.assertEqual(len(self.manifest.cells), 1001)
+        self.assertEqual(len(self.manifest.jobs), 78)
+        self.assertEqual(len(self.manifest.cells), 1037)
         self.assertEqual(
             sum(item.kind == "timing" for item in self.manifest.measurements.values()),
-            465,
+            484,
         )
         self.assertEqual(sum(item.kind == "timing" and item.precision_required
-                             for item in self.manifest.measurements.values()), 434)
+                             for item in self.manifest.measurements.values()), 440)
 
-    def test_treepir_validation_is_not_a_publication_measurement(self) -> None:
+    def test_treepir_real_client_results_are_in_the_artifact(self) -> None:
         self.assertEqual(
             self.manifest.table_rows["tab:treepir-client"],
-            ["h32-generated:undine", "h32-generated:treepir"],
+            ["h16-real:undine", "h16-real:treepir",
+             "h32-generated:undine", "h32-generated:treepir"],
         )
-        for mode in ("full", "smoke", "canary"):
-            self.assertNotIn(
-                "treepir-client-h16-real",
-                [job.spec.id for job in MODULE.select_run_jobs(self.manifest, mode)],
-                mode,
-            )
-        with self.assertRaisesRegex(MODULE.PipelineError, "unknown jobs"):
-            MODULE.select_run_jobs(self.manifest, "jobs", ["treepir-client-h16-real"])
+        for mode in ("full", "smoke", "canary", "jobs"):
+            with self.subTest(mode=mode):
+                selected = MODULE.select_run_jobs(self.manifest, mode, ["treepir-client-h16-real"])
+                run_job = next(job for job in selected if job.spec.id == "treepir-client-h16-real")
+                env = run_job.effective_env()
+                self.assertEqual(env[f"{MODULE.TREEPIR_PREFIX}_REPLIES"], "real")
+                self.assertEqual(int(env[f"{MODULE.TREEPIR_PREFIX}_HEIGHT"]),
+                                 MODULE.TREEPIR_SMOKE_HEIGHT if mode == "smoke" else 16)
+                if mode != "smoke":
+                    self.assertEqual(int(env[f"{MODULE.TREEPIR_PREFIX}_SEEDED_LEAVES"]), 1 << 16)
+                timing = [item for item in run_job.measurements if item.kind == "timing"]
+                self.assertEqual({item.sample_group for item in timing}, {"client"})
+                self.assertEqual(sum(item.precision_required for item in timing), 6)
+                self.assertEqual(len(timing), 19)
 
     def test_every_table_cell_satisfies_its_unit_contract(self) -> None:
         for cell in self.manifest.cells.values():

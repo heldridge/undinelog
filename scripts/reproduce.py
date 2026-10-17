@@ -106,6 +106,10 @@ TREEPIR_PREFIX = "BENCH_TREEPIR_COMPARISON"
 # h = kappa = 32: a log of 2^32 leaves, 128 GiB, which is TreePIR's tree
 # without padding and gives both systems 32 servers.
 TREEPIR_HEIGHT = 32
+# A second client operating point, reported in the artifact only. Every
+# maintainer and color server produces a real reply at this height.
+TREEPIR_ARTIFACT_HEIGHT = 16
+TREEPIR_CLIENT_POINTS = ((TREEPIR_ARTIFACT_HEIGHT, "real"), (TREEPIR_HEIGHT, "generated"))
 # The opened leaves are seeded; the leaves before them are allocated and
 # unwritten.
 TREEPIR_SEEDED_LEAVES = 1 << 20
@@ -309,7 +313,11 @@ TABLE_METADATA.update(
                 "and extracts the shares or the proof nodes; combine+verify "
                 "is UndineLog's reconstruction and path check; verify "
                 "recomputes the root from the recovered path. The totals are "
-                "timed as a whole on a second opening. At h = 32 the log has "
+                "timed as a whole on a second opening. The h = 16 results are "
+                "reported only in the artifact: every leaf is seeded, every "
+                "reply comes from a real server, and each reply is checked "
+                "against its generated counterpart for plaintext equality "
+                "and serialized length. At h = 32 the log has "
                 "2^32 - 2^20 allocated, unwritten leaves followed by 2^20 "
                 "seeded ones; every opening is of a seeded leaf. Each reply "
                 "is the row its server returns, read from the tree and encrypted "
@@ -346,7 +354,7 @@ OMITTED_EXPERIMENTS = (
     "private openings of ranges",
     "private-opening baselines with one query per tree level, replicated "
     "full-copy servers, and BorgLog under the same PIR pipeline",
-    "UndineLog against TreePIR at heights other than 32, at other "
+    "UndineLog against TreePIR at heights other than 16 and 32, at other "
     "thresholds than kappa = h, and with faulty replies",
     "private openings over an emulated wide-area network",
     "the single server's preprocessing update after an append",
@@ -2324,12 +2332,10 @@ def _build_treepir_tables(manifest: Manifest) -> None:
         "upload-mib", "download-kib",
         *(column for column, _, _ in TREEPIR_CLIENT_COLUMNS),
     ]
-    # The all-real height-16 workload is a standalone correctness check,
-    # not a publication measurement that needs adaptive timing precision.
+    # Both operating points appear in the artifact table. The paper renderer
+    # selects only h32-generated; h16-real has the same totals-only precision.
     check_outputs: dict[str, dict[str, str]] = {}
-    for height, replies in (
-        (TREEPIR_HEIGHT, "generated"),
-    ):
+    for height, replies in TREEPIR_CLIENT_POINTS:
         job = _treepir_client_job(manifest, height, replies)
         for system in ("undine", "treepir"):
             timings = dict(TREEPIR_CLIENT_TIMINGS)
@@ -3107,9 +3113,7 @@ def select_run_jobs(
                 f"{TREEPIR_PREFIX}_SEEDED_LEAVES": TREEPIR_SMOKE_SEEDED_LEAVES,
             },
         )
-        for height, replies in (
-            (TREEPIR_HEIGHT, "generated"),
-        ):
+        for height, replies in TREEPIR_CLIENT_POINTS:
             add(
                 f"treepir-client-h{height}-{replies}",
                 overrides={
@@ -3128,7 +3132,8 @@ def select_run_jobs(
         add(f"private-client-undine-k{PRIVATE_KAPPA}")
         claim, color = TREEPIR_SERVERS[0]
         add(f"treepir-server-h{TREEPIR_HEIGHT}-m{claim}-c{color}")
-        add(f"treepir-client-h{TREEPIR_HEIGHT}-generated")
+        for height, replies in TREEPIR_CLIENT_POINTS:
+            add(f"treepir-client-h{height}-{replies}")
     return selected
 
 

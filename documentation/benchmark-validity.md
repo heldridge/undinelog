@@ -77,12 +77,15 @@ The full run `20261017T012510Z-full-a1dd1b9f80` was stopped at the author's
 request after 76 jobs completed. Its partial measurements are retained for
 diagnosis only; the next full run starts with empty samples.
 
-The height-16 all-real-server client workload had incorrectly been included in
-the timing manifest. It is now a separately documented, fixed-count correctness
-check. The full manifest has 77 jobs, 993 result cells and 457 timing series.
-The remaining job definitions and measured quantities are unchanged. The smoke
-gate includes the existing `treepir` integration tests, so automatic checks
-still reconstruct openings through every real color server on a small tree.
+The height-16 all-real-server client workload was initially removed from the
+timing manifest because it was not intended for the paper, leaving a
+separately documented, fixed-count correctness check. At that point the
+manifest had 77 jobs, 993 result cells and 457 timing series. The remaining
+job definitions and measured quantities were unchanged. The smoke gate also
+included the existing `treepir` integration tests, retaining automatic opening
+checks through every real color server on a small tree. Height 16 is now
+restored for artifact-only performance results under the revised precision
+policy described below.
 
 The [convergence audit](../results/diagnostics/20261017-convergence/README.md)
 recomputes stopping decisions from the saved samples. Of the 76 completed jobs,
@@ -126,7 +129,7 @@ No timing boundaries, keys, input selection, opening checks, warmups, sample
 schedule or retained observations change. In particular, a noisy 75 ms gather
 cannot force a complete rebuild after its containing costs have converged.
 
-The manifest now has 77 jobs, 1,001 result cells and 465 timing series:
+That precision change produced 77 jobs, 1,001 result cells and 465 timing series:
 434 precision-required results and 31 diagnostics. Diagnostics have explicit
 flags and their achieved confidence intervals, even when they miss 5%.
 The same declaration applies to both systems before the next fresh full run;
@@ -141,3 +144,20 @@ are rejected. The [stopping replay](../results/diagnostics/20261017-total-precis
 applies the new scope to the archived height-32 diagnostic and first server
 batches: their totals already meet the target, while the noisy substep intervals
 remain visible. This replay is a policy check, not a new performance result.
+
+## Height-16 results in the artifact
+
+The full manifest again includes the height-16 all-real-server client job,
+publishing its totals and communication only in the artifact. It uses the
+same precision policy as height 32: request preparation, reply processing and
+total client CPU control repetitions; component timers remain diagnostics.
+The job still checks every real reply against its generated counterpart and
+verifies each opening. The smoke gate covers its real-server path, and the
+canary exercises the height-16 workload.
+
+The current manifest has 78 jobs, 1,037 result cells and 484 timing series:
+440 precision-required results and 44 diagnostics. Outputs are managed by the
+artifact runner under `results/runs/`, so the standalone Cargo command and its
+crate-local output are no longer needed. The next full run starts fresh;
+neither the earlier stopped run nor the standalone correctness check supplies
+its published samples. The paper comparison remains at height 32.

@@ -48,6 +48,13 @@ every declared diagnostic; only the required results control extra sampling
 and publication readiness. The manifest, checkpoint and summary must agree
 on this scope, including on resume.
 
+The client comparison table contains both `h16-real` and `h32-generated` rows.
+The height-16 results are published only in the artifact, with real replies
+from every server. Their request, reply-processing and client totals require
+the same precision as height 32. Both operating points retain their raw
+samples, communication sizes and diagnostic substeps; the paper selects only
+the height-32 rows.
+
 ## Interpreting Measurements
 
 Timing records in `summary.json` include the original independent samples,
