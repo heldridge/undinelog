@@ -1,0 +1,56 @@
+[
+  {
+    "name": "server-preparation",
+    "seconds": 4.5738937149289995,
+    "groups": {
+      "preprocess": 2,
+      "online": 2
+    },
+    "timing_series": 18,
+    "values": 24,
+    "seed": 42,
+    "binary_sha256": "3766b2c72bb1c21c304d26a392e0d911f9eb5c8698b9dad23a2acd846aef74f9",
+    "command": [
+      "taskset",
+      "--cpu-list",
+      "2",
+      "/home/nicolas/Documents/paper-a-optimized/target/release/deps/bench_treepir_comparison_local-ff0f6c42a1ad7f68"
+    ]
+  },
+  {
+    "name": "server-online-only",
+    "seconds": 2.4194391891360283,
+    "groups": {
+      "preprocess": 0,
+      "online": 2
+    },
+    "timing_series": 4,
+    "values": 24,
+    "seed": 42,
+    "binary_sha256": "3766b2c72bb1c21c304d26a392e0d911f9eb5c8698b9dad23a2acd846aef74f9",
+    "command": [
+      "taskset",
+      "--cpu-list",
+      "2",
+      "/home/nicolas/Documents/paper-a-optimized/target/release/deps/bench_treepir_comparison_local-ff0f6c42a1ad7f68"
+    ]
+  },
+  {
+    "name": "client",
+    "seconds": 10.186356608988717,
+    "groups": {
+      "client": 2,
+      "paired": 0
+    },
+    "timing_series": 19,
+    "values": 12,
+    "seed": 42,
+    "binary_sha256": "3766b2c72bb1c21c304d26a392e0d911f9eb5c8698b9dad23a2acd846aef74f9",
+    "command": [
+      "taskset",
+      "--cpu-list",
+      "2",
+      "/home/nicolas/Documents/paper-a-optimized/target/release/deps/bench_treepir_comparison_local-ff0f6c42a1ad7f68"
+    ]
+  }
+]

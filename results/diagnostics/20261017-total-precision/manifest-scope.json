@@ -1,0 +1,9 @@
+{
+  "jobs_unchanged": 77,
+  "existing_cells_unchanged": 993,
+  "new_aggregate_cells": 8,
+  "existing_timing_values_and_workloads_unchanged": true,
+  "non_treepir_precision_unchanged": true,
+  "required_timings": 434,
+  "diagnostic_timings": 31
+}

@@ -39,6 +39,15 @@ checkpoint, and retained batch outputs can be verified without executing them.
 | `provenance/source-snapshot.json` | Source file hashes and Git state |
 | `integrity.json` | Size and SHA-256 for every other retained reference file |
 
+Timing records declare `precision_required`. In the TreePIR comparison,
+unpublished substeps are diagnostics: they remain in the tables, raw samples
+and summaries with their actual confidence intervals. Their missing precision
+is listed under `diagnostic_precision_misses`, separately from the required
+results in `unstable_measurements`. A full run must still contain and validate
+every declared diagnostic; only the required results control extra sampling
+and publication readiness. The manifest, checkpoint and summary must agree
+on this scope, including on resume.
+
 ## Interpreting Measurements
 
 Timing records in `summary.json` include the original independent samples,

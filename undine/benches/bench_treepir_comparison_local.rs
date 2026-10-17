@@ -498,10 +498,14 @@ struct UndineServerEntry {
     gather_cells_ns: MetricStats,
     /// The row table and the upper nodes' cells.
     gather_upper_ns: MetricStats,
+    /// Cell conversion plus gathering, paired within each complete rebuild.
+    fill_ns: MetricStats,
     /// The hint, which gathers its columns from the cells as it goes.
     hint_ns: MetricStats,
     /// The response-packing tables from the hint.
     packing_ns: MetricStats,
+    /// Hint plus response-packing preprocessing, paired within each rebuild.
+    preprocess_ns: MetricStats,
     /// The four stages above, per rebuild.
     prepare_ns: MetricStats,
     /// The query's inner product with every database column.
@@ -541,8 +545,12 @@ struct TreePirServerEntry {
     enumerate_ns: MetricStats,
     /// The database columns from the class's labels.
     columns_ns: MetricStats,
+    /// The same database conversion as `columns_ns`, for the common total.
+    fill_ns: MetricStats,
     hint_ns: MetricStats,
     packing_ns: MetricStats,
+    /// Hint plus response-packing preprocessing, paired within each rebuild.
+    preprocess_ns: MetricStats,
     /// The four stages above, per rebuild.
     prepare_ns: MetricStats,
     first_pass_ns: MetricStats,
@@ -636,6 +644,25 @@ impl Samples {
 
     fn take_client(&mut self, name: &'static str) -> MetricStats {
         client_stats(self.0.remove(name).unwrap_or_default())
+    }
+
+    /// Sum stages from the same rebuild before computing any statistics.
+    /// Called after all measured work, so totals add no timing instrumentation.
+    fn sum(&self, names: &[&'static str]) -> MetricStats {
+        let stages = names
+            .iter()
+            .map(|name| self.0.get(name).map(Vec::as_slice).unwrap_or_default())
+            .collect::<Vec<_>>();
+        let count = stages.first().expect("at least one stage").len();
+        assert!(
+            stages.iter().all(|stage| stage.len() == count),
+            "paired stages"
+        );
+        stats(
+            (0..count)
+                .map(|i| stages.iter().map(|stage| stage[i]).sum())
+                .collect(),
+        )
     }
 }
 
@@ -907,6 +934,8 @@ fn run_server(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
         reply_bytes: sizes.reply_bytes,
         encoding_threads: cpus.setup_threads,
         fragment_build_seconds: fragment_build_ns as f64 / 1e9,
+        fill_ns: undine.sum(&["gather_cells", "gather_upper"]),
+        preprocess_ns: undine.sum(&["hint", "packing"]),
         gather_cells_ns: undine.take("gather_cells"),
         gather_upper_ns: undine.take("gather_upper"),
         hint_ns: undine.take("hint"),
@@ -937,6 +966,8 @@ fn run_server(common: &Common, cpus: &CpuPlan) -> Vec<serde_json::Value> {
         blocks: sizes.blocks.expect("counted in the first trial"),
         request: sizes.request,
         reply_bytes: sizes.reply_bytes,
+        fill_ns: treepir.sum(&["columns"]),
+        preprocess_ns: treepir.sum(&["hint", "packing"]),
         enumerate_ns: treepir.take("enumerate"),
         columns_ns: treepir.take("columns"),
         hint_ns: treepir.take("hint"),

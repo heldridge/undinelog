@@ -109,3 +109,35 @@ Its request, processing and total client intervals were below 0.6% after
 183 us TreePIR indexing call widened that interval substantially. This confirms
 that removing height 16 does not guarantee fast convergence for the remaining
 suite. Both the result and the slow observation are retained in the audit.
+
+## Precision follows the reported operation
+
+The subsequent scope change retains every TreePIR comparison substep in its
+original execution context, but stops sampling based on the reported totals.
+Client request preparation, reply processing and total time retain the corrected
+5% target. Index selection and other client substeps are diagnostics; the paper
+no longer reports index selection as a separate timing row.
+
+Server filling includes cell conversion and gathering. Hint plus packing is
+also measured as a paired sum from each rebuild. These two costs, color
+enumeration, full preparation and complete answers retain the precision target.
+The finer preparation stages and first pass remain diagnostic measurements.
+No timing boundaries, keys, input selection, opening checks, warmups, sample
+schedule or retained observations change. In particular, a noisy 75 ms gather
+cannot force a complete rebuild after its containing costs have converged.
+
+The manifest now has 77 jobs, 1,001 result cells and 465 timing series:
+434 precision-required results and 31 diagnostics. Diagnostics have explicit
+flags and their achieved confidence intervals, even when they miss 5%.
+The same declaration applies to both systems before the next fresh full run;
+it does not selectively discard slow observations or reuse partial results.
+
+The [targeted checks](../results/diagnostics/20261017-total-precision/checks.json)
+validate the new aggregate fields in fresh server builds, an online-only batch
+and complete client openings. The pipeline regressions check that a noisy
+diagnostic cannot restart a converged group, a noisy required total still does,
+and missing diagnostics, incorrect paired sums or changed precision declarations
+are rejected. The [stopping replay](../results/diagnostics/20261017-total-precision/stopping-replay.json)
+applies the new scope to the archived height-32 diagnostic and first server
+batches: their totals already meet the target, while the noisy substep intervals
+remain visible. This replay is a policy check, not a new performance result.

@@ -277,6 +277,10 @@ TABLE_METADATA.update(
                 "goes) and the packing tables; TreePIR enumerates its class, "
                 "writes its database columns, then builds the hint and the "
                 "packing tables. Prepare is the four stages of one rebuild. "
+                "Precision is required for fill-s (including UndineLog's "
+                "gathering), preprocess-s (hint plus packing), enumerate-s, "
+                "prepare-s, and answer-ms. Other stage timings "
+                "are diagnostics; their achieved intervals remain in the summary. "
                 "PIR is the PIR database (UndineLog's is derived from the "
                 "claim's primary columns and needs none of the auxiliary "
                 "rows; TreePIR's is the class's dense padded matrix); hint "
@@ -310,7 +314,10 @@ TABLE_METADATA.update(
                 "seeded ones; every opening is of a seeded leaf. Each reply "
                 "is the row its server returns, read from the tree and encrypted "
                 "under the client's key, and the check table compares such "
-                "replies with a real server's. Reconstruction is fault-free."
+                "replies with a real server's. Reconstruction is fault-free. "
+                "Only request-total-ms, process-total-ms, and client-total-ms "
+                "determine timing precision. All substeps, including index, "
+                "are diagnostics with their achieved intervals in the summary."
             ),
         },
         "tab:treepir-check": {
@@ -553,6 +560,9 @@ class MeasurementSpec:
     kind: str = "timing"
     sample_mode: str = "direct"
     sample_group: str = "all"
+    # Diagnostic timings are still collected and validated, but do not
+    # determine when their group has reached publication precision.
+    precision_required: bool = True
     formula: str | None = None
     formula_args: tuple[Any, ...] = ()
     unit: str = ""
@@ -743,6 +753,7 @@ def ensure_output(
     kind: str,
     sample_mode: str = "direct",
     sample_group: str = "all",
+    precision_required: bool = True,
     unit: str = "",
     description: str = "",
 ) -> str:
@@ -756,6 +767,7 @@ def ensure_output(
             kind=kind,
             sample_mode=sample_mode,
             sample_group=sample_group,
+            precision_required=precision_required,
             unit=unit,
             description=description,
         )
@@ -2101,6 +2113,16 @@ def _treepir_outputs(
             manifest, job, f"{tag}{name}", entry_selector=match, path=name,
             kind="timing", unit="ns", sample_mode="rebuild" if group == "preprocess" else "direct",
             sample_group=group,
+            precision_required=(
+                role == "paired"
+                or role == "server" and name in {
+                    "fill_ns", "preprocess_ns", "enumerate_ns", "prepare_ns",
+                    "answer_ns",
+                }
+                or role == "client" and name in {
+                    "request_total_ns", "process_total_ns", "client_total_ns",
+                }
+            ),
             description=description,
         )
     return outputs
@@ -2131,6 +2153,8 @@ TREEPIR_SERVER_ONLINE = {
 }
 TREEPIR_SERVER_STAGES = {
     "undine": {
+        "fill_ns": "The primary columns into PIR cells, including the row table and upper nodes.",
+        "preprocess_ns": "Hint construction plus response-packing tables, from the same rebuild.",
         "gather_cells_ns": "The primary columns into PIR cells.",
         "gather_upper_ns": "The row table and the upper nodes' cells.",
         "hint_ns": "The hint, gathering its columns from the cells.",
@@ -2138,6 +2162,8 @@ TREEPIR_SERVER_STAGES = {
         "prepare_ns": "The four one-core stages of one rebuild.",
     },
     "treepir": {
+        "fill_ns": "The database columns from the class's labels.",
+        "preprocess_ns": "Hint construction plus response-packing tables, from the same rebuild.",
         "enumerate_ns": "The class's nodes in database order.",
         "columns_ns": "The database columns from the class's labels.",
         "hint_ns": "The hint over the database columns.",
@@ -2146,6 +2172,8 @@ TREEPIR_SERVER_STAGES = {
     },
 }
 TREEPIR_STAGE_COLUMNS = {
+    "fill-s": ("fill_ns", None, "seconds-1"),
+    "preprocess-s": ("preprocess_ns", None, "seconds-1"),
     "gather-cells-s": ("gather_cells_ns", "undine", "seconds-1"),
     "gather-upper-s": ("gather_upper_ns", "undine", "seconds-3"),
     "enumerate-s": ("enumerate_ns", "treepir", "seconds-1"),
@@ -2464,6 +2492,9 @@ def validate_manifest(manifest: Manifest) -> None:
         ]
         if not timing:
             errors.append(f"job has no consumed timing metric: {job.id}")
+        for group in {item.sample_group for item in timing}:
+            if not any(item.precision_required for item in timing if item.sample_group == group):
+                errors.append(f"{job.id}: sampling group {group} has no precision requirement")
     for table, rows in manifest.table_rows.items():
         columns = manifest.table_columns.get(table)
         if not columns:
@@ -3202,6 +3233,7 @@ def initialize_run(
                         "unit": item.unit,
                         "sample_mode": item.sample_mode,
                         "sample_group": item.sample_group,
+                        "precision_required": item.precision_required,
                     }
                     for item in run_job.measurements
                 },
@@ -3898,6 +3930,35 @@ def validate_private_preprocessing(
         raise PipelineError(f"{job_id}: preprocessing bytes fail the full hint and packing size")
 
 
+def validate_treepir_preparation(entry: Mapping[str, Any], job_id: str) -> None:
+    """Totals must pair stages of the same rebuild, including the gather cost."""
+    undine = entry["system"] == "undine"
+    totals = {
+        "fill_ns": ("gather_cells_ns", "gather_upper_ns") if undine else ("columns_ns",),
+        "preprocess_ns": ("hint_ns", "packing_ns"),
+        "prepare_ns": ("fill_ns", "preprocess_ns") if undine else
+                      ("enumerate_ns", "fill_ns", "preprocess_ns"),
+    }
+    for total, components in totals.items():
+        names = (total, *components)
+        samples = {}
+        for name in names:
+            metric = entry.get(name)
+            if not isinstance(metric, dict) or not isinstance(metric.get("samples"), list):
+                raise PipelineError(f"{job_id}: missing preparation samples for {name}")
+            values = metric["samples"]
+            if metric.get("trials") != len(values) or any(
+                type(value) is not int or value <= 0 for value in values
+            ):
+                raise PipelineError(f"{job_id}: malformed preparation samples for {name}")
+            samples[name] = values
+        if any(len(samples[name]) != len(samples[total]) for name in components):
+            raise PipelineError(f"{job_id}: unpaired preparation stages for {total}")
+        expected = [sum(parts) for parts in zip(*(samples[name] for name in components))]
+        if samples[total] != expected:
+            raise PipelineError(f"{job_id}: {total} is not the sum of stages from each rebuild")
+
+
 def validate_treepir_entries(
     run_job: RunJob, env: Mapping[str, str], entries: Sequence[Mapping[str, Any]],
     *, paired_warmups: int = 0,
@@ -3959,6 +4020,7 @@ def validate_treepir_entries(
         if int(treepir["database_bytes"]) != treepir_class_size(height, color) * FIELD_BYTES:
             raise PipelineError(f"{job_id}: class bytes fail 32 per node")
         for entry in (undine, treepir):
+            validate_treepir_preparation(entry, job_id)
             if int(entry["preprocessed_bytes"]) != int(entry["hint_bytes"]) + int(
                 entry["packing_bytes"]
             ):
@@ -4006,7 +4068,10 @@ def expected_repetitions_for_mode(mode: str) -> int:
     return DEFAULT_MIN_REPETITIONS if mode in ADAPTIVE_MODES else 1
 
 
-def job_complete(job_state: Mapping[str, Any], mode: str) -> bool:
+def job_complete(
+    job_state: Mapping[str, Any], mode: str,
+    measurements: Sequence[MeasurementSpec] | None = None,
+) -> bool:
     timing = job_state.get("samples", {})
     if not timing:
         return False
@@ -4014,7 +4079,13 @@ def job_complete(job_state: Mapping[str, Any], mode: str) -> bool:
         return all(len(values) >= 1 for values in timing.values())
     if not all(len(values) >= DEFAULT_MIN_REPETITIONS for values in timing.values()):
         return False
-    summaries = [summarize_samples(values) for values in timing.values()]
+    required = (
+        set(timing) if measurements is None else
+        {item.id for item in measurements if item.kind == "timing" and item.precision_required}
+    )
+    if not required or not required.issubset(timing):
+        return False
+    summaries = [summarize_samples(timing[identifier]) for identifier in required]
     return all(summary["stable"] or summary["n"] >= DEFAULT_MAX_REPETITIONS for summary in summaries)
 
 
@@ -4040,7 +4111,7 @@ def group_batch_plan(run_job: RunJob, job_state: Mapping[str, Any], mode: str) -
     counts, warmups = {}, {}
     for group, measurements in groups.items():
         substate = {"samples": {item.id: job_state["samples"][item.id] for item in measurements}}
-        counts[group] = 0 if job_complete(substate, mode) else batch_repetitions(substate, mode)
+        counts[group] = 0 if job_complete(substate, mode, measurements) else batch_repetitions(substate, mode)
         warmups[group] = (benchmark_warmup_repetitions(
             dataclasses.replace(run_job, measurements=tuple(measurements)), mode
         ) if counts[group] else 0)
@@ -4223,7 +4294,9 @@ def execute_batch(
             },
         }
     )
-    job_state["status"] = "completed" if job_complete(job_state, state["mode"]) else "pending"
+    job_state["status"] = "completed" if job_complete(
+        job_state, state["mode"], run_job.measurements
+    ) else "pending"
     write_checkpoint(run_dir, state)
 
 
@@ -4250,6 +4323,7 @@ def reconstruct_run_jobs(
                     kind=metadata["kind"],
                     sample_mode=metadata["sample_mode"],
                     sample_group=metadata.get("sample_group", "all"),
+                    precision_required=metadata.get("precision_required", True),
                 )
             )
         result.append(
@@ -4301,6 +4375,13 @@ def validate_resume_artifacts(
             raise PipelineError(
                 f"resume rejected: missing job state for {run_job.spec.id}"
             )
+        saved_selectors = state.get("run_jobs", {}).get(run_job.spec.id, {}).get("selectors", {})
+        for measurement in run_job.measurements:
+            saved = saved_selectors.get(measurement.id, {})
+            if saved.get("precision_required", True) != measurement.precision_required:
+                raise PipelineError(
+                    f"resume rejected: precision requirement changed for {measurement.id}"
+                )
         expected_samples = {
             measurement.id: []
             for measurement in run_job.measurements
@@ -4432,7 +4513,7 @@ def execute_run(
     completed_batches_this_process = 0
     for run_job in run_jobs:
         job_state = state["jobs"][run_job.spec.id]
-        if job_complete(job_state, state["mode"]):
+        if job_complete(job_state, state["mode"], run_job.measurements):
             job_state["status"] = "completed"
             continue
         validate_current_source_snapshot(
@@ -4442,7 +4523,7 @@ def execute_run(
         binary = build_benchmark_binary(
             run_dir, state, run_job, timeout_seconds=timeout_seconds
         )
-        while not job_complete(job_state, state["mode"]):
+        while not job_complete(job_state, state["mode"], run_job.measurements):
             validate_current_source_snapshot(
                 str(state["snapshot_id"]),
                 phase=f"starting a batch for {run_job.spec.id}",
@@ -4504,6 +4585,7 @@ def resolve_measurements(
             if samples:
                 resolved[measurement.id] = {
                     "kind": "timing",
+                    "precision_required": measurement.precision_required,
                     "unit": measurement.unit,
                     "samples": samples,
                     "summary": summarize_samples(samples),
@@ -4530,6 +4612,7 @@ def resolve_measurements(
             metadata = selectors[identifier]
             resolved[identifier] = {
                 "kind": "timing",
+                "precision_required": metadata.get("precision_required", True),
                 "unit": metadata.get("unit", "ns"),
                 "samples": samples,
                 "summary": summarize_samples(samples),
@@ -4759,6 +4842,7 @@ def write_summary_outputs(
         record["id"]
         for record in records
         if record["kind"] == "timing"
+        and record["precision_required"]
         and not record["summary"]["stable"]
         and state["mode"] in ADAPTIVE_MODES
     ]
@@ -4782,6 +4866,10 @@ def write_summary_outputs(
         "snapshot_id": state["snapshot_id"],
         "benchmark_cpu": state.get("benchmark_cpu"),
         "statistical_rule": {
+            "precision_scope": (
+                "Only timings declared precision_required determine adaptive stopping; "
+                "diagnostic substeps retain all samples and their achieved intervals."
+            ),
             "independent_minimum": DEFAULT_MIN_REPETITIONS,
             "independent_maximum": DEFAULT_MAX_REPETITIONS,
             "looks": list(SEQUENTIAL_LOOKS),
@@ -4797,8 +4885,23 @@ def write_summary_outputs(
             "append_warmup_sequences_per_process": APPEND_WARMUP_REPETITIONS,
         },
         "records": records,
+        "precision_required_series": sum(
+            record["kind"] == "timing" and record["precision_required"] for record in records
+        ),
+        "diagnostic_series": sum(
+            record["kind"] == "timing" and not record["precision_required"] for record in records
+        ),
         "missing_full_manifest_measurements": missing,
         "unstable_measurements": unstable,
+        "diagnostic_measurements": [
+            record["id"] for record in records
+            if record["kind"] == "timing" and not record["precision_required"]
+        ],
+        "diagnostic_precision_misses": [
+            record["id"] for record in records
+            if record["kind"] == "timing" and not record["precision_required"]
+            and not record["summary"]["stable"]
+        ],
         "publishable": state["mode"] == "full" and not missing and not unstable,
         "partial": state["mode"] == "jobs",
         "selected_jobs": list(state["selected_jobs"]),
@@ -4818,6 +4921,7 @@ def write_summary_outputs(
                 "ci95_high",
                 "relative_half_width",
                 "stable",
+                "precision_required",
                 "consumers",
             ]
         )
@@ -4836,6 +4940,7 @@ def write_summary_outputs(
                     "" if ci is None else ci["high"],
                     "" if ci is None else ci["relative_half_width"],
                     stats["stable"],
+                    record["precision_required"],
                     ",".join(record["consumers"]),
                 ]
             else:
@@ -4846,6 +4951,7 @@ def write_summary_outputs(
                     record["unit"],
                     "",
                     record["value"],
+                    "",
                     "",
                     "",
                     "",
@@ -4931,6 +5037,8 @@ def write_audit_report(
         f"- Jobs selected: {len(state['selected_jobs'])}",
         f"- Manifest result cells: {len(manifest.cells)}",
         f"- Manifest timing series: {sum(m.kind == 'timing' for m in manifest.measurements.values())}",
+        f"- Precision-required timing series: {sum(m.kind == 'timing' and m.precision_required for m in manifest.measurements.values())}",
+        f"- Diagnostic timing series: {sum(m.kind == 'timing' and not m.precision_required for m in manifest.measurements.values())}",
         f"- Uncovered cells: 0",
         f"- Measurements without consumers: 0",
         f"- Duplicate jobs: 0",
@@ -4939,7 +5047,8 @@ def write_audit_report(
         "",
         (
             f"Publication-ready: **{summary['publishable']}**. "
-            f"Unstable timing series: {len(summary['unstable_measurements'])}. "
+            f"Unstable required timing series: {len(summary['unstable_measurements'])}. "
+            f"Diagnostic precision misses: {len(summary['diagnostic_precision_misses'])}. "
             f"Missing full-manifest measurements: "
             f"{len(summary['missing_full_manifest_measurements'])}."
         ),
@@ -5079,6 +5188,8 @@ def write_plan(
         f"- Exact result cells: {len(manifest.cells)}",
         f"- Deduplicated benchmark jobs: {len(manifest.jobs)}",
         f"- Consumed timing series: {sum(m.kind == 'timing' for m in manifest.measurements.values())}",
+        f"- Precision-required timing series: {sum(m.kind == 'timing' and m.precision_required for m in manifest.measurements.values())}",
+        f"- Diagnostic timing series: {sum(m.kind == 'timing' and not m.precision_required for m in manifest.measurements.values())}",
         f"- Uncovered cells: 0",
         f"- Duplicate jobs: 0",
         f"- Measurements without consumers: 0",
@@ -5163,8 +5274,9 @@ def write_plan(
             "repetitions. At the declared looks of "
             f"{', '.join(map(str, SEQUENTIAL_LOOKS))} repetitions, the pipeline computes "
             "Student-t intervals with Bonferroni allocation of the overall 5% "
-            "error probability. It stops a job only when every consumed timing "
-            "series has a simultaneous relative half-width at most 5%, or after "
+            "error probability across the declared looks for each series. "
+            "It stops a job only when every precision-required timing "
+            "series has a corrected relative half-width at most 5%, or after "
             f"{DEFAULT_MAX_REPETITIONS} repetitions. Results still outside the "
             f"target at {DEFAULT_MAX_REPETITIONS} are marked unstable and "
             "non-publishable.",

@@ -138,12 +138,17 @@ benchmarks whose repetition rebuilds a server discard one. Append
 benchmarks discard one complete warmup sequence, and one independent append
 sample is a complete 64-batch sequence. Deterministic quantities must agree
 across observations. A full run is publication-ready only when every consumed
-measurement exists and all 457 timing series satisfy the stopping rule.
+measurement exists and all 434 precision-required timing series satisfy the
+stopping rule. Another 31 timing series are diagnostic substeps: their samples
+and achieved intervals are retained, but they do not require additional runs.
 
 Private server preparation, online work and updates stop independently. The
 TreePIR client comparison keeps component timings and directly timed totals
-together, with a separate real/generated-reply check. All groups retain the
-same minimum sample count and confidence target. Short helper timers average
+together, with a separate real/generated-reply check. Only its request,
+reply-processing and client totals determine convergence. The server comparison
+requires precision for database filling (including gathering), hint plus packing,
+color enumeration, full preparation and complete answers. All groups retain the
+same minimum sample count and confidence target for their required results. Short helper timers average
 32 calls. TreePIR client samples average eight complete opening pairs, retaining
 every per-opening timing. Components run in their normal context, and each
 request/reply total is timed directly with fresh keys. Inner repetitions never
@@ -228,8 +233,8 @@ A reproduction succeeds when:
 1. `./artifact test`, `./artifact smoke`, and `./artifact resume-canary` exit
    with status 0.
 2. `./artifact full` exits with status 0.
-3. `./artifact validate RUN_ID` reports 77 jobs, 993 result cells, 457 timing
-   series, and `publishable: true`.
+3. `./artifact validate RUN_ID` reports 77 jobs, 1,001 result cells, 465 timing
+   series (434 required and 31 diagnostic), and `publishable: true`.
 4. The completed run's `summary.json` lists no missing or unstable
    measurements.
 

@@ -10,8 +10,8 @@ deduplicated.
 The complete manifest contains:
 
 - 12 result groups;
-- 993 exact result cells;
-- 457 timing series;
+- 1,001 exact result cells;
+- 465 timing series, of which 434 require precision and 31 are diagnostics;
 - 77 deduplicated benchmark jobs: 22 per layout for the paired groups, 4
   for the UndineLog on-the-fly openings, 26 for the private openings, and 3
   for the comparison with TreePIR.
@@ -302,7 +302,7 @@ and checkpoints before and after every batch.
 Full runs sample at 10, 20, 40, 80, 160, 320, 640, 1,280, 2,560, 5,120,
 10,240 and 20,480 independent repetitions. The Student-t interval divides
 the 5% error budget across all 12 declared looks. Sampling stops as soon as
-all timing outputs of each sample group meet the familywise 95%,
+all precision-required outputs of each sample group meet the familywise 95%,
 5% relative-half-width target. Earlier samples remain in every subsequent
 calculation. A job completes after every group has stopped; a group that
 reaches 20,480 samples without meeting the target remains flagged and prevents
@@ -323,6 +323,18 @@ online work, and (where applicable) updates. The TreePIR comparison separates
 server preparation from online work. Client components and directly timed
 totals share one group, so adaptive stopping never changes the allocation
 history between the two openings; the paired reply check has its own group.
+For the TreePIR client comparison, only request preparation, reply processing
+and their per-opening total require precision. Indexing, key generation, query
+generation, serialization, decryption, combination and standalone verification
+remain diagnostic breakdowns, with all samples and their achieved intervals.
+For the server comparison, database filling includes both cell conversion and
+gathering. Hint plus packing is another per-rebuild sum. These combined costs,
+color enumeration, full preparation and complete answers require precision;
+their finer stages and the first pass are diagnostics. Sums pair stages from
+the same rebuild before confidence intervals are computed, and the validator
+checks each sum against the raw stages. A diagnostic cannot trigger another
+batch, but missing or malformed diagnostic samples still fail validation.
+This scope is declared in the manifest before the run, equally for both systems.
 The benchmark echoes requested
 counts; the runner validates exact counts and group-specific warmups, saves
 all raw samples, and rechecks the schedule when resuming. Inactive groups

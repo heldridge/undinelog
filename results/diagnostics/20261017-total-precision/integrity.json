@@ -1,0 +1,56 @@
+{
+  "files": {
+    "checks.json": {
+      "bytes": 1423,
+      "sha256": "e787ca0c1bd642a1f8081e5811a9424b848274e665af50cd7f8fa4ceb9ee81fa"
+    },
+    "client/results/bench_treepir_comparison_local.json": {
+      "bytes": 13562,
+      "sha256": "fdee14f5a8dd9ad6d0669e22ae6be228857796f24f4571ea0b0777ca63eba6ed"
+    },
+    "client/stderr.log": {
+      "bytes": 617,
+      "sha256": "9ada99fb5c553b814ba1cf760149bebccd6b496f03f5632d3beb0e2701437021"
+    },
+    "client/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "manifest-scope.json": {
+      "bytes": 246,
+      "sha256": "0897ae726a58e7687ce1806a6932137753d17a7a5b5a901ee676b67bfe98213b"
+    },
+    "pipeline-tests.log": {
+      "bytes": 9182,
+      "sha256": "912c43cbb04c771aa5feee21170cbf5e1d586f1bdb315406458ac91900bb7b8c"
+    },
+    "server-online-only/results/bench_treepir_comparison_local.json": {
+      "bytes": 6566,
+      "sha256": "7e776e2286f7162ed508a555d1ada451e65092961322cab07cb0bfd1beedfe4d"
+    },
+    "server-online-only/stderr.log": {
+      "bytes": 19,
+      "sha256": "c0f6087f51b81c8dbdc25582a6074044d29565e277c92d4d1273e3bb93de1f1c"
+    },
+    "server-online-only/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "server-preparation/results/bench_treepir_comparison_local.json": {
+      "bytes": 7495,
+      "sha256": "1f1a047e38541f564b07f916eb47219d2321948344c580fee0fb66b8f530b0b1"
+    },
+    "server-preparation/stderr.log": {
+      "bytes": 38,
+      "sha256": "1ecbd5ce520f1701af8b3a30559cf01ce22140ebc6fca83dae39042d1250773a"
+    },
+    "server-preparation/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stopping-replay.json": {
+      "bytes": 78571,
+      "sha256": "58fda159c19982298894cf55adf2d64b75808fd6c34d13b60df6e850c2411451"
+    }
+  }
+}

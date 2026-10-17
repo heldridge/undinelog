@@ -1,0 +1,2404 @@
+{
+  "publication_results": false,
+  "purpose": "Replay existing samples to check stopping scope; no samples reused in a future run.",
+  "jobs": [
+    {
+      "job": "treepir-client-h32-generated",
+      "source": "results/diagnostics/20261017-convergence/h32-original-0/results/bench_treepir_comparison_local.json",
+      "source_sha256": "c55174c72276d79613c9d7f8cbdf2082b75e1362ac38dd8b4e2a962dcdccfdc1",
+      "next_group_counts": {
+        "client": 0,
+        "paired": 10
+      },
+      "measurements": [
+        {
+          "id": "output:treepir-client-h32-generated:undine-index_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 8889.8,
+            "standard_deviation": 513.5152924261902,
+            "standard_error": 162.38779373941736,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 8522.453289241379,
+              "high": 9257.14671075862,
+              "half_width": 367.3467107586194,
+              "relative_half_width": 0.04132226942772834,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 8271.447020533273,
+              "high": 9508.152979466726,
+              "half_width": 618.3529794667273,
+              "relative_half_width": 0.06955758053800168,
+              "critical_value": 3.807878444724696
+            },
+            "stable": false,
+            "reason": "sequential relative half-width exceeds target"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:undine-keygen_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 51538.3,
+            "standard_deviation": 2322.2687206934324,
+            "standard_error": 734.3658496356643,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 49877.0490331323,
+              "high": 53199.550966867704,
+              "half_width": 1661.2509668677026,
+              "relative_half_width": 0.03223332874517985,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 48741.92411063042,
+              "high": 54334.67588936959,
+              "half_width": 2796.375889369583,
+              "relative_half_width": 0.0542582097075298,
+              "critical_value": 3.807878444724696
+            },
+            "stable": false,
+            "reason": "sequential relative half-width exceeds target"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:undine-query_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 48305847.6,
+            "standard_deviation": 242111.3713108999,
+            "standard_error": 76562.33807691903,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 48132651.55851872,
+              "high": 48479043.64148128,
+              "half_width": 173196.0414812796,
+              "relative_half_width": 0.00358540528913687,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 48014307.523159176,
+              "high": 48597387.67684083,
+              "half_width": 291540.0768408248,
+              "relative_half_width": 0.006035295752492392,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:undine-serialize_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 325839.1,
+            "standard_deviation": 14801.833260707195,
+            "standard_error": 4680.750664987164,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 315250.50635592686,
+              "high": 336427.6936440731,
+              "half_width": 10588.593644073142,
+              "relative_half_width": 0.0324963874626254,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 308015.37043766456,
+              "high": 343662.8295623354,
+              "half_width": 17823.729562335408,
+              "relative_half_width": 0.05470101520147646,
+              "critical_value": 3.807878444724696
+            },
+            "stable": false,
+            "reason": "sequential relative half-width exceeds target"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:undine-decrypt_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 325542903.3,
+            "standard_deviation": 1191079.2336002626,
+            "standard_error": 376652.32519045845,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 324690856.54468584,
+              "high": 326394950.0553142,
+              "half_width": 852046.7553141918,
+              "relative_half_width": 0.0026173101814755233,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 324108657.02975184,
+              "high": 326977149.5702482,
+              "half_width": 1434246.2702481833,
+              "relative_half_width": 0.004405705840027087,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:undine-verify_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 8332.5,
+            "standard_deviation": 86.20292596219947,
+            "standard_error": 27.259758701141216,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 8270.834141598063,
+              "high": 8394.165858401937,
+              "half_width": 61.66585840193711,
+              "relative_half_width": 0.007400643072539707,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 8228.698152433528,
+              "high": 8436.301847566472,
+              "half_width": 103.8018475664721,
+              "relative_half_width": 0.012457467454722124,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:undine-request_total_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 48608400.9,
+            "standard_deviation": 159702.35353198636,
+            "standard_error": 50502.31848505131,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 48494156.71850112,
+              "high": 48722645.081498876,
+              "half_width": 114244.18149887468,
+              "relative_half_width": 0.002350297055315693,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 48416094.21003215,
+              "high": 48800707.58996785,
+              "half_width": 192306.68996784845,
+              "relative_half_width": 0.003956243908608984,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:undine-process_total_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 326142669.7,
+            "standard_deviation": 1362634.8433647912,
+            "standard_error": 430902.97241395176,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 325167899.45448273,
+              "high": 327117439.94551724,
+              "half_width": 974770.2455172554,
+              "relative_half_width": 0.0029887847745095446,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 324501843.5595771,
+              "high": 327783495.84042287,
+              "half_width": 1640826.1404228872,
+              "relative_half_width": 0.0050310072641895935,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:undine-client_total_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 374751071.0,
+            "standard_deviation": 1348201.825089915,
+            "standard_error": 426338.85128800746,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 373786625.5137797,
+              "high": 375715516.4862203,
+              "half_width": 964445.4862203219,
+              "relative_half_width": 0.0025735629884839524,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 373127624.4780317,
+              "high": 376374517.5219683,
+              "half_width": 1623446.5219682911,
+              "relative_half_width": 0.004332066397131901,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:undine-combine_verify_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 1053473.5,
+            "standard_deviation": 10761.012078073532,
+            "standard_error": 3402.9308095294036,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 1045775.5356947164,
+              "high": 1061171.4643052835,
+              "half_width": 7697.964305283612,
+              "relative_half_width": 0.007307221591510002,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 1040515.5531215034,
+              "high": 1066431.4468784966,
+              "half_width": 12957.946878496576,
+              "relative_half_width": 0.012300211517894446,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:treepir-index_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 15737.9,
+            "standard_deviation": 7152.679473844439,
+            "standard_error": 2261.8758510483185,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 10621.181342190775,
+              "high": 20854.618657809224,
+              "half_width": 5116.718657809224,
+              "relative_half_width": 0.32512080123836246,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 7124.951702149781,
+              "high": 24350.848297850218,
+              "half_width": 8612.948297850218,
+              "relative_half_width": 0.5472743058381498,
+              "critical_value": 3.807878444724696
+            },
+            "stable": false,
+            "reason": "sequential relative half-width exceeds target"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:treepir-keygen_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 1292222.4,
+            "standard_deviation": 27079.441875095334,
+            "standard_error": 8563.27140914421,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 1272850.9342448192,
+              "high": 1311593.8657551806,
+              "half_width": 19371.465755180594,
+              "relative_half_width": 0.01499081408523842,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 1259614.5033847925,
+              "high": 1324830.2966152073,
+              "half_width": 32607.89661520751,
+              "relative_half_width": 0.025233966394025916,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:treepir-query_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 1538715909.9,
+            "standard_deviation": 2755665.421339199,
+            "standard_error": 871417.9200799433,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 1536744625.6103005,
+              "high": 1540687194.1896996,
+              "half_width": 1971284.2896995514,
+              "relative_half_width": 0.0012811229655951654,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 1535397656.3857808,
+              "high": 1542034163.4142194,
+              "half_width": 3318253.5142192435,
+              "relative_half_width": 0.00215650822407815,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:treepir-serialize_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 11540063.5,
+            "standard_deviation": 459677.57108512725,
+            "standard_error": 145362.811392296,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 11211229.975004435,
+              "high": 11868897.024995565,
+              "half_width": 328833.5249955659,
+              "relative_half_width": 0.02849494935583031,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 10986539.583834695,
+              "high": 12093587.416165305,
+              "half_width": 553523.9161653053,
+              "relative_half_width": 0.047965413376218013,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:treepir-decrypt_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 323092885.7,
+            "standard_deviation": 1285446.0370782716,
+            "standard_error": 406493.72864045925,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 322173333.00012344,
+              "high": 324012438.39987653,
+              "half_width": 919552.699876562,
+              "relative_half_width": 0.0028460939270894075,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 321545006.9927942,
+              "high": 324640764.40720576,
+              "half_width": 1547878.7072057745,
+              "relative_half_width": 0.004790816436122396,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:treepir-verify_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 14846.4,
+            "standard_deviation": 358.07361130235654,
+            "standard_error": 113.23281817172577,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 14590.249569309004,
+              "high": 15102.550430690995,
+              "half_width": 256.15043069099545,
+              "relative_half_width": 0.017253369887043016,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 14415.223192448455,
+              "high": 15277.576807551544,
+              "half_width": 431.1768075515454,
+              "relative_half_width": 0.029042515865903208,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:treepir-request_total_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 1547948108.3,
+            "standard_deviation": 3247642.3824839136,
+            "standard_error": 1026994.695434489,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 1545624884.893567,
+              "high": 1550271331.7064328,
+              "half_width": 2323223.4064328833,
+              "relative_half_width": 0.0015008406250674078,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 1544037437.3364084,
+              "high": 1551858779.2635915,
+              "half_width": 3910670.9635915947,
+              "relative_half_width": 0.0025263579202835186,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:treepir-process_total_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 323157039.7,
+            "standard_deviation": 1389860.1344850855,
+            "standard_error": 439512.3654040805,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 322162793.65446275,
+              "high": 324151285.7455372,
+              "half_width": 994246.0455372197,
+              "relative_half_width": 0.0030766652846560896,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 321483430.0375878,
+              "high": 324830649.36241215,
+              "half_width": 1673609.6624121622,
+              "relative_half_width": 0.00517893611095659,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-client-h32-generated:treepir-client_total_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 1871105148.4,
+            "standard_deviation": 4447257.3864351045,
+            "standard_error": 1406346.2682142544,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 1867923772.1159847,
+              "high": 1874286524.6840155,
+              "half_width": 3181376.2840153915,
+              "relative_half_width": 0.0017002659026061774,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 1865749952.759448,
+              "high": 1876460344.0405521,
+              "half_width": 5355195.640552075,
+              "relative_half_width": 0.002862049546029711,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        }
+      ]
+    },
+    {
+      "job": "treepir-server-h32-m0-c0",
+      "source": "results/diagnostics/20261017-convergence/source-run/jobs/treepir-server-h32-m0-c0/batch-000/result.json",
+      "source_sha256": "9837d0e572d580c1a31eadb170c9d83562be04efcd2fae2fca11ee5738f7b7aa",
+      "next_group_counts": {
+        "preprocess": 0,
+        "online": 0
+      },
+      "measurements": [
+        {
+          "id": "output:treepir-server-h32-m0-c0:undine-fill_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 12417786664.9,
+            "standard_deviation": 51791279.42268347,
+            "standard_error": 16377840.59098902,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 12380737415.495926,
+              "high": 12454835914.304073,
+              "half_width": 37049249.40407289,
+              "relative_half_width": 0.0029835630458039638,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 12355421838.742435,
+              "high": 12480151491.057564,
+              "half_width": 62364826.15756426,
+              "relative_half_width": 0.00502221755297537,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:undine-preprocess_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 122027149957.4,
+            "standard_deviation": 219165014.78534064,
+            "standard_error": 69306063.01461552,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 121870368750.52614,
+              "high": 122183931164.27385,
+              "half_width": 156781206.8738558,
+              "relative_half_width": 0.001284805938093191,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 121763240893.9579,
+              "high": 122291059020.84209,
+              "half_width": 263909063.44208592,
+              "relative_half_width": 0.002162707754251552,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:undine-gather_cells_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 12345116562.4,
+            "standard_deviation": 51674355.68484802,
+            "standard_error": 16340866.058578977,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 12308150955.199259,
+              "high": 12382082169.60074,
+              "half_width": 36965607.2007404,
+              "relative_half_width": 0.002994350601218945,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 12282892530.767403,
+              "high": 12407340594.032597,
+              "half_width": 62224031.632596284,
+              "relative_half_width": 0.005040376193944935,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:undine-gather_upper_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 72670102.5,
+            "standard_deviation": 544167.4114690666,
+            "standard_error": 172080.84486802836,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 72280828.58420143,
+              "high": 73059376.41579857,
+              "half_width": 389273.9157985759,
+              "relative_half_width": 0.005356727215275029,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 72014839.56007703,
+              "high": 73325365.43992297,
+              "half_width": 655262.9399229795,
+              "relative_half_width": 0.009016953566605736,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:undine-hint_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 90128955538.4,
+            "standard_deviation": 197041225.06978527,
+            "standard_error": 62309906.417039156,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 89988000737.2854,
+              "high": 90269910339.51459,
+              "half_width": 140954801.11459056,
+              "relative_half_width": 0.0015639236056001547,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 89891686988.86174,
+              "high": 90366224087.93825,
+              "half_width": 237268549.5382564,
+              "relative_half_width": 0.002632545202825153,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:undine-packing_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 31898194419.0,
+            "standard_deviation": 126374018.9598151,
+            "standard_error": 39962973.698231846,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 31807791891.80183,
+              "high": 31988596946.19817,
+              "half_width": 90402527.19817117,
+              "relative_half_width": 0.002834095435330451,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 31746020272.8674,
+              "high": 32050368565.1326,
+              "half_width": 152174146.132597,
+              "relative_half_width": 0.004770619431736714,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:undine-prepare_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 134444936622.3,
+            "standard_deviation": 240581298.4152698,
+            "standard_error": 76078486.54329099,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 134272835129.03125,
+              "high": 134617038115.56876,
+              "half_width": 172101493.26875204,
+              "relative_half_width": 0.001280089065401114,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 134155238993.28453,
+              "high": 134734634251.31548,
+              "half_width": 289697629.0154756,
+              "relative_half_width": 0.002154767864775238,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:undine-first_pass_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 645516851.1,
+            "standard_deviation": 17917246.11885864,
+            "standard_error": 5665930.713340527,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 632699625.3528985,
+              "high": 658334076.8471016,
+              "half_width": 12817225.747101579,
+              "relative_half_width": 0.019855757018984472,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 623941675.667367,
+              "high": 667092026.5326331,
+              "half_width": 21575175.432633013,
+              "relative_half_width": 0.03342310180728451,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:undine-answer_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 1196519925.0,
+            "standard_deviation": 29909730.514310487,
+            "standard_error": 9458287.262706054,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 1175123792.7208664,
+              "high": 1217916057.2791336,
+              "half_width": 21396132.279133465,
+              "relative_half_width": 0.017881969060509765,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 1160503916.8083274,
+              "high": 1232535933.1916726,
+              "half_width": 36016008.191672534,
+              "relative_half_width": 0.030100633879266602,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:treepir-fill_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 13230751574.6,
+            "standard_deviation": 131535368.87727907,
+            "standard_error": 41595135.85226267,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 13136656840.09424,
+              "high": 13324846309.10576,
+              "half_width": 94094734.50576013,
+              "relative_half_width": 0.0071118208194914925,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 13072362353.382774,
+              "high": 13389140795.817226,
+              "half_width": 158389221.21722642,
+              "relative_half_width": 0.011971294323241417,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:treepir-preprocess_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 118127742653.5,
+            "standard_deviation": 611471475.0903226,
+            "standard_error": 193364258.55083328,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 117690322310.99007,
+              "high": 118565162996.00993,
+              "half_width": 437420342.50993025,
+              "relative_half_width": 0.0037029433787878273,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 117391435061.38411,
+              "high": 118864050245.61589,
+              "half_width": 736307592.115891,
+              "relative_half_width": 0.006233147062461664,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:treepir-enumerate_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 6151345746.8,
+            "standard_deviation": 26188134.040321674,
+            "standard_error": 8281415.123720431,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 6132611884.25977,
+              "high": 6170079609.34023,
+              "half_width": 18733862.5402295,
+              "relative_half_width": 0.00304549009458216,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 6119811124.658568,
+              "high": 6182880368.941432,
+              "half_width": 31534622.14143213,
+              "relative_half_width": 0.0051264590610659135,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:treepir-columns_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 13230751574.6,
+            "standard_deviation": 131535368.87727907,
+            "standard_error": 41595135.85226267,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 13136656840.09424,
+              "high": 13324846309.10576,
+              "half_width": 94094734.50576013,
+              "relative_half_width": 0.0071118208194914925,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 13072362353.382774,
+              "high": 13389140795.817226,
+              "half_width": 158389221.21722642,
+              "relative_half_width": 0.011971294323241417,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:treepir-hint_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 86417224923.6,
+            "standard_deviation": 329020983.4535489,
+            "standard_error": 104045570.57017876,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 86181857490.87726,
+              "high": 86652592356.32275,
+              "half_width": 235367432.7227553,
+              "relative_half_width": 0.0027236171137274964,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 86021032038.15674,
+              "high": 86813417809.04327,
+              "half_width": 396192885.4432659,
+              "relative_half_width": 0.004584651795906815,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:treepir-packing_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 31710517729.9,
+            "standard_deviation": 445150601.6401898,
+            "standard_error": 140768980.29772857,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 31392076172.819695,
+              "high": 32028959286.98031,
+              "half_width": 318441557.0803051,
+              "relative_half_width": 0.010042143108248434,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 31174486564.138405,
+              "high": 32246548895.6616,
+              "half_width": 536031165.761596,
+              "relative_half_width": 0.016903891961882717,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:treepir-prepare_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 137509839974.9,
+            "standard_deviation": 615200224.8772994,
+            "standard_error": 194543392.7660047,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 137069752245.47931,
+              "high": 137949927704.32068,
+              "half_width": 440087729.42068076,
+              "relative_half_width": 0.003200408999828747,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 136769042383.02272,
+              "high": 138250637566.77728,
+              "half_width": 740797591.8772796,
+              "relative_half_width": 0.005387233320993605,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:treepir-first_pass_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 769019479.8,
+            "standard_deviation": 43438887.468594074,
+            "standard_error": 13736582.342450319,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 737945171.6616588,
+              "high": 800093787.9383411,
+              "half_width": 31074308.13834124,
+              "relative_half_width": 0.040407699615649245,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 716712243.9939976,
+              "high": 821326715.6060023,
+              "half_width": 52307235.80600244,
+              "relative_half_width": 0.06801808950223999,
+              "critical_value": 3.807878444724696
+            },
+            "stable": false,
+            "reason": "sequential relative half-width exceeds target"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m0-c0:treepir-answer_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 1291010236.5,
+            "standard_deviation": 36668480.99201815,
+            "standard_error": 11595591.827336784,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 1264779185.3909059,
+              "high": 1317241287.6090941,
+              "half_width": 26231051.109094154,
+              "relative_half_width": 0.020318236345056397,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 1246855632.3268585,
+              "high": 1335164840.6731415,
+              "half_width": 44154604.17314159,
+              "relative_half_width": 0.03420159106781923,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        }
+      ]
+    },
+    {
+      "job": "treepir-server-h32-m31-c31",
+      "source": "results/diagnostics/20261017-convergence/source-run/jobs/treepir-server-h32-m31-c31/batch-000/result.json",
+      "source_sha256": "3ec4de2b3bd1c22676029d35563e9af8302f0a87ecf6bbcc7b7b62592a532e96",
+      "next_group_counts": {
+        "preprocess": 0,
+        "online": 0
+      },
+      "measurements": [
+        {
+          "id": "output:treepir-server-h32-m31-c31:undine-fill_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 12320811005.6,
+            "standard_deviation": 73142512.50753653,
+            "standard_error": 23129693.331116904,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 12268488004.157688,
+              "high": 12373134007.042313,
+              "half_width": 52323001.44231182,
+              "relative_half_width": 0.0042467173158106395,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 12232735944.931347,
+              "high": 12408886066.268654,
+              "half_width": 88075060.66865261,
+              "relative_half_width": 0.007148479156820206,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:undine-preprocess_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 122239030309.4,
+            "standard_deviation": 372065429.53456765,
+            "standard_error": 117657419.59381156,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 121972870734.9095,
+              "high": 122505189883.89049,
+              "half_width": 266159574.4904939,
+              "relative_half_width": 0.0021773698123816565,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 121791005157.4668,
+              "high": 122687055461.33319,
+              "half_width": 448025151.9332041,
+              "relative_half_width": 0.003665156299090436,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:undine-gather_cells_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 12245895974.2,
+            "standard_deviation": 71098086.84103844,
+            "standard_error": 22483189.169812724,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 12195035466.776962,
+              "high": 12296756481.62304,
+              "half_width": 50860507.42303873,
+              "relative_half_width": 0.0041532695958052465,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 12160282722.791603,
+              "high": 12331509225.608398,
+              "half_width": 85613251.4083976,
+              "relative_half_width": 0.006991179052048949,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:undine-gather_upper_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 74915031.4,
+            "standard_deviation": 7320173.307405323,
+            "standard_error": 2314842.051856873,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 69678494.8716455,
+              "high": 80151567.92835452,
+              "half_width": 5236536.528354504,
+              "relative_half_width": 0.06989967741446483,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 66100394.24779193,
+              "high": 83729668.55220808,
+              "half_width": 8814637.152208073,
+              "relative_half_width": 0.11766179613732462,
+              "critical_value": 3.807878444724696
+            },
+            "stable": false,
+            "reason": "sequential relative half-width exceeds target"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:undine-hint_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 90309824052.6,
+            "standard_deviation": 341687649.28614384,
+            "standard_error": 108051122.00930206,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 90065395432.99828,
+              "high": 90554252672.20174,
+              "half_width": 244428619.6017247,
+              "relative_half_width": 0.002706556259697282,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 89898378514.17247,
+              "high": 90721269591.02754,
+              "half_width": 411445538.4275395,
+              "relative_half_width": 0.004555933341071481,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:undine-packing_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 31929206256.8,
+            "standard_deviation": 116615690.8186724,
+            "standard_error": 36877119.39009905,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 31845784417.028324,
+              "high": 32012628096.571674,
+              "half_width": 83421839.77167688,
+              "relative_half_width": 0.002612712608660932,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 31788782668.7709,
+              "high": 32069629844.829098,
+              "half_width": 140423588.0290973,
+              "relative_half_width": 0.004397966767469865,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:undine-prepare_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 134559841315.0,
+            "standard_deviation": 426983456.5698663,
+            "standard_error": 135024024.59723637,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 134254395750.60753,
+              "high": 134865286879.39247,
+              "half_width": 305445564.39247835,
+              "relative_half_width": 0.0022699607951932755,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 134045686242.2162,
+              "high": 135073996387.7838,
+              "half_width": 514155072.7837935,
+              "relative_half_width": 0.003821014262198586,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:undine-first_pass_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 641731224.2,
+            "standard_deviation": 11720174.535285687,
+            "standard_error": 3706244.610620824,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 633347116.407002,
+              "high": 650115331.9929981,
+              "half_width": 8384107.792998116,
+              "relative_half_width": 0.013064827573958207,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 627618295.2363399,
+              "high": 655844153.1636602,
+              "half_width": 14112928.96366011,
+              "relative_half_width": 0.02199196241581307,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:undine-answer_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 1184059527.7,
+            "standard_deviation": 10476429.017010275,
+            "standard_error": 3312937.7438831367,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 1176565141.8527703,
+              "high": 1191553913.5472298,
+              "half_width": 7494385.847229741,
+              "relative_half_width": 0.006329399554587732,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 1171444263.4763527,
+              "high": 1196674791.9236474,
+              "half_width": 12615264.22364746,
+              "relative_half_width": 0.010654248311444469,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:treepir-fill_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 13317644203.6,
+            "standard_deviation": 105223615.07818437,
+            "standard_error": 33274628.728389904,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 13242371763.882622,
+              "high": 13392916643.317379,
+              "half_width": 75272439.71737793,
+              "relative_half_width": 0.005652083699385093,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 13190938462.108948,
+              "high": 13444349945.091053,
+              "half_width": 126705741.49105303,
+              "relative_half_width": 0.009514125738304539,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:treepir-preprocess_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 118485311853.4,
+            "standard_deviation": 299235936.3496716,
+            "standard_error": 94626711.66381335,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 118271251359.81766,
+              "high": 118699372346.98233,
+              "half_width": 214060493.58233517,
+              "relative_half_width": 0.0018066416016796144,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 118124984837.76018,
+              "high": 118845638869.03981,
+              "half_width": 360327015.63981384,
+              "relative_half_width": 0.003041111256774517,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:treepir-enumerate_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 6282813353.2,
+            "standard_deviation": 22885566.092701647,
+            "standard_error": 7237051.4395257365,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 6266442005.448538,
+              "high": 6299184700.951462,
+              "half_width": 16371347.751462156,
+              "relative_half_width": 0.0026057351748518527,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 6255255541.020066,
+              "high": 6310371165.379933,
+              "half_width": 27557812.179933883,
+              "relative_half_width": 0.0043862216861651595,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:treepir-columns_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 13317644203.6,
+            "standard_deviation": 105223615.07818437,
+            "standard_error": 33274628.728389904,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 13242371763.882622,
+              "high": 13392916643.317379,
+              "half_width": 75272439.71737793,
+              "relative_half_width": 0.005652083699385093,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 13190938462.108948,
+              "high": 13444349945.091053,
+              "half_width": 126705741.49105303,
+              "relative_half_width": 0.009514125738304539,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:treepir-hint_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 86649873151.5,
+            "standard_deviation": 232496558.55896488,
+            "standard_error": 73521867.3197044,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 86483555132.72043,
+              "high": 86816191170.27957,
+              "half_width": 166318018.77956808,
+              "relative_half_width": 0.0019194259925663715,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 86369910817.71739,
+              "high": 86929835485.28261,
+              "half_width": 279962333.7826114,
+              "relative_half_width": 0.003230960688114579,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:treepir-packing_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 31835438701.9,
+            "standard_deviation": 291458218.2397202,
+            "standard_error": 92167181.24119473,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 31626942052.680313,
+              "high": 32043935351.11969,
+              "half_width": 208496649.2196884,
+              "relative_half_width": 0.006549199813830267,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 31484477279.14062,
+              "high": 32186400124.65938,
+              "half_width": 350961422.75937974,
+              "relative_half_width": 0.011024237047452205,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:treepir-prepare_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 138085769410.2,
+            "standard_deviation": 319095771.60138804,
+            "standard_error": 100906942.99892609,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 137857502046.3189,
+              "high": 138314036774.08112,
+              "half_width": 228267363.88109016,
+              "relative_half_width": 0.0016530839119489216,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 137701528037.03134,
+              "high": 138470010783.36868,
+              "half_width": 384241373.16867423,
+              "relative_half_width": 0.0027826283244817215,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:treepir-first_pass_ns",
+          "precision_required": false,
+          "summary": {
+            "n": 10,
+            "mean": 785884033.5,
+            "standard_deviation": 45104770.120222114,
+            "standard_error": 14263380.69182086,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 753618024.7022799,
+              "high": 818150042.2977201,
+              "half_width": 32266008.79772008,
+              "relative_half_width": 0.041056959325182774,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 731570813.614713,
+              "high": 840197253.385287,
+              "half_width": 54313219.88528707,
+              "relative_half_width": 0.06911098529817258,
+              "critical_value": 3.807878444724696
+            },
+            "stable": false,
+            "reason": "sequential relative half-width exceeds target"
+          }
+        },
+        {
+          "id": "output:treepir-server-h32-m31-c31:treepir-answer_ns",
+          "precision_required": true,
+          "summary": {
+            "n": 10,
+            "mean": 1313351336.4,
+            "standard_deviation": 11607584.611732626,
+            "standard_error": 3670640.5506196334,
+            "ci95": {
+              "confidence": 0.95,
+              "low": 1305047770.5863583,
+              "high": 1321654902.213642,
+              "half_width": 8303565.813641726,
+              "relative_half_width": 0.006322425373550429,
+              "critical_value": 2.2621571627981982
+            },
+            "sequential_ci": {
+              "familywise_confidence": 0.95,
+              "pointwise_confidence": 0.9958333333333333,
+              "looks": [
+                10,
+                20,
+                40,
+                80,
+                160,
+                320,
+                640,
+                1280,
+                2560,
+                5120,
+                10240,
+                20480
+              ],
+              "low": 1299373983.3689632,
+              "high": 1327328689.431037,
+              "half_width": 13977353.031036891,
+              "relative_half_width": 0.0106425087055151,
+              "critical_value": 3.807878444724696
+            },
+            "stable": true,
+            "reason": "sequential confidence target met"
+          }
+        }
+      ]
+    }
+  ]
+}

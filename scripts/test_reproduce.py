@@ -14,6 +14,7 @@ import unittest
 from unittest import mock
 
 import check_artifact
+import verify_results
 
 
 SCRIPT = pathlib.Path(__file__).with_name("reproduce.py")
@@ -207,17 +208,49 @@ class ManifestTests(unittest.TestCase):
                 self.assertEqual(counts, {"client": 10, "paired": 10})
                 self.assertEqual(warmups, {"client": 3, "paired": 3})
 
-    def test_client_components_and_totals_have_the_same_sampling_history(self) -> None:
+    def test_client_substeps_cannot_restart_converged_totals(self) -> None:
         job = self.manifest.jobs["treepir-client-h32-generated"]
         run_job = MODULE.RunJob(job, tuple(self.manifest.measurements_for_job(job.id)))
         samples = {
-            item.id: ([1., 100.] * 5 if item.path == ("serialize_ns",) else [100.] * 10)
+            item.id: ([1., 100.] * 5 if not item.precision_required else [100.] * 10)
             for item in run_job.measurements if item.kind == "timing"
         }
         counts, _ = MODULE.group_batch_plan(run_job, {"samples": samples}, "full")
-        self.assertEqual(counts, {"client": 10, "paired": 0})
+        self.assertEqual(counts, {"client": 0, "paired": 0})
+        self.assertTrue(MODULE.job_complete({"samples": samples}, "full", run_job.measurements))
+        required = {item.path for item in run_job.measurements
+                    if item.kind == "timing" and dict(item.selector)["role"] == "client"
+                    and item.precision_required}
+        self.assertEqual(required, {("request_total_ns",), ("process_total_ns",), ("client_total_ns",)})
+        # Changing the stopping decision must not alter the two-opening workload.
         self.assertTrue(all(item.sample_group == "client" for item in run_job.measurements
                             if item.kind == "timing" and dict(item.selector)["role"] == "client"))
+        request = next(item for item in run_job.measurements if item.path == ("request_total_ns",))
+        samples[request.id] = [1., 100.] * 5
+        counts, _ = MODULE.group_batch_plan(run_job, {"samples": samples}, "full")
+        self.assertEqual(counts, {"client": 10, "paired": 0})
+        self.assertFalse(MODULE.job_complete({"samples": samples}, "full", run_job.measurements))
+
+    def test_server_gather_cannot_restart_converged_combined_costs(self) -> None:
+        job = self.manifest.jobs["treepir-server-h32-m31-c31"]
+        run_job = MODULE.RunJob(job, tuple(self.manifest.measurements_for_job(job.id)))
+        samples = {item.id: ([1., 100.] * 5 if not item.precision_required else [100.] * 10)
+                   for item in run_job.measurements if item.kind == "timing"}
+        counts, _ = MODULE.group_batch_plan(run_job, {"samples": samples}, "full")
+        self.assertEqual(counts, {"preprocess": 0, "online": 0})
+        for item in run_job.measurements:
+            if item.path == ("fill_ns",):
+                samples[item.id] = [1., 100.] * 5
+        counts, _ = MODULE.group_batch_plan(run_job, {"samples": samples}, "full")
+        self.assertEqual(counts, {"preprocess": 10, "online": 0})
+
+    def test_manifest_rejects_groups_with_no_required_precision(self) -> None:
+        manifest = MODULE.build_manifest()
+        for item in manifest.measurements_for_job("treepir-client-h32-generated"):
+            if item.kind == "timing" and item.sample_group == "client":
+                manifest.measurements[item.id] = dataclasses.replace(item, precision_required=False)
+        with self.assertRaisesRegex(MODULE.PipelineError, "has no precision requirement"):
+            MODULE.validate_manifest(manifest)
 
     def test_private_openings_are_measured_for_undine_only(self) -> None:
         jobs = [
@@ -367,11 +400,13 @@ class ManifestTests(unittest.TestCase):
 
     def test_exact_full_job_count_is_stable(self) -> None:
         self.assertEqual(len(self.manifest.jobs), 77)
-        self.assertEqual(len(self.manifest.cells), 993)
+        self.assertEqual(len(self.manifest.cells), 1001)
         self.assertEqual(
             sum(item.kind == "timing" for item in self.manifest.measurements.values()),
-            457,
+            465,
         )
+        self.assertEqual(sum(item.kind == "timing" and item.precision_required
+                             for item in self.manifest.measurements.values()), 434)
 
     def test_treepir_validation_is_not_a_publication_measurement(self) -> None:
         self.assertEqual(
@@ -413,6 +448,90 @@ class ManifestTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(MODULE.PipelineError, "has unit 'bytes'"):
             MODULE.validate_cell_unit_contract(cell, manifest)
+
+
+class PrecisionScopeTests(unittest.TestCase):
+    def test_summary_reports_unstable_diagnostics_without_claiming_they_converged(self) -> None:
+        manifest = MODULE.Manifest()
+        manifest.add_measurement(MODULE.MeasurementSpec("total", "job", unit="ns"))
+        manifest.add_measurement(MODULE.MeasurementSpec(
+            "detail", "job", unit="ns", precision_required=False))
+        state = {
+            "run_id": "test", "mode": "full", "snapshot_id": "test", "selected_jobs": ["job"],
+            "run_jobs": {"job": {"measurements": ["total", "detail"], "selectors": {}}},
+            "jobs": {"job": {"samples": {"total": [100.] * 10, "detail": [1., 100.] * 5}}},
+        }
+        resolved = MODULE.resolve_measurements(manifest, state)
+        with tempfile.TemporaryDirectory() as directory:
+            summary = MODULE.write_summary_outputs(manifest, pathlib.Path(directory), state, resolved)
+            columns = [line.split("\t") for line in (pathlib.Path(directory) / "summary.tsv").read_text().splitlines()]
+        self.assertTrue(summary["publishable"])
+        self.assertEqual(summary["unstable_measurements"], [])
+        self.assertEqual(summary["diagnostic_precision_misses"], ["detail"])
+        self.assertEqual(summary["precision_required_series"], 1)
+        diagnostic = next(record for record in summary["records"] if record["id"] == "detail")
+        self.assertFalse(diagnostic["summary"]["stable"])
+        self.assertEqual(diagnostic["samples"], [1., 100.] * 5)
+        self.assertTrue(all(len(row) == len(columns[0]) for row in columns))
+
+    def test_resume_rejects_changed_precision_scope(self) -> None:
+        manifest = MODULE.build_manifest()
+        job = manifest.jobs["treepir-client-h32-generated"]
+        run_job = MODULE.RunJob(job, tuple(manifest.measurements_for_job(job.id)))
+        # An absent scope field means the historical all-required contract.
+        state = {"binaries": {}, "jobs": {job.id: {}},
+                 "run_jobs": {job.id: {"selectors": {}}}}
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(MODULE.PipelineError, "precision requirement changed"):
+                MODULE.validate_resume_artifacts(pathlib.Path(directory), state, [run_job])
+
+    def test_preparation_totals_pair_the_same_rebuilds(self) -> None:
+        def metric(values):
+            return {"trials": len(values), "samples": values}
+
+        entry = {"system": "undine", **{name: metric(values) for name, values in {
+            "gather_cells_ns": [900, 800], "gather_upper_ns": [100, 200],
+            "fill_ns": [1000, 1000], "hint_ns": [200, 300],
+            "packing_ns": [300, 200], "preprocess_ns": [500, 500],
+            "prepare_ns": [1500, 1500],
+        }.items()}}
+        MODULE.validate_treepir_preparation(entry, "test")
+        # Matching stage means are insufficient: the per-rebuild sum must agree.
+        with self.assertRaisesRegex(MODULE.PipelineError, "sum of stages"):
+            MODULE.validate_treepir_preparation(entry | {"gather_upper_ns": metric([200, 100])}, "test")
+        with self.assertRaisesRegex(MODULE.PipelineError, "unpaired preparation"):
+            MODULE.validate_treepir_preparation(entry | {"gather_upper_ns": metric([100])}, "test")
+        treepir = {"system": "treepir", **{name: metric(values) for name, values in {
+            "enumerate_ns": [50, 60], "columns_ns": [900, 800],
+            "fill_ns": [900, 800], "hint_ns": [200, 300],
+            "packing_ns": [300, 200], "preprocess_ns": [500, 500],
+            "prepare_ns": [1450, 1360],
+        }.items()}}
+        MODULE.validate_treepir_preparation(treepir, "test")
+        # An online-only batch does not claim any fresh preprocessing samples.
+        for item in (entry, treepir):
+            empty = {name: metric([]) if isinstance(value, dict) else value
+                     for name, value in item.items()}
+            MODULE.validate_treepir_preparation(empty, "test")
+
+    def test_verifier_accepts_diagnostic_uncertainty_but_not_relabeled_totals(self) -> None:
+        noisy = MODULE.summarize_samples([1., 100.] * 5)
+        record = {"id": "substep", "precision_required": False, "summary": noisy}
+        declared = {"substep": {"precision_required": False}}
+        verify_results.verify_precision_scope([record], declared, adaptive=True)
+        with self.assertRaisesRegex(verify_results.VerificationError, "scope differs"):
+            verify_results.verify_precision_scope([record], {"substep": {}}, adaptive=True)
+        with self.assertRaisesRegex(verify_results.VerificationError, "unstable timing"):
+            verify_results.verify_precision_scope(
+                [record | {"precision_required": True}], {"substep": {}}, adaptive=True)
+
+    def test_diagnostics_still_require_complete_samples(self) -> None:
+        measurements = [MODULE.MeasurementSpec("total", "job"),
+                        MODULE.MeasurementSpec("detail", "job", precision_required=False)]
+        state = {"samples": {"total": [100.] * 10, "detail": []}}
+        self.assertFalse(MODULE.job_complete(state, "full", measurements))
+        state["samples"]["detail"] = [1., 100.] * 5
+        self.assertTrue(MODULE.job_complete(state, "full", measurements))
 
 
 class CorrectnessGateTests(unittest.TestCase):

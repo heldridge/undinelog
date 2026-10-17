@@ -300,6 +300,30 @@ def verify_raw_sample_export(
     return sum(map(len, independent.values())), batch_records
 
 
+def verify_precision_scope(
+    timing: list[Mapping[str, Any]],
+    specifications: Mapping[str, Mapping[str, Any]],
+    *, adaptive: bool,
+) -> None:
+    """Require precision for declared results without hiding noisy diagnostics."""
+    for record in timing:
+        identifier = record["id"]
+        require(identifier in specifications, f"undeclared timing: {identifier}")
+        required = specifications[identifier].get("precision_required", True)
+        require(type(required) is bool, f"invalid precision scope: {identifier}")
+        require(
+            record.get("precision_required", True) is required,
+            f"precision scope differs from manifest: {identifier}",
+        )
+        if adaptive and required:
+            stats = record["summary"]
+            require(stats.get("stable") is True, f"unstable timing: {identifier}")
+            require(
+                stats["sequential_ci"]["relative_half_width"] <= 0.05,
+                f"precision target missed: {identifier}",
+            )
+
+
 def verify_run(run_dir: pathlib.Path, *, reference: bool) -> dict[str, Any]:
     require(run_dir.is_dir(), f"run directory does not exist: {run_dir}")
     integrity_files = verify_integrity(run_dir)
@@ -379,6 +403,32 @@ def verify_run(run_dir: pathlib.Path, *, reference: bool) -> dict[str, Any]:
         "summary records differ from the selected measurement set",
     )
     timing = [record for record in records if record.get("kind") == "timing"]
+    specifications = {record["id"]: record for record in manifest["measurements"]}
+    for job_id in selected:
+        for identifier, metadata in run_jobs[job_id].get("selectors", {}).items():
+            if identifier in specifications:
+                require(
+                    metadata.get("precision_required", True)
+                    == specifications[identifier].get("precision_required", True),
+                    f"checkpoint precision scope differs from manifest: {identifier}",
+                )
+            else:
+                specifications[identifier] = metadata
+    verify_precision_scope(
+        timing, specifications, adaptive=checkpoint.get("mode") in {"full", "jobs"},
+    )
+    diagnostics = {record["id"] for record in timing
+                   if not record.get("precision_required", True)}
+    require(summary.get("precision_required_series", len(timing)) == len(timing) - len(diagnostics),
+            "required timing count differs from the manifest")
+    require(summary.get("diagnostic_series", 0) == len(diagnostics),
+            "diagnostic timing count differs from the manifest")
+    require(set(summary.get("diagnostic_measurements", [])) == diagnostics,
+            "diagnostic measurement list differs from the manifest")
+    misses = {record["id"] for record in timing
+              if record["id"] in diagnostics and not record["summary"]["stable"]}
+    require(set(summary.get("diagnostic_precision_misses", [])) == misses,
+            "diagnostic precision misses were not reported")
     for record in timing:
         stats = record["summary"]
         require(stats.get("n") == len(record.get("samples", [])), f"n mismatch: {record['id']}")
@@ -392,13 +442,6 @@ def verify_run(run_dir: pathlib.Path, *, reference: bool) -> dict[str, Any]:
             not summary.get("unstable_measurements"),
             "summary has unstable timings",
         )
-        for record in timing:
-            stats = record["summary"]
-            require(stats.get("stable") is True, f"unstable timing: {record['id']}")
-            require(
-                stats["sequential_ci"]["relative_half_width"] <= 0.05,
-                f"precision target missed: {record['id']}",
-            )
         require(summary.get("publishable") is True, "full run is not publishable")
     if checkpoint.get("mode") == "jobs":
         # A run of selected jobs meets the precision target of a full run
@@ -442,6 +485,8 @@ def verify_run(run_dir: pathlib.Path, *, reference: bool) -> dict[str, Any]:
         "jobs": len(selected),
         "result_cells": len(manifest_cells),
         "timing_series": len(timing),
+        "precision_required_series": len(timing) - len(diagnostics),
+        "diagnostic_series": len(diagnostics),
         "summary_records": len(records),
         "raw_independent_samples": raw_samples,
         "raw_batch_records": raw_batches,
