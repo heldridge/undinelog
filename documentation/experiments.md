@@ -303,6 +303,16 @@ emit no samples. Groups share the same declared schedule, minimum sample count
 and confidence target; converged preparation groups stay stopped while noisy
 online groups collect more samples.
 
+Local public-opening setup reclaims sole ownership of its server after dropping
+the setup client and waiting for background fetches to release their references.
+Client point-opening jobs destroy that server before timing captured replies;
+point, range and on-the-fly helper jobs keep the reclaimed server for measurement.
+This prevents setup-server destruction on a worker from competing with timed
+operations on the pinned CPU. The same handoff is used for Borg and Undine.
+The wait is outside all reported timers and fails after 30 seconds if an owner
+does not release the server. Decoding, serialization and verification remain
+inside their original timing boundaries.
+
 Short public range helper timers and on-the-fly point-answer timers average
 32 calls per sample. The JSON records `inner_repetitions = 32` or
 `point_calls_per_sample = 32`; each average counts as one independent sample.

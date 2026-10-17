@@ -1,0 +1,38 @@
+{
+  "purpose": "Validate that benchmark setup hands off sole ownership before timing; these are not publication results.",
+  "implementation_commit": "2dc72c47ea388bbe6e34adcf1f459115f395f27d",
+  "artifact_base_commit": "6bf44acc5069f3ce4bc3789e2feeed22c1d2b52e",
+  "build_state": "Fresh diagnostic build directories using the working-tree benchmark fix; code hashes recorded below.",
+  "measured_source_sha256": {
+    "undine/benches/support/local_setup.rs": "1fb8e6b77cd9ffbb7000e533a0dac8a9dd560f8760f62a31935afeedfb48b80a",
+    "undine/tests/benchmark_setup.rs": "0f3106ddb6034c6dd7ca79e1da75b73ef38343cd255653795eb91d20f983864d",
+    "undine/benches/bench_append_only_log_range_open_local.rs": "7ede5d1b1ad84f3bd6605dffbdc96ad79d4eda34aa6afb2e4193da8ed887feaa",
+    "undine/benches/bench_append_only_log_point_open_local.rs": "8796f15e7f231b6e37f39dc856b344422cc502044e91ba634d6162990f4fb94d",
+    "undine/benches/bench_append_only_log_on_the_fly_open_local.rs": "d6bc7c4af1dccf5112c3e55f3045892b8ca0660713d6c5faf4885fb9fa774de9",
+    "undine/benches/bench_append_only_log_client_point_open_local.rs": "b0664f04ff2614bbf0210064569d952449eba58095a751c406bd311a30c2f8c2",
+    "borg/benches/support/local_setup.rs": "1fb8e6b77cd9ffbb7000e533a0dac8a9dd560f8760f62a31935afeedfb48b80a",
+    "borg/tests/benchmark_setup.rs": "0f3106ddb6034c6dd7ca79e1da75b73ef38343cd255653795eb91d20f983864d",
+    "borg/benches/bench_append_only_log_range_open_local.rs": "c1dc1aa9513eab3fa629ce494a7e515273a523b3b46bcffc0309e92f4126bdd8",
+    "borg/benches/bench_append_only_log_point_open_local.rs": "11b956f45592030ca945959efe326a4cd029df05c315851de344fbb1d463ec02",
+    "borg/benches/bench_append_only_log_client_point_open_local.rs": "c2f946a0c1a5ab4608427d1dcfa66b664a70189b57d8bef61b7bb770310f9577"
+  },
+  "ownership_tests": {
+    "undine": 3,
+    "borg": 3,
+    "passed": true
+  },
+  "pipeline_tests": {
+    "count": 58,
+    "passed": true
+  },
+  "targeted_jobs": 9,
+  "point_timing_series": 10,
+  "point_samples_per_series": 160,
+  "all_point_series_met_precision": true,
+  "interpretation": "The ownership handoff prevents setup-server destruction on a worker during measurement. Improved variance in these diagnostics is consistent with the hypothesis; these checks do not prove that every earlier spike had this cause.",
+  "superseded_full_runs": [
+    "20261016T185738Z-full-7a99e5d775",
+    "20261017T010027Z-full-97dbd41992"
+  ],
+  "full_run_restarted": false
+}

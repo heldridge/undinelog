@@ -5,6 +5,9 @@
 //! log bulk update batches through the real app frontier path. The timed operation is then a
 //! single-leaf authenticated open request against that warmed server.
 
+#[path = "support/local_setup.rs"]
+mod local_setup;
+
 use append_only_log_demo::codec::bulk_updates_bytes_as_leaves;
 use append_only_log_demo::frontier::PreparedBulkUpdatesAppend;
 use append_only_log_demo::layout::{
@@ -498,7 +501,8 @@ fn build_warmed_server(
     .min(BULK_UPDATES_SIZE - 1);
     let query_leaf_index =
         bulk_updates_start_leaf_index(query_bulk_updates as u64) + query_leaf_offset as u64;
-    let server = local.inner.lock().expect("server lock").clone();
+    drop(client);
+    let server = local_setup::take_local_server(local.inner);
     (server, query_leaf_index)
 }
 

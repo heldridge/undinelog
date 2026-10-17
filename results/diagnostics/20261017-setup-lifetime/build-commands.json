@@ -1,0 +1,114 @@
+[
+  {
+    "name": "undine-setup-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "bench",
+      "--target-dir",
+      "/home/nicolas/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/build-undine",
+      "--test",
+      "benchmark_setup"
+    ],
+    "cwd": "/home/nicolas/Documents/undinelog-publication-artifact/undine",
+    "exit_code": 0
+  },
+  {
+    "name": "undine-point-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "bench",
+      "--target-dir",
+      "/home/nicolas/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/build-undine",
+      "--message-format=json",
+      "--bench",
+      "bench_append_only_log_client_point_open_local",
+      "--bench",
+      "bench_append_only_log_point_open_local",
+      "--bench",
+      "bench_append_only_log_on_the_fly_open_local"
+    ],
+    "cwd": "/home/nicolas/Documents/undinelog-publication-artifact/undine",
+    "exit_code": 0
+  },
+  {
+    "name": "undine-range-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "bench,log-bulk-updates-8mb",
+      "--target-dir",
+      "/home/nicolas/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/build-undine",
+      "--bench",
+      "bench_append_only_log_range_open_local",
+      "--message-format=json"
+    ],
+    "cwd": "/home/nicolas/Documents/undinelog-publication-artifact/undine",
+    "exit_code": 0
+  },
+  {
+    "name": "borg-setup-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "bench",
+      "--target-dir",
+      "/home/nicolas/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/build-borg",
+      "--test",
+      "benchmark_setup"
+    ],
+    "cwd": "/home/nicolas/Documents/undinelog-publication-artifact/borg",
+    "exit_code": 0
+  },
+  {
+    "name": "borg-point-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "bench",
+      "--target-dir",
+      "/home/nicolas/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/build-borg",
+      "--message-format=json",
+      "--bench",
+      "bench_append_only_log_client_point_open_local",
+      "--bench",
+      "bench_append_only_log_point_open_local"
+    ],
+    "cwd": "/home/nicolas/Documents/undinelog-publication-artifact/borg",
+    "exit_code": 0
+  },
+  {
+    "name": "borg-range-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "bench,log-bulk-updates-8mb",
+      "--target-dir",
+      "/home/nicolas/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/build-borg",
+      "--bench",
+      "bench_append_only_log_range_open_local",
+      "--message-format=json"
+    ],
+    "cwd": "/home/nicolas/Documents/undinelog-publication-artifact/borg",
+    "exit_code": 0
+  }
+]

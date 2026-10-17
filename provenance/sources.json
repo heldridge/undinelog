@@ -4,9 +4,18 @@
       "adaptations": [
         "benches/bench_append_only_log_range_open_local.rs times a one-claim helper's handler for the range request and checks its answer against the full server's answer.",
         "src/coded_array/rs.rs decodes with Gao's O(n^2) formulation of Berlekamp-Welch in place of the O(n^3) linear solve of the key equation; the decoded polynomial and the bad replies are the same.",
-        "Artifact benchmark harness adaptations: immutable checksum-verified range fixtures and the same 32-call helper timing batches as Undine."
+        "Artifact benchmark harness adaptations: immutable checksum-verified range fixtures and the same 32-call helper timing batches as Undine.",
+        "Public point-opening and range-helper benchmarks reclaim the setup server before timing, using the same bounded ownership handoff as Undine; production algorithms and timing boundaries are unchanged."
       ],
       "changed_files": {
+        "benches/bench_append_only_log_client_point_open_local.rs": {
+          "note": "Reclaim setup server ownership before timing.",
+          "original_sha256": "a9af36f2e46bcec7a213f3ff2dec58da35119d76c31786b28cf183129425bec5"
+        },
+        "benches/bench_append_only_log_point_open_local.rs": {
+          "note": "Reclaim setup server ownership before timing.",
+          "original_sha256": "cae2ec9d7dd0829a4ea8f8998407c88702242431bcd63263201adf56ea746903"
+        },
         "benches/bench_append_only_log_range_open_local.rs": {
           "original_sha256": "deb35c47739d3d64b74867bc43191e15b53751c4a611feaace23ff22af5585f2"
         },
@@ -18,8 +27,16 @@
           "note": "Benchmark harness optimization; added file",
           "original_sha256": null
         },
+        "benches/support/local_setup.rs": {
+          "note": "Benchmark setup ownership handoff and regression tests; added file.",
+          "original_sha256": null
+        },
         "src/coded_array/rs.rs": {
           "original_sha256": "ad644412530e1a8226c6433fce907963b0cf66b532230fd7b4f2864602502124"
+        },
+        "tests/benchmark_setup.rs": {
+          "note": "Benchmark setup ownership handoff and regression tests; added file.",
+          "original_sha256": null
         }
       },
       "commit": "10b1b86aa3b287772469b741d3f200c222f125de",
@@ -93,20 +110,20 @@
           "sha256": "e0cf1f906e5cf2087040d21af1a6cae136c7b1aff3c39d7be4ab417384cfc9e5"
         },
         "borg/benches/bench_append_only_log_client_point_open_local.rs": {
-          "bytes": 28714,
-          "sha256": "a9af36f2e46bcec7a213f3ff2dec58da35119d76c31786b28cf183129425bec5"
+          "bytes": 29052,
+          "sha256": "c2f946a0c1a5ab4608427d1dcfa66b664a70189b57d8bef61b7bb770310f9577"
         },
         "borg/benches/bench_append_only_log_one_server_kappa_rescale_local.rs": {
           "bytes": 34235,
           "sha256": "e7cb19dae3dd5298067d00562653145e22eee7cd0e44aa0314d5e04a4805faf9"
         },
         "borg/benches/bench_append_only_log_point_open_local.rs": {
-          "bytes": 24490,
-          "sha256": "cae2ec9d7dd0829a4ea8f8998407c88702242431bcd63263201adf56ea746903"
+          "bytes": 24556,
+          "sha256": "11b956f45592030ca945959efe326a4cd029df05c315851de344fbb1d463ec02"
         },
         "borg/benches/bench_append_only_log_range_open_local.rs": {
-          "bytes": 57220,
-          "sha256": "515ba0eb93160380c46ad45dcc23fdfd688f9fdf8eb9d8c94254541369103f8a"
+          "bytes": 57351,
+          "sha256": "c1dc1aa9513eab3fa629ce494a7e515273a523b3b46bcffc0309e92f4126bdd8"
         },
         "borg/benches/bench_append_only_log_repair_kernels_local.rs": {
           "bytes": 12978,
@@ -143,6 +160,10 @@
         "borg/benches/support/generic_bivariate_baseline.rs": {
           "bytes": 21309,
           "sha256": "6fac3b06302b115180cab4ecadd0c2ac8fe8ea414ee9ed7eabf958a4ab227308"
+        },
+        "borg/benches/support/local_setup.rs": {
+          "bytes": 3464,
+          "sha256": "1fb8e6b77cd9ffbb7000e533a0dac8a9dd560f8760f62a31935afeedfb48b80a"
         },
         "borg/benches/support/mod.rs": {
           "bytes": 12029,
@@ -348,7 +369,7 @@
         "Cargo.toml retains only the append-only-log application and the measured benchmark targets.",
         "Cargo.lock prunes only packages made unreachable by the excluded targets.",
         "tests/bench_compile.rs references only retained benchmark sources.",
-        "All retained implementation and benchmark sources match the recorded commit. The selected-record fixtures, complete-opening sampling and warmup policies are part of that commit.",
+        "All retained implementation and benchmark sources match the recorded commit. The selected-record fixtures, complete-opening sampling, warmup policies and local setup ownership handoff are part of that commit.",
         "third_party/ holds the PIR backend sources of the same commit: YPIR and spiral-rs with the patches recorded in third_party/patches/, and the TreePIR reference algorithms."
       ],
       "changed_files": {
@@ -359,7 +380,7 @@
           "original_sha256": "6db67222e0d713814544ab3cdf479ce7227e03d4ace3c0b52757d7df8506b184"
         }
       },
-      "commit": "1bc6562fe46c1d94cd74529d9ba5c724861cc711",
+      "commit": "2dc72c47ea388bbe6e34adcf1f459115f395f27d",
       "files": {
         "undine/Cargo.lock": {
           "bytes": 30683,
@@ -434,24 +455,24 @@
           "sha256": "2f177ec0ab7ea729c88b37cd8e0f6d4598e53460023e7292b3066d2c9c1a1145"
         },
         "undine/benches/bench_append_only_log_client_point_open_local.rs": {
-          "bytes": 27922,
-          "sha256": "1ba6cb473762ae964cd9960af85e6c7fe2ae12b4765adef582e38ea6646d70e0"
+          "bytes": 28260,
+          "sha256": "b0664f04ff2614bbf0210064569d952449eba58095a751c406bd311a30c2f8c2"
         },
         "undine/benches/bench_append_only_log_on_the_fly_open_local.rs": {
-          "bytes": 33654,
-          "sha256": "36aae80a482814c69b1e2a607507026d58022260b5bc6d0b90bb822362649dd8"
+          "bytes": 33695,
+          "sha256": "d6bc7c4af1dccf5112c3e55f3045892b8ca0660713d6c5faf4885fb9fa774de9"
         },
         "undine/benches/bench_append_only_log_one_server_kappa_rescale_local.rs": {
           "bytes": 22921,
           "sha256": "6b5c0b9e36e56bf96153368ffcb5ef22cf7dc02ce76e6c91e75cab9aa6e01e7e"
         },
         "undine/benches/bench_append_only_log_point_open_local.rs": {
-          "bytes": 23879,
-          "sha256": "a823053425ae278b45bd437c3f4faec78facd00ea1533599f77be1043c6e5660"
+          "bytes": 23945,
+          "sha256": "8796f15e7f231b6e37f39dc856b344422cc502044e91ba634d6162990f4fb94d"
         },
         "undine/benches/bench_append_only_log_range_open_local.rs": {
-          "bytes": 56601,
-          "sha256": "9f75af304ea469be84ae59b10ae84bfe5a026347f9a5334684d50349c7900e92"
+          "bytes": 56732,
+          "sha256": "7ede5d1b1ad84f3bd6605dffbdc96ad79d4eda34aa6afb2e4193da8ed887feaa"
         },
         "undine/benches/bench_append_only_log_repair_kernels_local.rs": {
           "bytes": 12849,
@@ -480,6 +501,10 @@
         "undine/benches/support/generic_bivariate_baseline.rs": {
           "bytes": 20491,
           "sha256": "40f62d39ba89a223cae47ad15da6a91b8915e754d64ddc4132a2a579048c5eee"
+        },
+        "undine/benches/support/local_setup.rs": {
+          "bytes": 3464,
+          "sha256": "1fb8e6b77cd9ffbb7000e533a0dac8a9dd560f8760f62a31935afeedfb48b80a"
         },
         "undine/benches/support/mod.rs": {
           "bytes": 8130,

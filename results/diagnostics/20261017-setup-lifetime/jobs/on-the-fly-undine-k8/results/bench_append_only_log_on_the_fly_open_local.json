@@ -1,0 +1,487 @@
+{
+  "meta": {
+    "point_calls_per_sample": 32,
+    "seed": 42,
+    "trials": 4,
+    "stored_kappa": 8,
+    "max_levels": 3,
+    "registry_claims": 64,
+    "local_claims": 1,
+    "committed_bulk_update_batches": 3,
+    "stored_segments": 12289,
+    "query_value_index": 196608,
+    "timestamp_unix_ms": 1792199466562,
+    "git": "6bf44acc5069f3ce4bc3789e2feeed22c1d2b52e",
+    "notes": "local append-only-log per-server on-the-fly opening benchmark: warm one claim-bound server at the stored threshold through real bulk updates appends, then time its serialized answers to one point-opening request and to range-opening requests at 2^j times the stored threshold, next to the answers of a copy that ran j kappa-doubles"
+  },
+  "entries": [
+    {
+      "query": "point",
+      "stored_kappa": 8,
+      "open_kappa": 8,
+      "levels": 0,
+      "query_byte_len": 0,
+      "query_leaf_start": 196608,
+      "query_leaf_count": 1,
+      "request_segments": 0,
+      "request_points": 51,
+      "response_field_elements": 20,
+      "serialized_response_bytes": 1251,
+      "helper_stored_at_open_kappa_serialized_ns": {
+        "mean": 8686,
+        "p50": 8586,
+        "p95": 8640,
+        "trials": 4,
+        "samples": [
+          9040,
+          8586,
+          8481,
+          8640
+        ]
+      }
+    },
+    {
+      "query": "range",
+      "stored_kappa": 8,
+      "open_kappa": 8,
+      "levels": 0,
+      "query_byte_len": 1048576,
+      "query_leaf_start": 0,
+      "query_leaf_count": 32768,
+      "request_segments": 1025,
+      "request_points": 3,
+      "response_field_elements": 8203,
+      "serialized_response_bytes": 270240,
+      "helper_stored_at_open_kappa_serialized_ns": {
+        "mean": 360304,
+        "p50": 362161,
+        "p95": 362316,
+        "trials": 4,
+        "samples": [
+          362316,
+          352265,
+          362161,
+          364476
+        ]
+      }
+    },
+    {
+      "query": "range",
+      "stored_kappa": 8,
+      "open_kappa": 8,
+      "levels": 0,
+      "query_byte_len": 4194304,
+      "query_leaf_start": 0,
+      "query_leaf_count": 131072,
+      "request_segments": 4097,
+      "request_points": 1,
+      "response_field_elements": 32777,
+      "serialized_response_bytes": 1081156,
+      "helper_stored_at_open_kappa_serialized_ns": {
+        "mean": 1524589,
+        "p50": 1528055,
+        "p95": 1528238,
+        "trials": 4,
+        "samples": [
+          1528055,
+          1528238,
+          1532373,
+          1509692
+        ]
+      }
+    },
+    {
+      "query": "point",
+      "stored_kappa": 8,
+      "open_kappa": 16,
+      "levels": 1,
+      "query_byte_len": 0,
+      "query_leaf_start": 196608,
+      "query_leaf_count": 1,
+      "request_segments": 0,
+      "request_points": 51,
+      "response_field_elements": 20,
+      "serialized_response_bytes": 1251,
+      "helper_on_the_fly_serialized_ns": {
+        "mean": 11732,
+        "p50": 11639,
+        "p95": 11687,
+        "trials": 4,
+        "samples": [
+          11687,
+          11581,
+          11639,
+          12023
+        ]
+      },
+      "helper_stored_at_open_kappa_serialized_ns": {
+        "mean": 9258,
+        "p50": 8141,
+        "p95": 8142,
+        "trials": 4,
+        "samples": [
+          8032,
+          8142,
+          12718,
+          8141
+        ]
+      }
+    },
+    {
+      "query": "range",
+      "stored_kappa": 8,
+      "open_kappa": 16,
+      "levels": 1,
+      "query_byte_len": 1048576,
+      "query_leaf_start": 0,
+      "query_leaf_count": 32768,
+      "request_segments": 257,
+      "request_points": 3,
+      "response_field_elements": 4115,
+      "serialized_response_bytes": 133280,
+      "helper_on_the_fly_serialized_ns": {
+        "mean": 339350,
+        "p50": 338829,
+        "p95": 340648,
+        "trials": 4,
+        "samples": [
+          340648,
+          333692,
+          338829,
+          344233
+        ]
+      },
+      "helper_stored_at_open_kappa_serialized_ns": {
+        "mean": 124437,
+        "p50": 124798,
+        "p95": 125380,
+        "trials": 4,
+        "samples": [
+          125746,
+          125380,
+          121825,
+          124798
+        ]
+      }
+    },
+    {
+      "query": "range",
+      "stored_kappa": 8,
+      "open_kappa": 16,
+      "levels": 1,
+      "query_byte_len": 4194304,
+      "query_leaf_start": 0,
+      "query_leaf_count": 131072,
+      "request_segments": 1025,
+      "request_points": 1,
+      "response_field_elements": 16401,
+      "serialized_response_bytes": 532548,
+      "helper_on_the_fly_serialized_ns": {
+        "mean": 1361463,
+        "p50": 1362785,
+        "p95": 1363651,
+        "trials": 4,
+        "samples": [
+          1363651,
+          1362785,
+          1347292,
+          1372127
+        ]
+      },
+      "helper_stored_at_open_kappa_serialized_ns": {
+        "mean": 511961,
+        "p50": 494139,
+        "p95": 508723,
+        "trials": 4,
+        "samples": [
+          561420,
+          494139,
+          483562,
+          508723
+        ]
+      }
+    },
+    {
+      "query": "stitch",
+      "stored_kappa": 8,
+      "open_kappa": 16,
+      "levels": 1,
+      "source_segments_per_open_segment": 4,
+      "open_segments": 3073,
+      "stitch_whole_state_ns": {
+        "mean": 4652470,
+        "p50": 4499356,
+        "p95": 4658471,
+        "trials": 4,
+        "samples": [
+          4955828,
+          4496227,
+          4499356,
+          4658471
+        ]
+      }
+    },
+    {
+      "query": "point",
+      "stored_kappa": 8,
+      "open_kappa": 32,
+      "levels": 2,
+      "query_byte_len": 0,
+      "query_leaf_start": 196608,
+      "query_leaf_count": 1,
+      "request_segments": 0,
+      "request_points": 51,
+      "response_field_elements": 20,
+      "serialized_response_bytes": 1251,
+      "helper_on_the_fly_serialized_ns": {
+        "mean": 16546,
+        "p50": 16349,
+        "p95": 16616,
+        "trials": 4,
+        "samples": [
+          16349,
+          16322,
+          16897,
+          16616
+        ]
+      },
+      "helper_stored_at_open_kappa_serialized_ns": {
+        "mean": 8206,
+        "p50": 8056,
+        "p95": 8349,
+        "trials": 4,
+        "samples": [
+          8056,
+          7894,
+          8349,
+          8526
+        ]
+      }
+    },
+    {
+      "query": "range",
+      "stored_kappa": 8,
+      "open_kappa": 32,
+      "levels": 2,
+      "query_byte_len": 1048576,
+      "query_leaf_start": 0,
+      "query_leaf_count": 32768,
+      "request_segments": 65,
+      "request_points": 3,
+      "response_field_elements": 2083,
+      "serialized_response_bytes": 67084,
+      "helper_on_the_fly_serialized_ns": {
+        "mean": 340592,
+        "p50": 340088,
+        "p95": 341861,
+        "trials": 4,
+        "samples": [
+          340088,
+          341861,
+          346669,
+          333753
+        ]
+      },
+      "helper_stored_at_open_kappa_serialized_ns": {
+        "mean": 51374,
+        "p50": 51160,
+        "p95": 51784,
+        "trials": 4,
+        "samples": [
+          51160,
+          50487,
+          52066,
+          51784
+        ]
+      }
+    },
+    {
+      "query": "range",
+      "stored_kappa": 8,
+      "open_kappa": 32,
+      "levels": 2,
+      "query_byte_len": 4194304,
+      "query_leaf_start": 0,
+      "query_leaf_count": 131072,
+      "request_segments": 257,
+      "request_points": 1,
+      "response_field_elements": 8225,
+      "serialized_response_bytes": 264772,
+      "helper_on_the_fly_serialized_ns": {
+        "mean": 1339762,
+        "p50": 1338270,
+        "p95": 1342538,
+        "trials": 4,
+        "samples": [
+          1325308,
+          1342538,
+          1338270,
+          1352933
+        ]
+      },
+      "helper_stored_at_open_kappa_serialized_ns": {
+        "mean": 200369,
+        "p50": 198234,
+        "p95": 199812,
+        "trials": 4,
+        "samples": [
+          198234,
+          199812,
+          196176,
+          207254
+        ]
+      }
+    },
+    {
+      "query": "stitch",
+      "stored_kappa": 8,
+      "open_kappa": 32,
+      "levels": 2,
+      "source_segments_per_open_segment": 16,
+      "open_segments": 769,
+      "stitch_whole_state_ns": {
+        "mean": 6754628,
+        "p50": 6750143,
+        "p95": 6758164,
+        "trials": 4,
+        "samples": [
+          6750143,
+          6758164,
+          6805666,
+          6704539
+        ]
+      }
+    },
+    {
+      "query": "point",
+      "stored_kappa": 8,
+      "open_kappa": 64,
+      "levels": 3,
+      "query_byte_len": 0,
+      "query_leaf_start": 196608,
+      "query_leaf_count": 1,
+      "request_segments": 0,
+      "request_points": 51,
+      "response_field_elements": 20,
+      "serialized_response_bytes": 1251,
+      "helper_on_the_fly_serialized_ns": {
+        "mean": 24472,
+        "p50": 24452,
+        "p95": 24462,
+        "trials": 4,
+        "samples": [
+          24160,
+          24462,
+          24816,
+          24452
+        ]
+      },
+      "helper_stored_at_open_kappa_serialized_ns": {
+        "mean": 7689,
+        "p50": 7630,
+        "p95": 7840,
+        "trials": 4,
+        "samples": [
+          7630,
+          7840,
+          7982,
+          7307
+        ]
+      }
+    },
+    {
+      "query": "range",
+      "stored_kappa": 8,
+      "open_kappa": 64,
+      "levels": 3,
+      "query_byte_len": 1048576,
+      "query_leaf_start": 0,
+      "query_leaf_count": 32768,
+      "request_segments": 16,
+      "request_points": 38,
+      "response_field_elements": 1062,
+      "serialized_response_bytes": 34538,
+      "helper_on_the_fly_serialized_ns": {
+        "mean": 346105,
+        "p50": 345239,
+        "p95": 349339,
+        "trials": 4,
+        "samples": [
+          349339,
+          345239,
+          352061,
+          337783
+        ]
+      },
+      "helper_stored_at_open_kappa_serialized_ns": {
+        "mean": 29411,
+        "p50": 28724,
+        "p95": 30357,
+        "trials": 4,
+        "samples": [
+          30357,
+          28724,
+          30886,
+          27677
+        ]
+      }
+    },
+    {
+      "query": "range",
+      "stored_kappa": 8,
+      "open_kappa": 64,
+      "levels": 3,
+      "query_byte_len": 4194304,
+      "query_leaf_start": 0,
+      "query_leaf_count": 131072,
+      "request_segments": 64,
+      "request_points": 34,
+      "response_field_elements": 4130,
+      "serialized_response_bytes": 132954,
+      "helper_on_the_fly_serialized_ns": {
+        "mean": 1312550,
+        "p50": 1300597,
+        "p95": 1304050,
+        "trials": 4,
+        "samples": [
+          1347309,
+          1300597,
+          1298246,
+          1304050
+        ]
+      },
+      "helper_stored_at_open_kappa_serialized_ns": {
+        "mean": 92437,
+        "p50": 91676,
+        "p95": 93138,
+        "trials": 4,
+        "samples": [
+          91145,
+          93792,
+          91676,
+          93138
+        ]
+      }
+    },
+    {
+      "query": "stitch",
+      "stored_kappa": 8,
+      "open_kappa": 64,
+      "levels": 3,
+      "source_segments_per_open_segment": 64,
+      "open_segments": 193,
+      "stitch_whole_state_ns": {
+        "mean": 8340631,
+        "p50": 8321375,
+        "p95": 8373066,
+        "trials": 4,
+        "samples": [
+          8373066,
+          8287288,
+          8321375,
+          8380795
+        ]
+      }
+    }
+  ]
+}

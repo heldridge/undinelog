@@ -1,0 +1,625 @@
+{
+  "publication_results": false,
+  "cpu": 2,
+  "jobs": [
+    {
+      "id": "point-client-undine-k8",
+      "command": [
+        "taskset",
+        "--cpu-list",
+        "2",
+        "/home/nicolas/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/binaries/undine/bench_append_only_log_client_point_open_local",
+        "--bench"
+      ],
+      "settings": {
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_COMMITTED_BULK_UPDATE_BATCHES": "3",
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_KAPPA": "8",
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TREE_HEIGHT": "50",
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TRIALS": "163"
+      },
+      "binary_sha256": "4e23543dcd6603630fa40dbd620fb72084750d14b7b76265a85cb47d70db66cb",
+      "exit_code": 0,
+      "result": "jobs/point-client-undine-k8/results/bench_append_only_log_client_point_open_local.json",
+      "result_sha256": "16df63932b892f9669aac32bd76717e37bcd705769876e26bc14e079d6c55cf3",
+      "entries": 1,
+      "shape_matches_previous": true,
+      "timings": {
+        "output:point-client-undine-k8:clean-combine-verify": {
+          "n": 160,
+          "mean": 230768.7125,
+          "standard_deviation": 11971.788150243396,
+          "standard_error": 946.4529554945804,
+          "ci95": {
+            "confidence": 0.95,
+            "low": 228899.47149733565,
+            "high": 232637.95350266434,
+            "half_width": 1869.2410026643527,
+            "relative_half_width": 0.008100062536269308,
+            "critical_value": 1.9749962127674463
+          },
+          "sequential_ci": {
+            "familywise_confidence": 0.95,
+            "pointwise_confidence": 0.9958333333333333,
+            "looks": [
+              10,
+              20,
+              40,
+              80,
+              160,
+              320,
+              640,
+              1280,
+              2560,
+              5120,
+              10240,
+              20480
+            ],
+            "low": 228017.07716081914,
+            "high": 233520.34783918085,
+            "half_width": 2751.6353391808498,
+            "relative_half_width": 0.011923779915272742,
+            "critical_value": 2.907313378025165
+          },
+          "stable": true,
+          "reason": "sequential confidence target met"
+        },
+        "output:point-client-undine-k8:corrupt-combine-verify": {
+          "n": 160,
+          "mean": 647711.56875,
+          "standard_deviation": 28247.87215109177,
+          "standard_error": 2233.19037626725,
+          "ci95": {
+            "confidence": 0.95,
+            "low": 643301.0262144834,
+            "high": 652122.1112855165,
+            "half_width": 4410.542535516527,
+            "relative_half_width": 0.006809423744010481,
+            "critical_value": 1.9749962127674463
+          },
+          "sequential_ci": {
+            "familywise_confidence": 0.95,
+            "pointwise_confidence": 0.9958333333333333,
+            "looks": [
+              10,
+              20,
+              40,
+              80,
+              160,
+              320,
+              640,
+              1280,
+              2560,
+              5120,
+              10240,
+              20480
+            ],
+            "low": 641218.9844934011,
+            "high": 654204.1530065988,
+            "half_width": 6492.584256598829,
+            "relative_half_width": 0.010023881878671214,
+            "critical_value": 2.907313378025165
+          },
+          "stable": true,
+          "reason": "sequential confidence target met"
+        }
+      }
+    },
+    {
+      "id": "point-client-borg-k8",
+      "command": [
+        "taskset",
+        "--cpu-list",
+        "2",
+        "/home/nicolas/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/binaries/borg/bench_append_only_log_client_point_open_local",
+        "--bench"
+      ],
+      "settings": {
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_COMMITTED_BULK_UPDATE_BATCHES": "3",
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_KAPPA": "8",
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_SEG": "64",
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TREE_HEIGHT": "50",
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TRIALS": "163"
+      },
+      "binary_sha256": "f0fe85da874b31b3b9c90022e4e101a4b74082baea26c4846ba2033e71be2a05",
+      "exit_code": 0,
+      "result": "jobs/point-client-borg-k8/results/bench_append_only_log_client_point_open_local.json",
+      "result_sha256": "ddf70ca3bf6927f91dfbfe175e05d015fcb063ad32db0079792beac423cf6ff1",
+      "entries": 1,
+      "shape_matches_previous": true,
+      "timings": {
+        "output:point-client-borg-k8:clean-combine-verify": {
+          "n": 160,
+          "mean": 277212.725,
+          "standard_deviation": 15201.577193475103,
+          "standard_error": 1201.790198956286,
+          "ci95": {
+            "confidence": 0.95,
+            "low": 274839.1939085203,
+            "high": 279586.2560914797,
+            "half_width": 2373.531091479701,
+            "relative_half_width": 0.008562128926367651,
+            "critical_value": 1.9749962127674463
+          },
+          "sequential_ci": {
+            "familywise_confidence": 0.95,
+            "pointwise_confidence": 0.9958333333333333,
+            "looks": [
+              10,
+              20,
+              40,
+              80,
+              160,
+              320,
+              640,
+              1280,
+              2560,
+              5120,
+              10240,
+              20480
+            ],
+            "low": 273718.74427699484,
+            "high": 280706.7057230051,
+            "half_width": 3493.9807230051356,
+            "relative_half_width": 0.012603969471477674,
+            "critical_value": 2.907313378025165
+          },
+          "stable": true,
+          "reason": "sequential confidence target met"
+        },
+        "output:point-client-borg-k8:corrupt-combine-verify": {
+          "n": 160,
+          "mean": 722332.85,
+          "standard_deviation": 19679.938293800587,
+          "standard_error": 1555.8357304994452,
+          "ci95": {
+            "confidence": 0.95,
+            "low": 719260.0803245753,
+            "high": 725405.6196754246,
+            "half_width": 3072.7696754246776,
+            "relative_half_width": 0.004253952558608788,
+            "critical_value": 1.9749962127674463
+          },
+          "sequential_ci": {
+            "familywise_confidence": 0.95,
+            "pointwise_confidence": 0.9958333333333333,
+            "looks": [
+              10,
+              20,
+              40,
+              80,
+              160,
+              320,
+              640,
+              1280,
+              2560,
+              5120,
+              10240,
+              20480
+            ],
+            "low": 717809.5479667094,
+            "high": 726856.1520332906,
+            "half_width": 4523.302033290593,
+            "relative_half_width": 0.00626207437927071,
+            "critical_value": 2.907313378025165
+          },
+          "stable": true,
+          "reason": "sequential confidence target met"
+        }
+      }
+    },
+    {
+      "id": "point-client-undine-k16",
+      "command": [
+        "taskset",
+        "--cpu-list",
+        "2",
+        "/home/nicolas/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/binaries/undine/bench_append_only_log_client_point_open_local",
+        "--bench"
+      ],
+      "settings": {
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_COMMITTED_BULK_UPDATE_BATCHES": "3",
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_KAPPA": "16",
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TREE_HEIGHT": "50",
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TRIALS": "163"
+      },
+      "binary_sha256": "4e23543dcd6603630fa40dbd620fb72084750d14b7b76265a85cb47d70db66cb",
+      "exit_code": 0,
+      "result": "jobs/point-client-undine-k16/results/bench_append_only_log_client_point_open_local.json",
+      "result_sha256": "8f4e13101a7a8d74aa8e8a56767e5a75609506598795c01a4db59e22c41b4412",
+      "entries": 1,
+      "shape_matches_previous": true,
+      "timings": {
+        "output:point-client-undine-k16:clean-combine-verify": {
+          "n": 160,
+          "mean": 325624.375,
+          "standard_deviation": 7507.0033689722695,
+          "standard_error": 593.4807262127442,
+          "ci95": {
+            "confidence": 0.95,
+            "low": 324452.25281337934,
+            "high": 326796.49718662066,
+            "half_width": 1172.1221866206436,
+            "relative_half_width": 0.0035996143919528245,
+            "critical_value": 1.9749962127674463
+          },
+          "sequential_ci": {
+            "familywise_confidence": 0.95,
+            "pointwise_confidence": 0.9958333333333333,
+            "looks": [
+              10,
+              20,
+              40,
+              80,
+              160,
+              320,
+              640,
+              1280,
+              2560,
+              5120,
+              10240,
+              20480
+            ],
+            "low": 323898.9405450816,
+            "high": 327349.8094549184,
+            "half_width": 1725.4344549184016,
+            "relative_half_width": 0.00529884918755975,
+            "critical_value": 2.907313378025165
+          },
+          "stable": true,
+          "reason": "sequential confidence target met"
+        },
+        "output:point-client-undine-k16:corrupt-combine-verify": {
+          "n": 160,
+          "mean": 3078273.575,
+          "standard_deviation": 64388.90367737452,
+          "standard_error": 5090.389791542376,
+          "ci95": {
+            "confidence": 0.95,
+            "low": 3068220.074440194,
+            "high": 3088327.0755598065,
+            "half_width": 10053.500559806263,
+            "relative_half_width": 0.0032659542158484933,
+            "critical_value": 1.9749962127674463
+          },
+          "sequential_ci": {
+            "familywise_confidence": 0.95,
+            "pointwise_confidence": 0.9958333333333333,
+            "looks": [
+              10,
+              20,
+              40,
+              80,
+              160,
+              320,
+              640,
+              1280,
+              2560,
+              5120,
+              10240,
+              20480
+            ],
+            "low": 3063474.2166596865,
+            "high": 3093072.933340314,
+            "half_width": 14799.358340313882,
+            "relative_half_width": 0.004807681312182879,
+            "critical_value": 2.907313378025165
+          },
+          "stable": true,
+          "reason": "sequential confidence target met"
+        }
+      }
+    },
+    {
+      "id": "point-client-borg-k16",
+      "command": [
+        "taskset",
+        "--cpu-list",
+        "2",
+        "/home/nicolas/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/binaries/borg/bench_append_only_log_client_point_open_local",
+        "--bench"
+      ],
+      "settings": {
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_COMMITTED_BULK_UPDATE_BATCHES": "3",
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_KAPPA": "16",
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_SEG": "256",
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TREE_HEIGHT": "50",
+        "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TRIALS": "163"
+      },
+      "binary_sha256": "f0fe85da874b31b3b9c90022e4e101a4b74082baea26c4846ba2033e71be2a05",
+      "exit_code": 0,
+      "result": "jobs/point-client-borg-k16/results/bench_append_only_log_client_point_open_local.json",
+      "result_sha256": "60e53b8f655fadb3c4fe2247d267ae8579f90e6f90a8548b9fd71ddf9bd45b26",
+      "entries": 1,
+      "shape_matches_previous": true,
+      "timings": {
+        "output:point-client-borg-k16:clean-combine-verify": {
+          "n": 160,
+          "mean": 374958.025,
+          "standard_deviation": 10374.85715773457,
+          "standard_error": 820.2044754335509,
+          "ci95": {
+            "confidence": 0.95,
+            "low": 373338.1242673239,
+            "high": 376577.9257326762,
+            "half_width": 1619.900732676173,
+            "relative_half_width": 0.004320218863634597,
+            "critical_value": 1.9749962127674463
+          },
+          "sequential_ci": {
+            "familywise_confidence": 0.95,
+            "pointwise_confidence": 0.9958333333333333,
+            "looks": [
+              10,
+              20,
+              40,
+              80,
+              160,
+              320,
+              640,
+              1280,
+              2560,
+              5120,
+              10240,
+              20480
+            ],
+            "low": 372573.43355585594,
+            "high": 377342.6164441441,
+            "half_width": 2384.5914441440755,
+            "relative_half_width": 0.006359622371448312,
+            "critical_value": 2.907313378025165
+          },
+          "stable": true,
+          "reason": "sequential confidence target met"
+        },
+        "output:point-client-borg-k16:corrupt-combine-verify": {
+          "n": 160,
+          "mean": 3153676.3875,
+          "standard_deviation": 58747.18911161253,
+          "standard_error": 4644.373093133484,
+          "ci95": {
+            "confidence": 0.95,
+            "low": 3144503.7682303824,
+            "high": 3162849.006769618,
+            "half_width": 9172.61926961766,
+            "relative_half_width": 0.0029085480380848555,
+            "critical_value": 1.9749962127674463
+          },
+          "sequential_ci": {
+            "familywise_confidence": 0.95,
+            "pointwise_confidence": 0.9958333333333333,
+            "looks": [
+              10,
+              20,
+              40,
+              80,
+              160,
+              320,
+              640,
+              1280,
+              2560,
+              5120,
+              10240,
+              20480
+            ],
+            "low": 3140173.739473793,
+            "high": 3167179.035526207,
+            "half_width": 13502.648026207095,
+            "relative_half_width": 0.004281557892156141,
+            "critical_value": 2.907313378025165
+          },
+          "stable": true,
+          "reason": "sequential confidence target met"
+        }
+      }
+    },
+    {
+      "id": "point-helper-undine-k32",
+      "command": [
+        "taskset",
+        "--cpu-list",
+        "2",
+        "/home/nicolas/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/binaries/undine/bench_append_only_log_point_open_local",
+        "--bench"
+      ],
+      "settings": {
+        "BENCH_APPEND_ONLY_LOG_POINT_OPEN_COMMITTED_BULK_UPDATE_BATCHES": "3",
+        "BENCH_APPEND_ONLY_LOG_POINT_OPEN_KAPPA": "32",
+        "BENCH_APPEND_ONLY_LOG_POINT_OPEN_LOCAL_CLAIMS": "1",
+        "BENCH_APPEND_ONLY_LOG_POINT_OPEN_METRICS": "serialized",
+        "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
+        "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "163"
+      },
+      "binary_sha256": "f2d94bfe582ae8c0dadc944fcb4ab773bf777ee352b34feaf2b18d974a3aa5a6",
+      "exit_code": 0,
+      "result": "jobs/point-helper-undine-k32/results/bench_append_only_log_point_open_local.json",
+      "result_sha256": "7bb2be5ba5cc51bdb4249433d9c362c50f0e3d49fdcb202964319501bc37d227",
+      "entries": 1,
+      "shape_matches_previous": true,
+      "timings": {
+        "output:point-helper-undine-k32:serialized-helper-response": {
+          "n": 160,
+          "mean": 7540.35,
+          "standard_deviation": 476.7300331721318,
+          "standard_error": 37.688818345789066,
+          "ci95": {
+            "confidence": 0.95,
+            "low": 7465.914726503387,
+            "high": 7614.785273496614,
+            "half_width": 74.43527349661366,
+            "relative_half_width": 0.009871593957391057,
+            "critical_value": 1.9749962127674463
+          },
+          "sequential_ci": {
+            "familywise_confidence": 0.95,
+            "pointwise_confidence": 0.9958333333333333,
+            "looks": [
+              10,
+              20,
+              40,
+              80,
+              160,
+              320,
+              640,
+              1280,
+              2560,
+              5120,
+              10240,
+              20480
+            ],
+            "low": 7430.776794221328,
+            "high": 7649.923205778673,
+            "half_width": 109.57320577867283,
+            "relative_half_width": 0.014531580865433677,
+            "critical_value": 2.907313378025165
+          },
+          "stable": true,
+          "reason": "sequential confidence target met"
+        }
+      }
+    },
+    {
+      "id": "point-helper-borg-k32",
+      "command": [
+        "taskset",
+        "--cpu-list",
+        "2",
+        "/home/nicolas/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/binaries/borg/bench_append_only_log_point_open_local",
+        "--bench"
+      ],
+      "settings": {
+        "BENCH_APPEND_ONLY_LOG_POINT_OPEN_COMMITTED_BULK_UPDATE_BATCHES": "3",
+        "BENCH_APPEND_ONLY_LOG_POINT_OPEN_KAPPA": "32",
+        "BENCH_APPEND_ONLY_LOG_POINT_OPEN_LOCAL_CLAIMS": "1",
+        "BENCH_APPEND_ONLY_LOG_POINT_OPEN_METRICS": "serialized",
+        "BENCH_APPEND_ONLY_LOG_POINT_OPEN_SEG": "1024",
+        "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
+        "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "163"
+      },
+      "binary_sha256": "8d12070dd6fda107ac4456d97feaad42b515b6cc88676169e9aed49cdfe644ba",
+      "exit_code": 0,
+      "result": "jobs/point-helper-borg-k32/results/bench_append_only_log_point_open_local.json",
+      "result_sha256": "6e20e3a25f572a8d5f775c2f15682bedf0bfe34cbd297af026716a566d54d05d",
+      "entries": 1,
+      "shape_matches_previous": true,
+      "timings": {
+        "output:point-helper-borg-k32:serialized-helper-response": {
+          "n": 160,
+          "mean": 234416.15,
+          "standard_deviation": 16873.99232610302,
+          "standard_error": 1334.006224267206,
+          "ci95": {
+            "confidence": 0.95,
+            "low": 231781.49275926407,
+            "high": 237050.8072407359,
+            "half_width": 2634.6572407359326,
+            "relative_half_width": 0.01123923091790362,
+            "critical_value": 1.9749962127674463
+          },
+          "sequential_ci": {
+            "familywise_confidence": 0.95,
+            "pointwise_confidence": 0.9958333333333333,
+            "looks": [
+              10,
+              20,
+              40,
+              80,
+              160,
+              320,
+              640,
+              1280,
+              2560,
+              5120,
+              10240,
+              20480
+            ],
+            "low": 230537.7758578191,
+            "high": 238294.5241421809,
+            "half_width": 3878.3741421808872,
+            "relative_half_width": 0.016544824843257974,
+            "critical_value": 2.907313378025165
+          },
+          "stable": true,
+          "reason": "sequential confidence target met"
+        }
+      }
+    },
+    {
+      "id": "range-helper-undine-k64",
+      "command": [
+        "taskset",
+        "--cpu-list",
+        "2",
+        "/home/nicolas/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/binaries/undine/bench_append_only_log_range_open_local",
+        "--bench"
+      ],
+      "settings": {
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_BYTE_LEN_LIST": "1024,1048576",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_BYTE_OFFSET": "0",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_COMMITTED_BULK_UPDATE_BATCHES": "1",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_KAPPA": "64",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_METRICS": "serialized",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_QUERY_BULK_UPDATES": "0",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_SPLIT_COUNT": "1",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_TREE_HEIGHT": "50",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_TRIALS": "4"
+      },
+      "binary_sha256": "ddcf2130bd305d2083ad8c29d3ec77cbccb49f18b1e880be2762d04614c697bf",
+      "exit_code": 0,
+      "result": "jobs/range-helper-undine-k64/results/bench_append_only_log_range_open_local.json",
+      "result_sha256": "a52e03613e21a88cd717257cd24d630bb270823f628048bd7650fc739c2e4f18",
+      "entries": 2
+    },
+    {
+      "id": "range-helper-borg-k64",
+      "command": [
+        "taskset",
+        "--cpu-list",
+        "2",
+        "/home/nicolas/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/binaries/borg/bench_append_only_log_range_open_local",
+        "--bench"
+      ],
+      "settings": {
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_BYTE_LEN_LIST": "1024,1048576",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_BYTE_OFFSET": "0",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_COMMITTED_BULK_UPDATE_BATCHES": "1",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_KAPPA": "64",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_METRICS": "serialized",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_QUERY_BULK_UPDATES": "0",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_SEG": "4096",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_SPLIT_COUNT": "1",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_TREE_HEIGHT": "50",
+        "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_TRIALS": "4"
+      },
+      "binary_sha256": "21d612d7940b7933e8df2db15395ed7848b29e292007b2921c608d9e174cbf2b",
+      "exit_code": 0,
+      "result": "jobs/range-helper-borg-k64/results/bench_append_only_log_range_open_local.json",
+      "result_sha256": "821d11e45c083d6d73983e81a867dfe34985ccc536c156ccea24e20976c7fa02",
+      "entries": 2
+    },
+    {
+      "id": "on-the-fly-undine-k8",
+      "command": [
+        "taskset",
+        "--cpu-list",
+        "2",
+        "/home/nicolas/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/binaries/undine/bench_append_only_log_on_the_fly_open_local",
+        "--bench"
+      ],
+      "settings": {
+        "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_COMMITTED_BULK_UPDATE_BATCHES": "3",
+        "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_KAPPA": "8",
+        "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_LOCAL_CLAIMS": "1",
+        "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_MAX_LEVELS": "3",
+        "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_RANGE_BYTE_LEN_LIST": "1048576,4194304",
+        "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TREE_HEIGHT": "50",
+        "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TRIALS": "4"
+      },
+      "binary_sha256": "f2d1b7c4ce489e88b47bfa36182c4a18acc155b387eaaa9913a9fe5d975ea1d3",
+      "exit_code": 0,
+      "result": "jobs/on-the-fly-undine-k8/results/bench_append_only_log_on_the_fly_open_local.json",
+      "result_sha256": "19edc2872bfe23b81ca020742b7a6b415a8adab5f6623b182f95d93198519707",
+      "entries": 15
+    }
+  ],
+  "all_passed": true
+}

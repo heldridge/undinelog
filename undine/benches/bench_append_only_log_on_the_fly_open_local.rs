@@ -18,6 +18,9 @@
 //! one. Every timed series has exactly `TRIALS` samples; the trials of all
 //! series are interleaved.
 
+#[path = "support/local_setup.rs"]
+mod local_setup;
+
 use append_only_log_demo::codec::bulk_updates_bytes_as_leaves;
 use append_only_log_demo::frontier::PreparedBulkUpdatesAppend;
 use append_only_log_demo::layout::{
@@ -594,8 +597,8 @@ fn build_warmed_server(
         frontier_len += BULK_UPDATES_SIZE as u64;
         frontier = Some(next_frontier);
     }
-    let server = local.inner.lock().expect("server lock").clone();
-    server
+    drop(client);
+    local_setup::take_local_server(local.inner)
 }
 
 /// Run `levels` kappa-doubles on a server through its service interface.

@@ -21,8 +21,24 @@ and different leaves, retaining every individual timing. A prototype that
 repeated tiny components in isolation was rejected because it changed their
 cost; its archived sources are labelled as a rejected prototype.
 
+Local public-opening setup could return while a background fetch still held a
+reference to its server. Dropping the local owners could then leave a worker to
+destroy the large setup state during the client timer. The October 17 fix drops
+the setup client, waits for sole ownership, and transfers or destroys that state
+on the benchmark thread before measurement. Both Borg and Undine use this
+handoff for the affected public-opening setup paths. This removes a possible
+source of timing interference; it does not establish that every observed spike
+had that cause. The two interrupted full runs are retained only as diagnostics.
+
 ## Evidence
 
+- The [setup cleanup check](../results/diagnostics/20261017-setup-lifetime/validation-summary.json)
+  runs nine targeted jobs after the ownership fix. The six point-opening jobs
+  retain 160 samples each; all ten timing series meet the corrected 5% target,
+  with relative half-widths from 0.43% to 1.65%. Output dimensions match the
+  preceding run, and each client opening verifies. Range-helper and on-the-fly
+  checks exercise the other changed setup paths. These are diagnostics, not
+  replacement publication results.
 - The [audit record](../results/diagnostics/20261016-benchmark-validity-audit/audit.json)
   identifies the checks, fixes and limitations. The archive retains build logs,
   source hashes, raw timings and both the rejected prototype and final method.

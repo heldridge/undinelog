@@ -1,0 +1,159 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 4,
+    "committed_bulk_update_batches": 1,
+    "query_bulk_update_batch": 0,
+    "query_byte_offset": 0,
+    "query_global_byte_offset": 0,
+    "query_byte_len": 1024,
+    "query_leaf_start": 0,
+    "query_leaf_count": 32,
+    "timestamp_unix_ms": 1792199452646,
+    "git": "6bf44acc5069f3ce4bc3789e2feeed22c1d2b52e",
+    "notes": "clean append-only-log range-opening benchmark: warm one full local app state and one one-claim helper from the same real bulk-update appends; time the helper's answer to the captured optimized range request (handler, and handler plus serialization), split the full server's answer into registry-index helper replies, and time the local client verified range-open metrics for each requested range length; results are flushed after each completed range length",
+    "metrics": [
+      "serialized"
+    ]
+  },
+  "entries": [
+    {
+      "Seg": 4096,
+      "encoded_cells_N": 4096,
+      "encoded_segment_bytes": 131072,
+      "kappa": 64,
+      "primary_slice_field_elements": 64,
+      "registry_helper_count": 192,
+      "bulk_updates_bytes": 8388608,
+      "inserted_values": 262144,
+      "range_bytes": 1024,
+      "range_leaf_count": 32,
+      "request_objects": 8,
+      "request_segments": 1,
+      "request_points": 7,
+      "threshold_helper_replies": 64,
+      "helper_segment_shards": 1,
+      "helper_point_shares": 7,
+      "helper_response_field_elements": 71,
+      "helper_response_serialized_bytes": 2364,
+      "correcting_helper_replies": 192,
+      "bad_helper_replies": 64,
+      "proof_nodes": 120,
+      "client_returned_leaves": 32,
+      "helper_range_share_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": [],
+        "inner_repetitions": 1
+      },
+      "helper_range_share_serialized_ns": {
+        "mean": 3581,
+        "p50": 3534,
+        "p95": 3588,
+        "trials": 4,
+        "samples": [
+          3588,
+          3528,
+          3675,
+          3534
+        ],
+        "inner_repetitions": 32
+      },
+      "client_threshold_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": [],
+        "inner_repetitions": 1
+      },
+      "client_correction_budget_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": [],
+        "inner_repetitions": 1
+      },
+      "client_kappa_failures_filtered_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": [],
+        "inner_repetitions": 1
+      }
+    },
+    {
+      "Seg": 4096,
+      "encoded_cells_N": 4096,
+      "encoded_segment_bytes": 131072,
+      "kappa": 64,
+      "primary_slice_field_elements": 64,
+      "registry_helper_count": 192,
+      "bulk_updates_bytes": 8388608,
+      "inserted_values": 262144,
+      "range_bytes": 1048576,
+      "range_leaf_count": 32768,
+      "request_objects": 53,
+      "request_segments": 16,
+      "request_points": 37,
+      "threshold_helper_replies": 64,
+      "helper_segment_shards": 16,
+      "helper_point_shares": 37,
+      "helper_response_field_elements": 1061,
+      "helper_response_serialized_bytes": 34494,
+      "correcting_helper_replies": 192,
+      "bad_helper_replies": 64,
+      "proof_nodes": 32836,
+      "client_returned_leaves": 32768,
+      "helper_range_share_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": [],
+        "inner_repetitions": 1
+      },
+      "helper_range_share_serialized_ns": {
+        "mean": 30776,
+        "p50": 30700,
+        "p95": 30781,
+        "trials": 4,
+        "samples": [
+          30700,
+          29989,
+          31637,
+          30781
+        ],
+        "inner_repetitions": 32
+      },
+      "client_threshold_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": [],
+        "inner_repetitions": 1
+      },
+      "client_correction_budget_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": [],
+        "inner_repetitions": 1
+      },
+      "client_kappa_failures_filtered_combine_verify_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": [],
+        "inner_repetitions": 1
+      }
+    }
+  ]
+}

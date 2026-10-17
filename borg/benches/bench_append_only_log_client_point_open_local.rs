@@ -7,6 +7,9 @@
 //! Reed-Solomon decoding, Merkle path reconstruction, and trusted-root checks.
 //! No TCP and no timed server handler work are included.
 
+#[path = "support/local_setup.rs"]
+mod local_setup;
+
 use append_only_log_demo::codec::bulk_updates_bytes_as_leaves;
 use append_only_log_demo::frontier::PreparedBulkUpdatesAppend;
 use append_only_log_demo::layout::{
@@ -602,6 +605,12 @@ fn build_warmed_cluster(setup: &BenchSetup, committed_bulk_update_batches: usize
         let guard = servers[0].inner.lock().expect("auth server lock");
         guard.handle_read(query_leaf_index)
     };
+
+    // A setup fetch can return before its worker releases the full server.
+    // Reclaim and destroy it here, outside every client timer.
+    drop(client);
+    let local = servers.into_iter().next().expect("one setup server");
+    drop(local_setup::take_local_server(local.inner));
 
     WarmedCluster {
         response,

@@ -1,0 +1,8 @@
+
+running 3 tests
+test local_setup::tests::unique_server_is_returned_without_changing_its_state ... ok
+test local_setup::tests::retained_local_owner_fails_instead_of_waiting_forever - should panic ... ok
+test local_setup::tests::worker_cannot_destroy_the_server_during_client_processing ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

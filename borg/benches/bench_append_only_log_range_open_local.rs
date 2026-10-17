@@ -15,6 +15,8 @@
 mod auth_fixture;
 #[path = "support/fixture_cache.rs"]
 mod fixture_cache;
+#[path = "support/local_setup.rs"]
+mod local_setup;
 use auth_fixture::AuthFixture;
 use fixture_cache::FixtureCache;
 
@@ -669,7 +671,9 @@ fn build_warmed_helper(setup: &BenchSetup, committed_bulk_update_batches: usize)
         frontier_len += BULK_UPDATES_SIZE as u64;
         frontier = Some(next_frontier);
     }
-    let helper = servers[0].inner.lock().expect("helper lock").clone();
+    drop(client);
+    let local = servers.into_iter().next().expect("one setup helper");
+    let helper = local_setup::take_local_server(local.inner);
     if cache.enabled() {
         cache.store(&AuthFixture::capture(&helper));
     }

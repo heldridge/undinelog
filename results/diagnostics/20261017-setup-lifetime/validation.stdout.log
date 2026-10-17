@@ -1,0 +1,20 @@
+point-client-undine-k8
+output:point-client-undine-k8:clean-combine-verify n= 160 mean_us= 230.769 relative_half_width= 0.0119
+output:point-client-undine-k8:corrupt-combine-verify n= 160 mean_us= 647.712 relative_half_width= 0.01
+point-client-borg-k8
+output:point-client-borg-k8:clean-combine-verify n= 160 mean_us= 277.213 relative_half_width= 0.0126
+output:point-client-borg-k8:corrupt-combine-verify n= 160 mean_us= 722.333 relative_half_width= 0.0063
+point-client-undine-k16
+output:point-client-undine-k16:clean-combine-verify n= 160 mean_us= 325.624 relative_half_width= 0.0053
+output:point-client-undine-k16:corrupt-combine-verify n= 160 mean_us= 3078.274 relative_half_width= 0.0048
+point-client-borg-k16
+output:point-client-borg-k16:clean-combine-verify n= 160 mean_us= 374.958 relative_half_width= 0.0064
+output:point-client-borg-k16:corrupt-combine-verify n= 160 mean_us= 3153.676 relative_half_width= 0.0043
+point-helper-undine-k32
+output:point-helper-undine-k32:serialized-helper-response n= 160 mean_us= 7.54 relative_half_width= 0.0145
+point-helper-borg-k32
+output:point-helper-borg-k32:serialized-helper-response n= 160 mean_us= 234.416 relative_half_width= 0.0165
+range-helper-undine-k64
+range-helper-borg-k64
+on-the-fly-undine-k8
+All nine targeted benchmark jobs passed

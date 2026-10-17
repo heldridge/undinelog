@@ -1,2 +1,4 @@
 # Archived diffs preserve the original patch context, including blank context lines.
 results/diagnostics/**/*.patch -whitespace
+# Raw tool output retains its original blank lines and integrity hashes.
+results/diagnostics/**/*.log -whitespace
