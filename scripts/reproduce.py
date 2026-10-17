@@ -41,14 +41,17 @@ TREE_HEIGHT = 50
 APPEND_SEQUENCE_BLOCKS = 64
 APPEND_SEQUENCE_WARMUP_BLOCKS = 0
 DEFAULT_MIN_REPETITIONS = 10
-DEFAULT_MAX_REPETITIONS = 160
 DIRECT_WARMUP_REPETITIONS = 3
 APPEND_WARMUP_REPETITIONS = 1
 # A repetition that rebuilds a server from the start has warm code and a warm
 # allocator after one rebuild.
 REBUILD_WARMUP_REPETITIONS = 1
 DEFAULT_RELATIVE_HALF_WIDTH = 0.05
-SEQUENTIAL_LOOKS = (10, 20, 40, 80, 160)
+# Short operations can need thousands of observations when occasional delays
+# dominate their variance. Declare the entire schedule before a run; the
+# confidence calculation divides its error budget across all of these looks.
+SEQUENTIAL_LOOKS = tuple(DEFAULT_MIN_REPETITIONS * 2**look for look in range(12))
+DEFAULT_MAX_REPETITIONS = SEQUENTIAL_LOOKS[-1]
 SEQUENTIAL_FAMILY_ALPHA = 0.05
 MIB = 1024 * 1024
 KIB = 1024

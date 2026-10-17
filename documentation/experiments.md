@@ -272,9 +272,14 @@ built binary into the isolated run directory, pins execution to one logical
 CPU, captures stdout and stderr, hashes the result and raw-sample documents,
 and checkpoints before and after every batch.
 
-Full runs sample at 10, 20, 40, 80, and 160 independent repetitions and stop
-as soon as all timing outputs of each sample group meet the familywise 95%,
-5% relative-half-width target. A job completes after every group has stopped.
+Full runs sample at 10, 20, 40, 80, 160, 320, 640, 1,280, 2,560, 5,120,
+10,240 and 20,480 independent repetitions. The Student-t interval divides
+the 5% error budget across all 12 declared looks. Sampling stops as soon as
+all timing outputs of each sample group meet the familywise 95%,
+5% relative-half-width target. Earlier samples remain in every subsequent
+calculation. A job completes after every group has stopped; a group that
+reaches 20,480 samples without meeting the target remains flagged and prevents
+publication validation.
 Jobs are resumed from each group's next required look; a
 completed batch is never rerun. Smoke and canary modes use one measured
 repetition for path coverage and host calibration, except that the paired
@@ -294,8 +299,9 @@ history between the two openings; the paired reply check has its own group.
 The benchmark echoes requested
 counts; the runner validates exact counts and group-specific warmups, saves
 all raw samples, and rechecks the schedule when resuming. Inactive groups
-emit no samples. The minimum, maximum, declared looks and confidence rule
-are unchanged.
+emit no samples. Groups share the same declared schedule, minimum sample count
+and confidence target; converged preparation groups stay stopped while noisy
+online groups collect more samples.
 
 Short public range helper timers and on-the-fly point-answer timers average
 32 calls per sample. The JSON records `inner_repetitions = 32` or

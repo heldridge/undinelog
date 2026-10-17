@@ -16,6 +16,7 @@ import source_provenance
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 REFERENCE_ROOT = ROOT / "reference-results"
+DIAGNOSTICS_ROOT = ROOT / "results" / "diagnostics"
 REFERENCE_POINTER = REFERENCE_ROOT / "reference.json"
 FORBIDDEN_SUFFIXES = {".bib", ".pdf", ".tex"}
 FORBIDDEN_PARTS = {"__pycache__", "target"}
@@ -115,7 +116,14 @@ def check_packaged_files(files: list[pathlib.Path]) -> None:
         if not path.is_file():
             errors.append(f"required artifact file is missing: {path.relative_to(ROOT)}")
     for path in files:
-        if REFERENCE_ROOT in path.parents or not path.is_file():
+        # Archived evidence retains the paths printed by the original tools.
+        # Do not rewrite it: its integrity hashes bind those exact bytes. The
+        # publication, executable and cache checks above still apply to it.
+        if (
+            REFERENCE_ROOT in path.parents
+            or DIAGNOSTICS_ROOT in path.parents
+            or not path.is_file()
+        ):
             continue
         try:
             text = path.read_text(encoding="utf-8")

@@ -61,7 +61,8 @@ results/runs/RUN_ID/audit-report.md
 
 `missing_full_manifest_measurements` identifies absent outputs.
 `unstable_measurements` identifies timing series that still exceeded the 5%
-relative-half-width target at 160 repetitions. Preserve the run as evidence;
+relative-half-width target at the run's declared maximum (20,480 repetitions
+in the current protocol; 160 in earlier runs). Preserve the run as evidence;
 do not remove samples or edit the summary.
 
 ## Timeout

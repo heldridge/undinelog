@@ -13,6 +13,8 @@ import tempfile
 import unittest
 from unittest import mock
 
+import check_artifact
+
 
 SCRIPT = pathlib.Path(__file__).with_name("reproduce.py")
 SPEC = importlib.util.spec_from_file_location("reproduce", SCRIPT)
@@ -156,6 +158,12 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(counts, {"preprocess": 0, "online": 20, "update": 0})
         self.assertEqual(warmups, {"preprocess": 0, "online": 3, "update": 0})
         self.assertFalse(MODULE.job_complete({"samples": samples}, "full"))
+        for item in run_job.measurements:
+            if item.kind == "timing" and item.sample_group == "online":
+                samples[item.id] = [1., 100.] * 80
+        counts, warmups = MODULE.group_batch_plan(run_job, {"samples": samples}, "full")
+        self.assertEqual(counts, {"preprocess": 0, "online": 160, "update": 0})
+        self.assertEqual(warmups, {"preprocess": 0, "online": 3, "update": 0})
         for item in run_job.measurements:
             if item.kind == "timing" and item.sample_group == "online":
                 samples[item.id] = [1., 100.] * (MODULE.DEFAULT_MAX_REPETITIONS // 2)
@@ -417,6 +425,16 @@ class StatisticsTests(unittest.TestCase):
             result["ci95"]["half_width"],
         )
 
+    def test_confidence_budget_covers_all_twelve_looks(self) -> None:
+        samples = [99., 101.] * 80
+        current = MODULE.summarize_samples(samples)["sequential_ci"]
+        previous = MODULE.summarize_samples(samples, looks=(10, 20, 40, 80, 160))["sequential_ci"]
+        self.assertEqual(len(current["looks"]), 12)
+        self.assertEqual(current["looks"][-1], 20480)
+        self.assertAlmostEqual(current["pointwise_confidence"], 1.0 - 0.05 / 12)
+        self.assertAlmostEqual((1.0 - current["pointwise_confidence"]) * 12, 0.05)
+        self.assertGreater(current["half_width"], previous["half_width"])
+
 
 class ParsingTests(unittest.TestCase):
     @staticmethod
@@ -634,10 +652,34 @@ class CheckpointAndResumeTests(unittest.TestCase):
             MODULE.validate_resume_snapshot(state, {"snapshot_id": "same"})
 
     def test_maximum_repetitions_complete_but_remain_unstable(self) -> None:
-        samples = [1.0, 100.0] * (MODULE.DEFAULT_MAX_REPETITIONS // 2)
+        samples = [1.0] * (MODULE.DEFAULT_MAX_REPETITIONS - 1) + [1.0e9]
         state = {"samples": {"metric": samples}}
         self.assertTrue(MODULE.job_complete(state, "full"))
         self.assertFalse(MODULE.summarize_samples(samples)["stable"])
+
+    def test_noisy_series_continue_beyond_the_old_limit(self) -> None:
+        samples = [1.0, 100.0] * 80
+        state = {"samples": {"metric": samples}}
+        for mode in ("full", "jobs"):
+            with self.subTest(mode=mode):
+                self.assertFalse(MODULE.job_complete(state, mode))
+                self.assertEqual(MODULE.batch_repetitions(state, mode), 160)
+
+    def test_extended_sampling_can_reach_precision_without_discarding_samples(self) -> None:
+        samples = [1.0, 100.0] * 80
+        original = samples.copy()
+        state = {"samples": {"metric": samples}}
+        while not MODULE.job_complete(state, "full"):
+            count = MODULE.batch_repetitions(state, "full")
+            self.assertGreater(count, 0)
+            samples.extend([1.0, 100.0] * (count // 2))
+        self.assertGreater(len(samples), 160)
+        self.assertLess(len(samples), MODULE.DEFAULT_MAX_REPETITIONS)
+        self.assertTrue(MODULE.summarize_samples(samples)["stable"])
+        self.assertEqual(samples[:160], original)
+
+    def test_stable_series_still_stop_at_the_first_look(self) -> None:
+        self.assertTrue(MODULE.job_complete({"samples": {"metric": [100.0] * 10}}, "full"))
 
     def test_batches_advance_to_declared_looks(self) -> None:
         state = {"samples": {"metric": []}}
@@ -649,7 +691,9 @@ class CheckpointAndResumeTests(unittest.TestCase):
             state["samples"]["metric"].extend([1.0] * repetitions)
             current += repetitions
             self.assertEqual(current, look)
-        self.assertEqual(expected, [10, 10, 20, 40, 80])
+        self.assertEqual(expected, [10, 10, 20, 40, 80, 160, 320, 640,
+                                    1280, 2560, 5120, 10240])
+        self.assertEqual(MODULE.DEFAULT_MAX_REPETITIONS, 20480)
         self.assertEqual(MODULE.batch_repetitions(state, "full"), 0)
 
     def test_resume_rejects_changed_saved_binary(self) -> None:
@@ -935,6 +979,47 @@ class ResultOutputTests(unittest.TestCase):
         self.assertEqual(render("mib-3-div3", 3 * 1024 * 1024), "1.000")
         self.assertEqual(render("mib-1", 3 * 1024 * 1024 + 512 * 1024), "3.5")
         self.assertEqual(render("gib-1", 5 * 1024**3 // 2), "2.5")
+
+
+class ArtifactPackagingTests(unittest.TestCase):
+    def check_file(self, relative: str, content: bytes) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            for name in ("README.md", "artifact", "scripts/reproduce.py",
+                         "scripts/verify_results.py", "provenance/sources.json", relative):
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(content if name == relative else b"")
+            with mock.patch.multiple(
+                check_artifact, ROOT=root, REFERENCE_ROOT=root / "reference-results",
+                DIAGNOSTICS_ROOT=root / "results/diagnostics", MEASURED_BENCHMARKS={},
+            ), mock.patch.object(check_artifact, "reference_run_dir", return_value=None):
+                check_artifact.check_packaged_files(
+                    [path for path in root.rglob("*") if path.is_file()]
+                )
+
+    def test_original_paths_allowed_only_in_evidence_archives(self) -> None:
+        content = (b"/home/researcher/Documents/"
+                   b"undinelog-publication-artifact/undine")
+        for relative in ("reference-results/run/build.log",
+                         "results/diagnostics/audit/build.log"):
+            with self.subTest(relative=relative):
+                self.check_file(relative, content)
+        for relative in ("scripts/command.py", "documentation/commands.md"):
+            with self.subTest(relative=relative):
+                with self.assertRaisesRegex(check_artifact.ArtifactCheckError,
+                                            "absolute workspace path"):
+                    self.check_file(relative, content)
+
+    def test_evidence_archives_still_reject_forbidden_files(self) -> None:
+        for relative, content, message in (
+            ("paper.tex", b"", "forbidden publication file"),
+            ("target/cache", b"", "forbidden build/cache path"),
+            ("binary", b"\x7fELF", "compiled executable"),
+        ):
+            with self.subTest(relative=relative):
+                with self.assertRaisesRegex(check_artifact.ArtifactCheckError, message):
+                    self.check_file(f"results/diagnostics/audit/{relative}", content)
 
 
 if __name__ == "__main__":

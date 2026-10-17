@@ -44,9 +44,13 @@ cost; its archived sources are labelled as a rejected prototype.
 The exact fixture, selected-record, PIR, update and opening tests run in the
 smoke gate. The canary exercises representative publication-sized workloads
 and checks paired real/generated replies. Neither gate establishes statistical
-precision. The full run must independently satisfy the unchanged 95% interval,
-5% relative-half-width target at the declared sample counts of 10, 20, 40, 80
-and 160. Measurements are not overlaid from earlier runs.
+precision. The audit used the earlier five-look schedule ending at 160 samples.
+The current full-run schedule doubles from 10 through 20,480 samples, with the
+confidence correction covering all 12 looks. The 95% confidence and 5%
+relative-half-width targets are unchanged. Measurements are not overlaid from
+earlier runs.
 
 The reviewed audit archives are tracked explicitly. Other exploratory outputs,
 compiled diagnostic binaries and fixture caches remain local and ignored.
+Archived tool output retains its original paths and integrity hashes; runnable
+commands and documentation outside the archives must use portable paths.

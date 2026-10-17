@@ -111,8 +111,9 @@ repository at a time.
 The included full run took 6.24 hours of benchmark batches. Runtime depends on
 host speed, load, and variance; the generated preflight reports a
 host-calibrated range, which was 2.5 to 27.8 hours on the reference host
-because adaptive series may stop at 10 repetitions or continue to 160. The
-canary took 16.7 minutes.
+under that run's earlier 160-sample limit. Its canary took 16.7 minutes.
+The current schedule permits more samples for noisy timings, so the next
+run's generated estimate supersedes this historical range.
 
 While the manifest is being extended, `./artifact jobs JOB...` runs the named
 jobs alone after the same preflight gates, with the sampling and the
@@ -124,10 +125,13 @@ come from one completed, validated full run.
 ## Statistical Protocol
 
 Each timing is sampled with independent repetitions at declared looks of
-10, 20, 40, 80, and 160. At each look, the runner computes a Student-t
-interval with a Bonferroni allocation of the 5% error budget across all five
+10, 20, 40, 80, 160, 320, 640, 1,280, 2,560, 5,120, 10,240 and 20,480.
+At each look, the runner computes a Student-t
+interval with a Bonferroni allocation of the 5% error budget across all 12
 looks. Sampling stops when the familywise 95% interval has relative half-width
-at most 5%; otherwise it continues to the next look.
+at most 5%; otherwise it continues to the next look, retaining all earlier
+samples. The 20,480-sample limit is a runtime bound; a series still outside
+the target at that limit remains flagged and prevents publication validation.
 
 Direct benchmarks discard three warmup repetitions per process, and the
 benchmarks whose repetition rebuilds a server discard one. Append
