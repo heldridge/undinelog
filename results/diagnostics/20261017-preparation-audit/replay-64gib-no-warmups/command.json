@@ -1,0 +1,26 @@
+{
+  "binary": "results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+  "binary_sha256_prefix": "177282142665a14a",
+  "command": [
+    "taskset",
+    "--cpu-list",
+    "2",
+    "<binary>",
+    "--bench"
+  ],
+  "cwd": "a scratch directory outside the repository",
+  "env": {
+    "BENCH_FIXTURE_DIR": "results/fixtures (shared cache, hit)",
+    "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
+    "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
+    "BENCH_PRIVATE_OPENING_KAPPA": "64",
+    "BENCH_PRIVATE_OPENING_LEAVES": "2147483648",
+    "BENCH_PRIVATE_OPENING_PATTERN_BITS": "14",
+    "BENCH_PRIVATE_OPENING_ROLE": "maintainer",
+    "BENCH_PRIVATE_OPENING_SEGMENTS_PER_RECORD": "1",
+    "BENCH_PRIVATE_OPENING_TREE_HEIGHT": "50",
+    "BENCH_PRIVATE_OPENING_TRIALS": "4",
+    "BENCH_SAMPLE_GROUPS": "{\"online\": 1, \"preprocess\": 1, \"update\": 4}"
+  },
+  "purpose": "The job private-maintainer-undine-log64gib-p14-k64 of the stopped run, replayed with no discarded warmups and four retained update samples, to measure the first update of a process at a large log size."
+}

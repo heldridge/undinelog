@@ -182,12 +182,15 @@ unchanged. Builds are reproducible: the nine benchmark binaries had identical
 digests across the four full runs of October 16 and 17.
 
 Warmups were checked by replaying the 1 GiB maintainer job with no discarded
-repetition and three retained samples per group. The first build of the
+repetition and three retained samples per group, and the 64 GiB job at
+pattern 14 with four retained update samples. The first build of the
 process was 3.1% slower for the hint, 4.6% for the packing tables and 4.2%
 for their sum than the following builds, so preprocessing batches keep their
-one discarded rebuild. The first append-and-update was within 1% of the
-following ones (0.993 for the hint patch, 1.005 for the packing rebuild), so
-update batches discard none of their three former warmups. Online batches
+one discarded rebuild. The first append-and-update was within 1.3% of the
+following ones at both sizes (hint patch 0.993 and 0.987, packing rebuild
+1.005 and 1.008), so update batches discard none of their three former
+warmups. Timed series measured after a fixture cache hit agree with the same
+series after an in-process fixture build to within 1.7% in the full runs. Online batches
 keep three, which cost seconds. Update timings now carry the sample mode
 `update`; the manifest, checkpoint and summary record the policy, and a
 resumed run must agree with it.

@@ -49,12 +49,41 @@ The first sample of each series against the median of the other two:
 | update hint patch | 0.104, 0.104, 0.106 | 0.993 |
 | update packing rebuild | 2.613, 2.602, 2.598 | 1.005 |
 
+`replay-64gib-no-warmups/` repeats this for
+`private-maintainer-undine-log64gib-p14-k64` with four retained update
+samples, against the shared fixture cache:
+
+| Series | Samples (s) | First / median of the rest |
+| --- | --- | --- |
+| update hint patch | 0.376, 0.380, 0.382, 0.381 | 0.987 |
+| update packing rebuild | 5.209, 5.168, 5.137, 5.227 | 1.008 |
+
 The first build of a process is 3-5% slower than the following ones, ten
 times the 0.3% coefficient of variation of the retained preprocessing samples
 in the full runs, so preprocessing batches keep their one discarded rebuild.
-The first update is within 1% of the following ones, so update batches
-discard none of their former three warmups, which cost 35 s each at the large
-log sizes. Online warmups cost seconds and are unchanged.
+The first update is within 1.3% of the following ones at both sizes, inside
+the batch-to-batch variation of those series in the full runs, so update
+batches discard none of their former three warmups, which cost 35 s each at
+the large log sizes. Online warmups cost seconds and are unchanged.
+
+## Fixture reuse does not move the timed series
+
+Cache hits already occurred inside every full run, whenever a later batch or
+a compatible job reused a fixture written earlier in the same run. For the
+same job and process type, the timed series after a hit against the same
+series after the in-process build (means of the batch, hit / write):
+
+| Run, job | Series | Hit / write |
+| --- | --- | --- |
+| Oct 16, 1 TiB maintainer | answer, first pass, decode, request | 1.008, 1.014, 1.017, 0.973 |
+| Oct 17, 1 TiB maintainer | update packing, update hint (two batches) | 1.007, 1.003; 1.008, 0.980 |
+| Oct 17, 64 GiB maintainer, pattern 16 | update packing, update hint | 1.001, 0.982 |
+
+The second-scale series agree to within 1.7%, and the millisecond series to
+within their own batch-to-batch variation. The shared cache changes only
+which process writes an entry, not what any process measures: fixtures hold
+untimed inputs, and hints, packing tables and every measured operation are
+always built in the measuring process.
 
 ## Not changed here
 

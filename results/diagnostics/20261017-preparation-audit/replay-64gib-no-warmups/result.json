@@ -1,0 +1,142 @@
+{
+  "meta": {
+    "first_pass_warmup_calls": 1,
+    "sample_groups": {
+      "online": 1,
+      "preprocess": 1,
+      "update": 4
+    },
+    "seed": 42,
+    "trials": 4,
+    "role": "maintainer",
+    "kappa": 64,
+    "leaves": 2147483648,
+    "tree_height": 50,
+    "segments_per_record": 1,
+    "cells_per_record": 64,
+    "append_leaves": 131072,
+    "hint_check_columns": 4096,
+    "pir_path": "avx2",
+    "setup_threads": 14,
+    "setup_cpus": "0-13",
+    "timed_cpus": "2",
+    "setup_seconds": 80.656569568,
+    "peak_rss_bytes": 5948514304,
+    "timestamp_unix_ms": 1792254418720,
+    "git": null,
+    "notes": "private openings of one position: one server's first pass and answer to a serialized request, the client's request and decoding, complete single-core hint and packing-table rebuilds in every preprocessing sample, and the preprocessing update after appends; preprocessing totals exclude tree construction, encoding and conversion to PIR cells; sampled hint columns are only an untimed update correctness check; or one client's Combine and Verify from private and from public replies"
+  },
+  "entries": [
+    {
+      "role": "maintainer",
+      "kappa": 64,
+      "segments_per_record": 1,
+      "cells_per_record": 4096,
+      "leaves": 2147483648,
+      "log_bytes": 68719476736,
+      "record_bytes": 2048,
+      "records": 1048577,
+      "patterns": 131072,
+      "pattern_bits": 14,
+      "slots": 26,
+      "group_slots": 9,
+      "db_rows": 131072,
+      "db_cols": 12288,
+      "record_columns": 10844,
+      "outputs": 6,
+      "database_bytes": 2147485696,
+      "request_bytes": 1390610,
+      "reply_bytes": 73750,
+      "preprocessed_bytes": 806486016,
+      "serving_state_bytes": 3285846234,
+      "client_request_ns": {
+        "mean": 64407704,
+        "p50": 64407704,
+        "p95": 64407704,
+        "trials": 1,
+        "samples": [
+          64407704
+        ]
+      },
+      "server_first_pass_ns": {
+        "mean": 150897913,
+        "p50": 150897913,
+        "p95": 150897913,
+        "trials": 1,
+        "samples": [
+          150897913
+        ]
+      },
+      "server_answer_ns": {
+        "mean": 247673812,
+        "p50": 247673812,
+        "p95": 247673812,
+        "trials": 1,
+        "samples": [
+          247673812
+        ]
+      },
+      "client_decode_ns": {
+        "mean": 1651855,
+        "p50": 1651855,
+        "p95": 1651855,
+        "trials": 1,
+        "samples": [
+          1651855
+        ]
+      },
+      "hint_ns": {
+        "mean": 24941320016,
+        "p50": 24941320016,
+        "p95": 24941320016,
+        "trials": 1,
+        "samples": [
+          24941320016
+        ]
+      },
+      "packing_ns": {
+        "mean": 5435822481,
+        "p50": 5435822481,
+        "p95": 5435822481,
+        "trials": 1,
+        "samples": [
+          5435822481
+        ]
+      },
+      "preprocess_ns": {
+        "mean": 30377142497,
+        "p50": 30377142497,
+        "p95": 30377142497,
+        "trials": 1,
+        "samples": [
+          30377142497
+        ]
+      },
+      "update_hint_ns": {
+        "mean": 379870618,
+        "p50": 380023689,
+        "p95": 381041087,
+        "trials": 4,
+        "samples": [
+          376244556,
+          380023689,
+          382173142,
+          381041087
+        ]
+      },
+      "update_packing_ns": {
+        "mean": 5185245477,
+        "p50": 5167546530,
+        "p95": 5208716988,
+        "trials": 4,
+        "samples": [
+          5208716988,
+          5167546530,
+          5137482355,
+          5227236035
+        ]
+      },
+      "append_leaves": 131072
+    }
+  ]
+}
