@@ -92,7 +92,7 @@ For unattended execution:
 nohup ./artifact full > artifact-run.log 2>&1 &
 ```
 
-Before starting the 78-job run, the command validates the manifest, runs the
+Before starting the 77-job run, the command validates the manifest, runs the
 pipeline unit tests and a smoke experiment, proves interruption/resume
 behavior, and executes a publication-sized canary. Gates are cached by source
 snapshot, so successful work is not repeated.
@@ -138,7 +138,7 @@ benchmarks whose repetition rebuilds a server discard one. Append
 benchmarks discard one complete warmup sequence, and one independent append
 sample is a complete 64-batch sequence. Deterministic quantities must agree
 across observations. A full run is publication-ready only when every consumed
-measurement exists and all 476 timing series satisfy the stopping rule.
+measurement exists and all 457 timing series satisfy the stopping rule.
 
 Private server preparation, online work and updates stop independently. The
 TreePIR client comparison keeps component timings and directly timed totals
@@ -165,14 +165,15 @@ the runner never reuses the crate's ordinary build cache. Compiler versions,
 flags and Cargo configurations are recorded, and archived executables are
 hash-checked on resume. Inherited benchmark and profiling flags are removed.
 The smoke gate also runs Rust tests for restored fixtures, selected records,
-dense/structured PIR agreement, updates and verified openings from these sources.
+dense/structured PIR agreement, updates and verified openings from these sources,
+including openings through every real TreePIR color server on a small tree.
 
 Jobs of the two layouts use the same benchmark, the same workload variables,
 the same CPU, and the same protocol. They alternate in the schedule.
 
 ## Evaluation Map
 
-The artifact generates nine result groups:
+The artifact generates twelve result groups:
 
 | Result group | What is measured |
 | --- | --- |
@@ -185,6 +186,9 @@ The artifact generates nine result groups:
 | `tab:private-single` | The same measurements for a single server that stores the whole tree |
 | `tab:private-table` | The maintainer's records against YPIR over the table of complete openings |
 | `tab:private-client` | Client work for a private opening next to a public one |
+| `tab:treepir-server` | UndineLog and TreePIR server preparation and answers at height 32 |
+| `tab:treepir-client` | Full client work for both systems at height 32 |
+| `tab:treepir-check` | Paired decoding of generated and real replies at height 32 |
 
 The first five groups use thresholds 8, 16, 32, and 64 with segment size
 `kappa^2`, except the range group, which uses threshold 64. The private-opening
@@ -193,6 +197,10 @@ groups use threshold 64 for the log-size series and all four thresholds at a
 measurements consumed by these groups, and output parsing rejects unconsumed
 timing fields. See [Experiments](documentation/experiments.md) for exact
 workloads and benchmark targets.
+
+The height-16 all-real-server client workload is a standalone
+[correctness check](documentation/experiments.md#height-16-correctness-check),
+outside the benchmark manifest and its adaptive timing requirements.
 
 ## Reference Results
 
@@ -220,7 +228,7 @@ A reproduction succeeds when:
 1. `./artifact test`, `./artifact smoke`, and `./artifact resume-canary` exit
    with status 0.
 2. `./artifact full` exits with status 0.
-3. `./artifact validate RUN_ID` reports 78 jobs, 1,029 result cells, 476 timing
+3. `./artifact validate RUN_ID` reports 77 jobs, 993 result cells, 457 timing
    series, and `publishable: true`.
 4. The completed run's `summary.json` lists no missing or unstable
    measurements.

@@ -1,0 +1,148 @@
+{
+  "files": {
+    "README.md": {
+      "bytes": 5248,
+      "sha256": "3c4f6e96524a53ddea8ecc17444fd37c41e62391fc77b00ed370d26dbe32920c"
+    },
+    "analyze.py": {
+      "bytes": 2813,
+      "sha256": "8020dc69b5249a2cab56cd9aa1cff006141bdb0c6e9dd51a77fc1b89228186ce"
+    },
+    "diagnostic-scope.json": {
+      "bytes": 434,
+      "sha256": "c16cc2f0d52cd5807e0dbfd763a6ff55c0aab69829ee80902176a410c54b4bc9"
+    },
+    "h32-original-0/command.json": {
+      "bytes": 704,
+      "sha256": "1949f66523c28e9c9a375405845f9705c26d650a92e2922756274d4cf273d9bd"
+    },
+    "h32-original-0/results/bench_treepir_comparison_local.json": {
+      "bytes": 50691,
+      "sha256": "c55174c72276d79613c9d7f8cbdf2082b75e1362ac38dd8b4e2a962dcdccfdc1"
+    },
+    "h32-original-0/stderr.log": {
+      "bytes": 3814,
+      "sha256": "2e265738714f7c0c0e67996b1c8ba76eac9476ca2739864753fbc29070b8f768"
+    },
+    "h32-original-0/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "h32-validation.json": {
+      "bytes": 47272,
+      "sha256": "53b9af991b0cf849ff58e012405b1121dd21dd34dfd2f40bcd26f78a64d1a77a"
+    },
+    "manifest-scope.json": {
+      "bytes": 531,
+      "sha256": "ffb984ddd10dc4e1aeacf65a6613bf0fd3f3a4de00c557b7d5f6c631d50f3965"
+    },
+    "pipeline-tests.log": {
+      "bytes": 8156,
+      "sha256": "b253496e2fc4172c76c9fcdcec4a56f7bfb3494e3a5b21837934b9b275640ed8"
+    },
+    "prior-source-comparison.json": {
+      "bytes": 189,
+      "sha256": "85f77919968dd3532f141c09cd03f52fd91c81abddab3544a6412d2f4b9b27e7"
+    },
+    "source-run/checkpoint.json": {
+      "bytes": 1153739,
+      "sha256": "94caea40dc9a1062a5ab79e621cc412ff0547df2067184d4499a2881816b922f"
+    },
+    "source-run/environment.json": {
+      "bytes": 29230,
+      "sha256": "27dd2aff91818769571bf8e8990ca22595e24a6367e9278c221d8c554af326b0"
+    },
+    "source-run/jobs/treepir-client-h16-real/batch-000/raw-samples.json": {
+      "bytes": 9820,
+      "sha256": "8bc9f210a5932486b09b224007f1c9c384d7d9d7ab7a306bb990e71ec417ba3e"
+    },
+    "source-run/jobs/treepir-client-h16-real/batch-000/result.json": {
+      "bytes": 47615,
+      "sha256": "64c41e4a7560f247eb9f8f8779b51bf78ec0fc5566fbb5276bdd022f57accfe4"
+    },
+    "source-run/jobs/treepir-client-h16-real/batch-001/raw-samples.json": {
+      "bytes": 9824,
+      "sha256": "b2b176742628c1b4096faa232704a6264efa01a71b3fa3ec2ca9144e92c6bf76"
+    },
+    "source-run/jobs/treepir-client-h16-real/batch-001/result.json": {
+      "bytes": 47621,
+      "sha256": "364cc4e5828f33594d02d31f484048693d809896e15fb6d4d06f1df917db42a3"
+    },
+    "source-run/jobs/treepir-client-h16-real/batch-002/raw-samples.json": {
+      "bytes": 16124,
+      "sha256": "97bc393b0d72f8cec3a7708b4f34628e64e07e5e57526155120ed4466abdec60"
+    },
+    "source-run/jobs/treepir-client-h16-real/batch-002/result.json": {
+      "bytes": 79434,
+      "sha256": "4e9266ad7d20c5cb3fd4668fdf48cd4b25650c76029c7ec84c79e4ccd43b9f3e"
+    },
+    "source-run/jobs/treepir-client-h16-real/batch-003/raw-samples.json": {
+      "bytes": 28715,
+      "sha256": "27fbb849488f9bceccd19d28a5cab9674715e9c5d6e1534c6948ceab5a7843a7"
+    },
+    "source-run/jobs/treepir-client-h16-real/batch-003/result.json": {
+      "bytes": 142919,
+      "sha256": "a42aad7fea96aa68dd90517d92bfd2de32d253bd0e865bfa2920c11ef2b08c90"
+    },
+    "source-run/jobs/treepir-server-h32-m0-c0/batch-000/raw-samples.json": {
+      "bytes": 8097,
+      "sha256": "1615f735f8d8079c8809308dc0c832e25bb36399b2702b2e6d8ca60a8f23cd74"
+    },
+    "source-run/jobs/treepir-server-h32-m0-c0/batch-000/result.json": {
+      "bytes": 9956,
+      "sha256": "9837d0e572d580c1a31eadb170c9d83562be04efcd2fae2fca11ee5738f7b7aa"
+    },
+    "source-run/jobs/treepir-server-h32-m0-c0/batch-001/raw-samples.json": {
+      "bytes": 2406,
+      "sha256": "3b6e341f17b9323b1fa983baa038e8bf94511beec4cdbc89b8af8183a0c2bdc8"
+    },
+    "source-run/jobs/treepir-server-h32-m0-c0/batch-001/result.json": {
+      "bytes": 7061,
+      "sha256": "b27f192f86014727890770ccb8d4ebffd8f643643e24280a308770ffbbd344f8"
+    },
+    "source-run/jobs/treepir-server-h32-m31-c31/batch-000/raw-samples.json": {
+      "bytes": 8152,
+      "sha256": "cdf32884b7ced43da346a67e0fc62b27942b253c93e23c45ccc6c2a3e8c55e1c"
+    },
+    "source-run/jobs/treepir-server-h32-m31-c31/batch-000/result.json": {
+      "bytes": 9959,
+      "sha256": "3ec4de2b3bd1c22676029d35563e9af8302f0a87ecf6bbcc7b7b62592a532e96"
+    },
+    "source-run/jobs/treepir-server-h32-m31-c31/batch-001/raw-samples.json": {
+      "bytes": 8154,
+      "sha256": "48bad2e6bcc63c1907f4214371604cc685ec0fcd9f91958a65b131418bb879b8"
+    },
+    "source-run/jobs/treepir-server-h32-m31-c31/batch-001/result.json": {
+      "bytes": 9960,
+      "sha256": "d46262c8041b07283e7a9777060369d195ce237f9e7568db1cf469ba01a5167b"
+    },
+    "source-run/jobs/treepir-server-h32-m31-c31/batch-002/raw-samples.json": {
+      "bytes": 13872,
+      "sha256": "4840c19daa578967551368cdb36d90d17ec83f435e5bcb6773dbf04b09499721"
+    },
+    "source-run/jobs/treepir-server-h32-m31-c31/batch-002/result.json": {
+      "bytes": 13098,
+      "sha256": "5198bc3ad6c734e2bdf974a22ff7ad2ace5bbd618dab7dd5d1e273d319cce835"
+    },
+    "source-run/manifest.json": {
+      "bytes": 994338,
+      "sha256": "5350f4c88c1c211abc3ee3bf3a814d87b734fc05901a7bea6429f50b4cfd3ee7"
+    },
+    "source-run/source-snapshot.json": {
+      "bytes": 48436,
+      "sha256": "431aaedc74f80bebb4d8cea0ac69cb6e138f7276794d7a61543e67ded7403fd9"
+    },
+    "source-run/superseded.json": {
+      "bytes": 356,
+      "sha256": "a31fb5d962032a2d5493cc80868d15a90840aea8601fa8f85a425ea377638849"
+    },
+    "stopping-analysis.json": {
+      "bytes": 58913,
+      "sha256": "3be5d73bc984b329222f721b705f75ccb9595e8e2f07762615817b6a51c0e48b"
+    },
+    "treepir-tests.log": {
+      "bytes": 366,
+      "sha256": "bfddc9fe840c205d396db89617363028c3fa6c9c6c71c5705a02f89eb0a86970"
+    }
+  }
+}

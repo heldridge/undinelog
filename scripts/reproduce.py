@@ -106,8 +106,6 @@ TREEPIR_PREFIX = "BENCH_TREEPIR_COMPARISON"
 # h = kappa = 32: a log of 2^32 leaves, 128 GiB, which is TreePIR's tree
 # without padding and gives both systems 32 servers.
 TREEPIR_HEIGHT = 32
-# Every server of both systems is real at this height.
-TREEPIR_VALIDATION_HEIGHT = 16
 # The opened leaves are seeded; the leaves before them are allocated and
 # unwritten.
 TREEPIR_SEEDED_LEAVES = 1 << 20
@@ -309,10 +307,8 @@ TABLE_METADATA.update(
                 "recomputes the root from the recovered path. The totals are "
                 "timed as a whole on a second opening. At h = 32 the log has "
                 "2^32 - 2^20 allocated, unwritten leaves followed by 2^20 "
-                "seeded ones; at h = 16 every leaf is seeded; every opening "
-                "is of a seeded leaf. At h = 16 every "
-                "reply comes from a real server; at h = 32 each reply is the "
-                "row its server returns, read from the tree and encrypted "
+                "seeded ones; every opening is of a seeded leaf. Each reply "
+                "is the row its server returns, read from the tree and encrypted "
                 "under the client's key, and the check table compares such "
                 "replies with a real server's. Reconstruction is fault-free."
             ),
@@ -343,7 +339,7 @@ OMITTED_EXPERIMENTS = (
     "private openings of ranges",
     "private-opening baselines with one query per tree level, replicated "
     "full-copy servers, and BorgLog under the same PIR pipeline",
-    "UndineLog against TreePIR at heights other than 16 and 32, at other "
+    "UndineLog against TreePIR at heights other than 32, at other "
     "thresholds than kappa = h, and with faulty replies",
     "private openings over an emulated wide-area network",
     "the single server's preprocessing update after an append",
@@ -2300,9 +2296,10 @@ def _build_treepir_tables(manifest: Manifest) -> None:
         "upload-mib", "download-kib",
         *(column for column, _, _ in TREEPIR_CLIENT_COLUMNS),
     ]
+    # The all-real height-16 workload is a standalone correctness check,
+    # not a publication measurement that needs adaptive timing precision.
     check_outputs: dict[str, dict[str, str]] = {}
     for height, replies in (
-        (TREEPIR_VALIDATION_HEIGHT, "real"),
         (TREEPIR_HEIGHT, "generated"),
     ):
         job = _treepir_client_job(manifest, height, replies)
@@ -3080,7 +3077,6 @@ def select_run_jobs(
             },
         )
         for height, replies in (
-            (TREEPIR_VALIDATION_HEIGHT, "real"),
             (TREEPIR_HEIGHT, "generated"),
         ):
             add(
@@ -5250,8 +5246,9 @@ def run_unit_tests(run_dir: pathlib.Path) -> None:
             f"pipeline unit tests failed; see {run_dir / 'unit-tests.stderr.log'}"
         )
     # These tests exercise fixture restoration, selected records, independent
-    # dense/structured PIR agreement and verified openings. Do not let a passing
-    # Python scheduler test stand in for correctness of the measured Rust code.
+    # dense/structured PIR agreement and verified openings, including every
+    # real TreePIR color server. Do not let a passing Python scheduler test
+    # stand in for correctness of the measured Rust code.
     state = load_checkpoint(run_dir)
     snapshot_id = str(state["snapshot_id"])
     validate_current_source_snapshot(snapshot_id, phase="before Rust correctness tests")
@@ -5259,7 +5256,8 @@ def run_unit_tests(run_dir: pathlib.Path) -> None:
     command = ["cargo", "test", "--locked", "--release", "--features", "bench",
                "--target-dir", str(target)]
     for test in ("benchmark_fixtures", "private_selected_records", "private_pir",
-                 "private_update", "private_opening", "private_layout", "private_bulk"):
+                 "private_update", "private_opening", "private_layout", "private_bulk",
+                 "treepir"):
         command.extend(["--test", test])
     environment = clean_benchmark_environment()
     environment.update({"RUSTC_WRAPPER": "", "RUSTC_WORKSPACE_WRAPPER": ""})

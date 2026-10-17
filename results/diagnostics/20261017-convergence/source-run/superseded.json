@@ -1,0 +1,8 @@
+{
+  "status": "stopped",
+  "stopped_utc": "2026-10-17T14:17:58.170983+00:00",
+  "reason": "Stopped at user request: remove the height-16 validation workload from publication benchmarks and investigate convergence before a fresh full run.",
+  "publication_use": false,
+  "next_run_reuses_measurements": false,
+  "retained_for": "diagnosis and audit only"
+}

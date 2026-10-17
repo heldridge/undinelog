@@ -1,0 +1,19 @@
+{
+  "command": [
+    "taskset",
+    "--cpu-list",
+    "2",
+    "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
+    "--bench"
+  ],
+  "env": {
+    "BENCH_TREEPIR_COMPARISON_HEIGHT": "32",
+    "BENCH_TREEPIR_COMPARISON_REPLIES": "generated",
+    "BENCH_TREEPIR_COMPARISON_ROLE": "client",
+    "BENCH_TREEPIR_COMPARISON_SEEDED_LEAVES": "1048576",
+    "BENCH_SAMPLE_GROUPS": "{\"client\": 13, \"paired\": 0}",
+    "BENCH_TREEPIR_COMPARISON_TRIALS": "13"
+  },
+  "binary_sha256": "1d83c2b0024f03eda790704037fa336fc98516e89ee0948384089eaa24720270",
+  "started": "2026-10-17T14:19:44.520668+00:00"
+}

@@ -70,3 +70,42 @@ The reviewed audit archives are tracked explicitly. Other exploratory outputs,
 compiled diagnostic binaries and fixture caches remain local and ignored.
 Archived tool output retains its original paths and integrity hashes; runnable
 commands and documentation outside the archives must use portable paths.
+
+## October 17 scope and convergence audit
+
+The full run `20261017T012510Z-full-a1dd1b9f80` was stopped at the author's
+request after 76 jobs completed. Its partial measurements are retained for
+diagnosis only; the next full run starts with empty samples.
+
+The height-16 all-real-server client workload had incorrectly been included in
+the timing manifest. It is now a separately documented, fixed-count correctness
+check. The full manifest has 77 jobs, 993 result cells and 457 timing series.
+The remaining job definitions and measured quantities are unchanged. The smoke
+gate includes the existing `treepir` integration tests, so automatic checks
+still reconstruct openings through every real color server on a small tree.
+
+The [convergence audit](../results/diagnostics/20261017-convergence/README.md)
+recomputes stopping decisions from the saved samples. Of the 76 completed jobs,
+51 stopped at 10 samples, 12 at 20, five at 40, four at 80 and four at 160.
+The height-16 client request and reply-processing totals met the corrected
+5% target at the first look, with relative half-widths below 1%. Its tiny
+indexing timers continued to miss the target. Their means also differed across
+processes; the evidence does not identify a single allocator, cache or
+scheduling cause.
+
+The expensive server comparison for claim/class 31 needed 40 samples. Its
+preparation totals were already below 0.4% uncertainty at 10 samples, but
+UndineLog's approximately 74 ms row-table/upper-node gathering stage had
+occasional longer calls, and TreePIR's first pass also needed more samples.
+Because gathering is part of the preparation group, those calls caused further
+complete builds. This explains the runtime without establishing a defect in
+the measured algorithms. The confidence target, stopping schedule and complete
+set of samples are preserved; no outlier filtering or isolated repetition of
+tiny client components is introduced.
+
+A new height-32 diagnostic also verified all 104 opening pairs per system.
+Its request, processing and total client intervals were below 0.6% after
+10 retained samples. Several component timers still missed 5%; a single
+183 us TreePIR indexing call widened that interval substantially. This confirms
+that removing height 16 does not guarantee fast convergence for the remaining
+suite. Both the result and the slow observation are retained in the audit.

@@ -135,7 +135,6 @@ class ManifestTests(unittest.TestCase):
             {
                 ("server", MODULE.TREEPIR_HEIGHT),
                 ("client", MODULE.TREEPIR_HEIGHT),
-                ("client", MODULE.TREEPIR_VALIDATION_HEIGHT),
             },
         )
         rebuilds = {
@@ -367,8 +366,26 @@ class ManifestTests(unittest.TestCase):
             MODULE.select_run_jobs(self.manifest, "jobs", [])
 
     def test_exact_full_job_count_is_stable(self) -> None:
-        self.assertEqual(len(self.manifest.jobs), 78)
-        self.assertEqual(len(self.manifest.cells), 1029)
+        self.assertEqual(len(self.manifest.jobs), 77)
+        self.assertEqual(len(self.manifest.cells), 993)
+        self.assertEqual(
+            sum(item.kind == "timing" for item in self.manifest.measurements.values()),
+            457,
+        )
+
+    def test_treepir_validation_is_not_a_publication_measurement(self) -> None:
+        self.assertEqual(
+            self.manifest.table_rows["tab:treepir-client"],
+            ["h32-generated:undine", "h32-generated:treepir"],
+        )
+        for mode in ("full", "smoke", "canary"):
+            self.assertNotIn(
+                "treepir-client-h16-real",
+                [job.spec.id for job in MODULE.select_run_jobs(self.manifest, mode)],
+                mode,
+            )
+        with self.assertRaisesRegex(MODULE.PipelineError, "unknown jobs"):
+            MODULE.select_run_jobs(self.manifest, "jobs", ["treepir-client-h16-real"])
 
     def test_every_table_cell_satisfies_its_unit_contract(self) -> None:
         for cell in self.manifest.cells.values():
@@ -396,6 +413,28 @@ class ManifestTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(MODULE.PipelineError, "has unit 'bytes'"):
             MODULE.validate_cell_unit_contract(cell, manifest)
+
+
+class CorrectnessGateTests(unittest.TestCase):
+    def test_smoke_keeps_real_treepir_servers_in_correctness_tests(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = pathlib.Path(directory)
+            with (
+                mock.patch.object(MODULE, "run_capture", return_value=
+                                  subprocess.CompletedProcess([], 0, b"", b"")) as run,
+                mock.patch.object(MODULE, "load_checkpoint", return_value=
+                                  {"snapshot_id": "test-snapshot"}),
+                mock.patch.object(MODULE, "validate_current_source_snapshot"),
+                mock.patch.object(MODULE, "isolated_build_target",
+                                  return_value=run_dir / "target"),
+            ):
+                MODULE.run_unit_tests(run_dir)
+            rust = next(call.args[0] for call in run.call_args_list
+                        if call.args[0][:2] == ["cargo", "test"])
+            targets = [rust[i + 1] for i, arg in enumerate(rust) if arg == "--test"]
+            self.assertIn("treepir", targets)
+            self.assertIn("private_opening", targets)
+            self.assertIn("private_selected_records", targets)
 
 
 class StatisticsTests(unittest.TestCase):

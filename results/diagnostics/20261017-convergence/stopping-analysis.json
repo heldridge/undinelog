@@ -1,0 +1,2218 @@
+{
+  "source_run": "20261017T012510Z-full-a1dd1b9f80",
+  "publication_results": false,
+  "completed_jobs": 76,
+  "completed_jobs_by_maximum_samples": {
+    "10": 51,
+    "20": 12,
+    "40": 5,
+    "80": 4,
+    "160": 4
+  },
+  "jobs": [
+    {
+      "job": "append-4mib-borg-k16",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 201.86606407165527,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 201.86606407165527,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "append-4mib-borg-k32",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 191.04045414924622,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 191.04045414924622,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "append-4mib-borg-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 196.9771647453308,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 196.9771647453308,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "append-4mib-borg-k8",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 252.35320401191711,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 252.35320401191711,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "append-4mib-undine-k16",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 130.9884021282196,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 130.9884021282196,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "append-4mib-undine-k32",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 130.41026425361633,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 130.41026425361633,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "append-4mib-undine-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 135.8723909854889,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 135.8723909854889,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "append-4mib-undine-k8",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 131.9741654396057,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 131.9741654396057,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "on-the-fly-undine-k16",
+      "status": "completed",
+      "maximum_samples": 160,
+      "completed_batch_seconds": 11.204659938812256,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 1.7277333736419678,
+          "misses": [
+            {
+              "metric": "output:on-the-fly-undine-k16:open16-range-1mib-stored",
+              "n": 10,
+              "mean_ns": 137626.5,
+              "relative_half_width": 0.3569398340679271
+            },
+            {
+              "metric": "output:on-the-fly-undine-k16:open32-range-4mib-stored",
+              "n": 10,
+              "mean_ns": 206057.1,
+              "relative_half_width": 0.2023131048799266
+            },
+            {
+              "metric": "output:on-the-fly-undine-k16:open32-range-4mib-on-the-fly",
+              "n": 10,
+              "mean_ns": 547395.9,
+              "relative_half_width": 0.10018006191456623
+            },
+            {
+              "metric": "output:on-the-fly-undine-k16:open16-range-4mib-stored",
+              "n": 10,
+              "mean_ns": 508428.3,
+              "relative_half_width": 0.07897016856537253
+            },
+            {
+              "metric": "output:on-the-fly-undine-k16:open32-point-on-the-fly",
+              "n": 10,
+              "mean_ns": 11498.6,
+              "relative_half_width": 0.06622190170536446
+            },
+            {
+              "metric": "output:on-the-fly-undine-k16:open16-point-stored",
+              "n": 10,
+              "mean_ns": 8312.6,
+              "relative_half_width": 0.05335717169989198
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 1.7242629528045654,
+          "misses": [
+            {
+              "metric": "output:on-the-fly-undine-k16:open16-range-1mib-stored",
+              "n": 20,
+              "mean_ns": 132304.7,
+              "relative_half_width": 0.15958207192917315
+            },
+            {
+              "metric": "output:on-the-fly-undine-k16:open32-range-1mib-on-the-fly",
+              "n": 20,
+              "mean_ns": 142215.1,
+              "relative_half_width": 0.12444587255520027
+            },
+            {
+              "metric": "output:on-the-fly-undine-k16:open32-range-4mib-stored",
+              "n": 20,
+              "mean_ns": 202386.35,
+              "relative_half_width": 0.09165464459408264
+            },
+            {
+              "metric": "output:on-the-fly-undine-k16:open64-range-1mib-stored",
+              "n": 20,
+              "mean_ns": 29099.05,
+              "relative_half_width": 0.08485906157870901
+            },
+            {
+              "metric": "output:on-the-fly-undine-k16:open32-range-1mib-stored",
+              "n": 20,
+              "mean_ns": 53261.15,
+              "relative_half_width": 0.07996327946460391
+            },
+            {
+              "metric": "output:on-the-fly-undine-k16:open128-point-stored",
+              "n": 20,
+              "mean_ns": 7536.55,
+              "relative_half_width": 0.07726548812603833
+            },
+            {
+              "metric": "output:on-the-fly-undine-k16:open128-range-1mib-on-the-fly",
+              "n": 20,
+              "mean_ns": 166257.0,
+              "relative_half_width": 0.07544623742363418
+            },
+            {
+              "metric": "output:on-the-fly-undine-k16:open64-range-1mib-on-the-fly",
+              "n": 20,
+              "mean_ns": 152342.3,
+              "relative_half_width": 0.05135395858776588
+            }
+          ]
+        },
+        {
+          "batch": 2,
+          "counts": {},
+          "seconds": 1.9608373641967773,
+          "misses": [
+            {
+              "metric": "output:on-the-fly-undine-k16:open16-range-1mib-stored",
+              "n": 40,
+              "mean_ns": 127988.35,
+              "relative_half_width": 0.07807437090231129
+            },
+            {
+              "metric": "output:on-the-fly-undine-k16:open32-range-1mib-on-the-fly",
+              "n": 40,
+              "mean_ns": 139064.625,
+              "relative_half_width": 0.059850963866874135
+            }
+          ]
+        },
+        {
+          "batch": 3,
+          "counts": {},
+          "seconds": 2.4386298656463623,
+          "misses": [
+            {
+              "metric": "output:on-the-fly-undine-k16:open16-range-1mib-stored",
+              "n": 80,
+              "mean_ns": 129052.1625,
+              "relative_half_width": 0.05656394112520216
+            }
+          ]
+        },
+        {
+          "batch": 4,
+          "counts": {},
+          "seconds": 3.353196382522583,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "on-the-fly-undine-k32",
+      "status": "completed",
+      "maximum_samples": 80,
+      "completed_batch_seconds": 8.506183624267578,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 1.8340063095092773,
+          "misses": [
+            {
+              "metric": "output:on-the-fly-undine-k32:open128-range-4mib-stored",
+              "n": 10,
+              "mean_ns": 46462.7,
+              "relative_half_width": 0.15112958815686825
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open256-range-1mib-stored",
+              "n": 10,
+              "mean_ns": 11881.9,
+              "relative_half_width": 0.13904945010436914
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open128-range-1mib-stored",
+              "n": 10,
+              "mean_ns": 17458.3,
+              "relative_half_width": 0.13393104671769504
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open64-range-4mib-stored",
+              "n": 10,
+              "mean_ns": 100458.9,
+              "relative_half_width": 0.1250604564070491
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open256-range-4mib-stored",
+              "n": 10,
+              "mean_ns": 24805.8,
+              "relative_half_width": 0.11585040174128008
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open128-point-stored",
+              "n": 10,
+              "mean_ns": 7720.9,
+              "relative_half_width": 0.10166299056876535
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open256-point-stored",
+              "n": 10,
+              "mean_ns": 7435.9,
+              "relative_half_width": 0.09468728612639937
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open64-range-1mib-stored",
+              "n": 10,
+              "mean_ns": 30096.7,
+              "relative_half_width": 0.09409286855473091
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open128-point-on-the-fly",
+              "n": 10,
+              "mean_ns": 15568.0,
+              "relative_half_width": 0.0924608090334729
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open32-range-1mib-stored",
+              "n": 10,
+              "mean_ns": 56690.8,
+              "relative_half_width": 0.09061137780805723
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open32-range-4mib-stored",
+              "n": 10,
+              "mean_ns": 209976.2,
+              "relative_half_width": 0.0901317912486854
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open64-point-stored",
+              "n": 10,
+              "mean_ns": 8046.7,
+              "relative_half_width": 0.07647660195226301
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open128-range-1mib-on-the-fly",
+              "n": 10,
+              "mean_ns": 78519.4,
+              "relative_half_width": 0.06340045700809496
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open64-range-4mib-on-the-fly",
+              "n": 10,
+              "mean_ns": 243181.2,
+              "relative_half_width": 0.06181943914508325
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open32-point-stored",
+              "n": 10,
+              "mean_ns": 8489.1,
+              "relative_half_width": 0.05824710984640099
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open256-point-on-the-fly",
+              "n": 10,
+              "mean_ns": 21367.0,
+              "relative_half_width": 0.05813724715414026
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open64-point-on-the-fly",
+              "n": 10,
+              "mean_ns": 11511.1,
+              "relative_half_width": 0.051637945476869715
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 1.8197708129882812,
+          "misses": [
+            {
+              "metric": "output:on-the-fly-undine-k32:open64-range-4mib-stored",
+              "n": 20,
+              "mean_ns": 98941.5,
+              "relative_half_width": 0.09140816965691835
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open128-range-4mib-stored",
+              "n": 20,
+              "mean_ns": 45014.5,
+              "relative_half_width": 0.06941133885344468
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open256-range-4mib-stored",
+              "n": 20,
+              "mean_ns": 24427.75,
+              "relative_half_width": 0.06931377959102444
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open256-range-1mib-stored",
+              "n": 20,
+              "mean_ns": 11508.65,
+              "relative_half_width": 0.06454730132787781
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open128-range-1mib-stored",
+              "n": 20,
+              "mean_ns": 16842.35,
+              "relative_half_width": 0.06405954763143418
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open128-point-stored",
+              "n": 20,
+              "mean_ns": 7577.1,
+              "relative_half_width": 0.06258356444241214
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open32-range-1mib-stored",
+              "n": 20,
+              "mean_ns": 56085.7,
+              "relative_half_width": 0.061447007586491485
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open128-point-on-the-fly",
+              "n": 20,
+              "mean_ns": 15322.85,
+              "relative_half_width": 0.05563996021788995
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open64-range-1mib-stored",
+              "n": 20,
+              "mean_ns": 29550.1,
+              "relative_half_width": 0.05317194127970205
+            }
+          ]
+        },
+        {
+          "batch": 2,
+          "counts": {},
+          "seconds": 2.1390507221221924,
+          "misses": [
+            {
+              "metric": "output:on-the-fly-undine-k32:open256-range-1mib-stored",
+              "n": 40,
+              "mean_ns": 11827.375,
+              "relative_half_width": 0.07496884682017062
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open256-point-on-the-fly",
+              "n": 40,
+              "mean_ns": 21551.65,
+              "relative_half_width": 0.06568350290131325
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open256-point-stored",
+              "n": 40,
+              "mean_ns": 7353.075,
+              "relative_half_width": 0.06037578431956658
+            },
+            {
+              "metric": "output:on-the-fly-undine-k32:open64-range-4mib-stored",
+              "n": 40,
+              "mean_ns": 96517.25,
+              "relative_half_width": 0.052178208055526365
+            }
+          ]
+        },
+        {
+          "batch": 3,
+          "counts": {},
+          "seconds": 2.713355779647827,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "on-the-fly-undine-k64",
+      "status": "completed",
+      "maximum_samples": 20,
+      "completed_batch_seconds": 5.324077367782593,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 2.668992519378662,
+          "misses": [
+            {
+              "metric": "output:on-the-fly-undine-k64:open512-range-4mib-stored",
+              "n": 10,
+              "mean_ns": 15162.9,
+              "relative_half_width": 0.11007182179670844
+            },
+            {
+              "metric": "output:on-the-fly-undine-k64:open64-range-1mib-stored",
+              "n": 10,
+              "mean_ns": 29596.5,
+              "relative_half_width": 0.06151861781171844
+            },
+            {
+              "metric": "output:on-the-fly-undine-k64:open512-range-1mib-stored",
+              "n": 10,
+              "mean_ns": 8335.5,
+              "relative_half_width": 0.05043793885449005
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 2.6550848484039307,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "on-the-fly-undine-k8",
+      "status": "completed",
+      "maximum_samples": 20,
+      "completed_batch_seconds": 3.9511373043060303,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 1.9666271209716797,
+          "misses": [
+            {
+              "metric": "output:on-the-fly-undine-k8:open64-range-1mib-stored",
+              "n": 10,
+              "mean_ns": 29332.0,
+              "relative_half_width": 0.08669307731840839
+            },
+            {
+              "metric": "output:on-the-fly-undine-k8:open32-point-on-the-fly",
+              "n": 10,
+              "mean_ns": 16389.8,
+              "relative_half_width": 0.0836039046770528
+            },
+            {
+              "metric": "output:on-the-fly-undine-k8:open64-range-4mib-stored",
+              "n": 10,
+              "mean_ns": 93194.4,
+              "relative_half_width": 0.07015119989498017
+            },
+            {
+              "metric": "output:on-the-fly-undine-k8:open64-point-stored",
+              "n": 10,
+              "mean_ns": 7711.4,
+              "relative_half_width": 0.061849407368736495
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 1.9845101833343506,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "point-client-borg-k16",
+      "status": "completed",
+      "maximum_samples": 80,
+      "completed_batch_seconds": 19.48448348045349,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 4.832137107849121,
+          "misses": [
+            {
+              "metric": "output:point-client-borg-k16:corrupt-combine-verify",
+              "n": 10,
+              "mean_ns": 3077812.2,
+              "relative_half_width": 0.058734168569806004
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 4.82674241065979,
+          "misses": [
+            {
+              "metric": "output:point-client-borg-k16:clean-combine-verify",
+              "n": 20,
+              "mean_ns": 379450.7,
+              "relative_half_width": 0.0750210366272247
+            }
+          ]
+        },
+        {
+          "batch": 2,
+          "counts": {},
+          "seconds": 4.87347936630249,
+          "misses": [
+            {
+              "metric": "output:point-client-borg-k16:clean-combine-verify",
+              "n": 40,
+              "mean_ns": 381757.6,
+              "relative_half_width": 0.07653264565282186
+            }
+          ]
+        },
+        {
+          "batch": 3,
+          "counts": {},
+          "seconds": 4.95212459564209,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "point-client-borg-k32",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 6.922291994094849,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 6.922291994094849,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "point-client-borg-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 11.488488912582397,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 11.488488912582397,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "point-client-borg-k8",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 4.020890712738037,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 4.020890712738037,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "point-client-undine-k16",
+      "status": "completed",
+      "maximum_samples": 20,
+      "completed_batch_seconds": 6.276856422424316,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 3.1506106853485107,
+          "misses": [
+            {
+              "metric": "output:point-client-undine-k16:clean-combine-verify",
+              "n": 10,
+              "mean_ns": 322786.6,
+              "relative_half_width": 0.05797401905209496
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 3.1262457370758057,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "point-client-undine-k32",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 5.196389675140381,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 5.196389675140381,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "point-client-undine-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 10.094245433807373,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 10.094245433807373,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "point-client-undine-k8",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 2.295032262802124,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 2.295032262802124,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "point-helper-borg-k16",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 1.4603712558746338,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 1.4603712558746338,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "point-helper-borg-k32",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 1.4419825077056885,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 1.4419825077056885,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "point-helper-borg-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 1.4959208965301514,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 1.4959208965301514,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "point-helper-borg-k8",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 1.653520107269287,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 1.653520107269287,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "point-helper-undine-k16",
+      "status": "completed",
+      "maximum_samples": 20,
+      "completed_batch_seconds": 2.346548080444336,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 1.1771442890167236,
+          "misses": [
+            {
+              "metric": "output:point-helper-undine-k16:serialized-helper-response",
+              "n": 10,
+              "mean_ns": 8585.5,
+              "relative_half_width": 0.05023565852839895
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 1.1694037914276123,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "point-helper-undine-k32",
+      "status": "completed",
+      "maximum_samples": 20,
+      "completed_batch_seconds": 2.3784286975860596,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 1.1853454113006592,
+          "misses": [
+            {
+              "metric": "output:point-helper-undine-k32:serialized-helper-response",
+              "n": 10,
+              "mean_ns": 8134.4,
+              "relative_half_width": 0.051742784003593986
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 1.1930832862854004,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "point-helper-undine-k64",
+      "status": "completed",
+      "maximum_samples": 20,
+      "completed_batch_seconds": 2.4098265171051025,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 1.2026278972625732,
+          "misses": [
+            {
+              "metric": "output:point-helper-undine-k64:serialized-helper-response",
+              "n": 10,
+              "mean_ns": 7768.9,
+              "relative_half_width": 0.05132010896901066
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 1.2071986198425293,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "point-helper-undine-k8",
+      "status": "completed",
+      "maximum_samples": 160,
+      "completed_batch_seconds": 5.930705547332764,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 1.1828677654266357,
+          "misses": [
+            {
+              "metric": "output:point-helper-undine-k8:serialized-helper-response",
+              "n": 10,
+              "mean_ns": 12777.1,
+              "relative_half_width": 0.07986575702384223
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 1.182143211364746,
+          "misses": [
+            {
+              "metric": "output:point-helper-undine-k8:serialized-helper-response",
+              "n": 20,
+              "mean_ns": 10780.4,
+              "relative_half_width": 0.14581326210527695
+            }
+          ]
+        },
+        {
+          "batch": 2,
+          "counts": {},
+          "seconds": 1.181149959564209,
+          "misses": [
+            {
+              "metric": "output:point-helper-undine-k8:serialized-helper-response",
+              "n": 40,
+              "mean_ns": 9647.025,
+              "relative_half_width": 0.09524154197212616
+            }
+          ]
+        },
+        {
+          "batch": 3,
+          "counts": {},
+          "seconds": 1.1897106170654297,
+          "misses": [
+            {
+              "metric": "output:point-helper-undine-k8:serialized-helper-response",
+              "n": 80,
+              "mean_ns": 9133.6,
+              "relative_half_width": 0.05254804899501708
+            }
+          ]
+        },
+        {
+          "batch": 4,
+          "counts": {},
+          "seconds": 1.1948339939117432,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-client-undine-k16",
+      "status": "completed",
+      "maximum_samples": 80,
+      "completed_batch_seconds": 33.35078167915344,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 4.86853814125061,
+          "misses": [
+            {
+              "metric": "output:private-client-undine-k16:client_public_zero_bad_ns",
+              "n": 10,
+              "mean_ns": 523874.3,
+              "relative_half_width": 0.3237981057643287
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 4.809144735336304,
+          "misses": [
+            {
+              "metric": "output:private-client-undine-k16:client_public_zero_bad_ns",
+              "n": 20,
+              "mean_ns": 493159.5,
+              "relative_half_width": 0.15199894335331152
+            }
+          ]
+        },
+        {
+          "batch": 2,
+          "counts": {},
+          "seconds": 8.32520318031311,
+          "misses": [
+            {
+              "metric": "output:private-client-undine-k16:client_public_zero_bad_ns",
+              "n": 40,
+              "mean_ns": 480227.4,
+              "relative_half_width": 0.07704963927075088
+            }
+          ]
+        },
+        {
+          "batch": 3,
+          "counts": {},
+          "seconds": 15.347895622253418,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-client-undine-k256",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 81.69992065429688,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 81.69992065429688,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-client-undine-k32",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 5.282554864883423,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 5.282554864883423,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-client-undine-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 12.857367038726807,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 12.857367038726807,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-client-undine-k8",
+      "status": "completed",
+      "maximum_samples": 40,
+      "completed_batch_seconds": 10.087783575057983,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 2.70693302154541,
+          "misses": [
+            {
+              "metric": "output:private-client-undine-k8:client_public_kappa_bad_ns",
+              "n": 10,
+              "mean_ns": 790856.5,
+              "relative_half_width": 0.2078797702981181
+            },
+            {
+              "metric": "output:private-client-undine-k8:client_public_honest_ns",
+              "n": 10,
+              "mean_ns": 460174.5,
+              "relative_half_width": 0.05491367344532887
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 2.7104599475860596,
+          "misses": [
+            {
+              "metric": "output:private-client-undine-k8:client_public_kappa_bad_ns",
+              "n": 20,
+              "mean_ns": 763389.35,
+              "relative_half_width": 0.09356555903612142
+            }
+          ]
+        },
+        {
+          "batch": 2,
+          "counts": {},
+          "seconds": 4.670390605926514,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-client-undine-log16gib-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 19.58884620666504,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 19.58884620666504,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-client-undine-log32gib-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 19.754190921783447,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 19.754190921783447,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-client-undine-log8gib-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 12.907759666442871,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 12.907759666442871,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log1024gib-p19-k256",
+      "status": "completed",
+      "maximum_samples": 40,
+      "completed_batch_seconds": 8510.432344675064,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "seconds": 6825.721968889236,
+          "misses": [
+            {
+              "metric": "output:private-maintainer-undine-log1024gib-p19-k256:update_hint_ns",
+              "n": 10,
+              "mean_ns": 337744875.7,
+              "relative_half_width": 0.09914201972621087
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {
+            "online": 0,
+            "preprocess": 0,
+            "update": 10
+          },
+          "seconds": 667.1097662448883,
+          "misses": [
+            {
+              "metric": "output:private-maintainer-undine-log1024gib-p19-k256:update_hint_ns",
+              "n": 20,
+              "mean_ns": 339166072.3,
+              "relative_half_width": 0.06869157374254287
+            }
+          ]
+        },
+        {
+          "batch": 2,
+          "counts": {
+            "online": 0,
+            "preprocess": 0,
+            "update": 20
+          },
+          "seconds": 1017.6006095409393,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log16gib-p15-k64",
+      "status": "completed",
+      "maximum_samples": 20,
+      "completed_batch_seconds": 390.8055806159973,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "seconds": 367.4625701904297,
+          "misses": [
+            {
+              "metric": "output:private-maintainer-undine-log16gib-p15-k64:client_decode_ns",
+              "n": 10,
+              "mean_ns": 2794476.1,
+              "relative_half_width": 0.05187465901575602
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {
+            "online": 10,
+            "preprocess": 0,
+            "update": 0
+          },
+          "seconds": 23.343010425567627,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log1gib-p13-k64",
+      "status": "completed",
+      "maximum_samples": 40,
+      "completed_batch_seconds": 92.49633836746216,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "seconds": 81.5035171508789,
+          "misses": [
+            {
+              "metric": "output:private-maintainer-undine-log1gib-p13-k64:server_first_pass_ns",
+              "n": 10,
+              "mean_ns": 2625414.8,
+              "relative_half_width": 0.09686067574825707
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {
+            "online": 10,
+            "preprocess": 0,
+            "update": 0
+          },
+          "seconds": 5.084682941436768,
+          "misses": [
+            {
+              "metric": "output:private-maintainer-undine-log1gib-p13-k64:server_first_pass_ns",
+              "n": 20,
+              "mean_ns": 2574336.5,
+              "relative_half_width": 0.05135424694096794
+            }
+          ]
+        },
+        {
+          "batch": 2,
+          "counts": {
+            "online": 20,
+            "preprocess": 0,
+            "update": 0
+          },
+          "seconds": 5.908138275146484,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log256gib-p17-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 3073.9244356155396,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "seconds": 3073.9244356155396,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log4gib-p12-k8",
+      "status": "completed",
+      "maximum_samples": 20,
+      "completed_batch_seconds": 428.22163796424866,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "seconds": 394.2180244922638,
+          "misses": [
+            {
+              "metric": "output:private-maintainer-undine-log4gib-p12-k8:client_decode_ns",
+              "n": 10,
+              "mean_ns": 2831219.4,
+              "relative_half_width": 0.08350154029764842
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {
+            "online": 10,
+            "preprocess": 0,
+            "update": 0
+          },
+          "seconds": 34.00361347198486,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log4gib-p13-k16",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 320.2445983886719,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "seconds": 320.2445983886719,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log4gib-p13-k32",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 171.36454272270203,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "seconds": 171.36454272270203,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log4gib-p14-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 175.00460290908813,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "seconds": 175.00460290908813,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log64gib-p14-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 440.2742073535919,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "seconds": 440.2742073535919,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log64gib-p15-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 503.9076373577118,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "seconds": 503.9076373577118,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log64gib-p16-k64",
+      "status": "completed",
+      "maximum_samples": 20,
+      "completed_batch_seconds": 1262.4706826210022,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "seconds": 983.0629217624664,
+          "misses": [
+            {
+              "metric": "output:private-maintainer-undine-log64gib-p16-k64:update_hint_ns",
+              "n": 10,
+              "mean_ns": 290559275.7,
+              "relative_half_width": 0.053818197916033914
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {
+            "online": 0,
+            "preprocess": 0,
+            "update": 10
+          },
+          "seconds": 279.40776085853577,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-maintainer-undine-log64gib-p17-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 1126.2943937778473,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10,
+            "update": 10
+          },
+          "seconds": 1126.2943937778473,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-single-undine-log1gib-p10",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 467.30236768722534,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10
+          },
+          "seconds": 467.30236768722534,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-single-undine-log1gib-p11",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 682.9471731185913,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10
+          },
+          "seconds": 682.9471731185913,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-single-undine-log1gib-p9",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 372.3969988822937,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10
+          },
+          "seconds": 372.3969988822937,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-single-undine-log4gib-p11",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 1416.7429592609406,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10
+          },
+          "seconds": 1416.7429592609406,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-table-undine-log1gib-k64",
+      "status": "completed",
+      "maximum_samples": 160,
+      "completed_batch_seconds": 45.235286712646484,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 7.073594570159912,
+          "misses": [
+            {
+              "metric": "output:private-table-undine-log1gib-k64:server_first_pass_ns",
+              "n": 10,
+              "mean_ns": 3887894.0,
+              "relative_half_width": 0.31019363288974017
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 6.911231279373169,
+          "misses": [
+            {
+              "metric": "output:private-table-undine-log1gib-k64:server_first_pass_ns",
+              "n": 20,
+              "mean_ns": 3716859.55,
+              "relative_half_width": 0.15810316264994223
+            }
+          ]
+        },
+        {
+          "batch": 2,
+          "counts": {},
+          "seconds": 7.94153904914856,
+          "misses": [
+            {
+              "metric": "output:private-table-undine-log1gib-k64:server_first_pass_ns",
+              "n": 40,
+              "mean_ns": 3597852.75,
+              "relative_half_width": 0.080681749702896
+            }
+          ]
+        },
+        {
+          "batch": 3,
+          "counts": {},
+          "seconds": 9.865786075592041,
+          "misses": [
+            {
+              "metric": "output:private-table-undine-log1gib-k64:server_first_pass_ns",
+              "n": 80,
+              "mean_ns": 3724890.6125,
+              "relative_half_width": 0.07043552197173235
+            }
+          ]
+        },
+        {
+          "batch": 4,
+          "counts": {},
+          "seconds": 13.443135738372803,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "private-table-undine-log4gib-k64",
+      "status": "completed",
+      "maximum_samples": 160,
+      "completed_batch_seconds": 87.89023518562317,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 13.69213080406189,
+          "misses": [
+            {
+              "metric": "output:private-table-undine-log4gib-k64:server_first_pass_ns",
+              "n": 10,
+              "mean_ns": 17190317.9,
+              "relative_half_width": 0.18080491719564176
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 13.69524884223938,
+          "misses": [
+            {
+              "metric": "output:private-table-undine-log4gib-k64:server_first_pass_ns",
+              "n": 20,
+              "mean_ns": 16447092.25,
+              "relative_half_width": 0.08749632043087661
+            }
+          ]
+        },
+        {
+          "batch": 2,
+          "counts": {},
+          "seconds": 15.405128717422485,
+          "misses": [
+            {
+              "metric": "output:private-table-undine-log4gib-k64:server_first_pass_ns",
+              "n": 40,
+              "mean_ns": 15719268.55,
+              "relative_half_width": 0.051420079692261214
+            }
+          ]
+        },
+        {
+          "batch": 3,
+          "counts": {},
+          "seconds": 18.96381139755249,
+          "misses": [
+            {
+              "metric": "output:private-table-undine-log4gib-k64:server_first_pass_ns",
+              "n": 80,
+              "mean_ns": 16437081.275,
+              "relative_half_width": 0.05306346725242488
+            }
+          ]
+        },
+        {
+          "batch": 4,
+          "counts": {},
+          "seconds": 26.133915424346924,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "range-client-borg-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 1158.8959782123566,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 1158.8959782123566,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "range-client-undine-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 990.2410731315613,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 990.2410731315613,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "range-helper-borg-k64",
+      "status": "completed",
+      "maximum_samples": 20,
+      "completed_batch_seconds": 465.28995966911316,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 266.60569405555725,
+          "misses": [
+            {
+              "metric": "output:range-helper-borg-k64:128mib-helper-time",
+              "n": 10,
+              "mean_ns": 3682233.4,
+              "relative_half_width": 0.055409923757752076
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 198.6842656135559,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "range-helper-undine-k64",
+      "status": "completed",
+      "maximum_samples": 20,
+      "completed_batch_seconds": 367.5837388038635,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 217.71230149269104,
+          "misses": [
+            {
+              "metric": "output:range-helper-undine-k64:128mib-helper-time",
+              "n": 10,
+              "mean_ns": 3382908.0,
+              "relative_half_width": 0.07656458131856925
+            },
+            {
+              "metric": "output:range-helper-undine-k64:32mib-helper-time",
+              "n": 10,
+              "mean_ns": 765351.7,
+              "relative_half_width": 0.057045099915720175
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 149.87143731117249,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "reconfig-borg-k16",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 53.34038472175598,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 53.34038472175598,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "reconfig-borg-k32",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 95.86589241027832,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 95.86589241027832,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "reconfig-borg-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 197.87616157531738,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 197.87616157531738,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "reconfig-borg-k8",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 44.35424566268921,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 44.35424566268921,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "reconfig-undine-k16",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 15.801302671432495,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 15.801302671432495,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "reconfig-undine-k32",
+      "status": "completed",
+      "maximum_samples": 40,
+      "completed_batch_seconds": 90.18208169937134,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 29.944698333740234,
+          "misses": [
+            {
+              "metric": "output:reconfig-undine-k32:diagonal_receiver",
+              "n": 10,
+              "mean_ns": 1230653.9,
+              "relative_half_width": 0.07444859162884312
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 29.93830370903015,
+          "misses": [
+            {
+              "metric": "output:reconfig-undine-k32:up_receiver",
+              "n": 20,
+              "mean_ns": 941690.2,
+              "relative_half_width": 0.05217437745910268
+            }
+          ]
+        },
+        {
+          "batch": 2,
+          "counts": {},
+          "seconds": 30.299079656600952,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "reconfig-undine-k64",
+      "status": "completed",
+      "maximum_samples": 80,
+      "completed_batch_seconds": 240.8746461868286,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 59.93899750709534,
+          "misses": [
+            {
+              "metric": "output:reconfig-undine-k64:diagonal_receiver",
+              "n": 10,
+              "mean_ns": 696913.6,
+              "relative_half_width": 0.0942604794064835
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {},
+          "seconds": 59.8319571018219,
+          "misses": [
+            {
+              "metric": "output:reconfig-undine-k64:down_helper",
+              "n": 20,
+              "mean_ns": 263510.1,
+              "relative_half_width": 0.11370961874756888
+            }
+          ]
+        },
+        {
+          "batch": 2,
+          "counts": {},
+          "seconds": 60.17534017562866,
+          "misses": [
+            {
+              "metric": "output:reconfig-undine-k64:down_helper",
+              "n": 40,
+              "mean_ns": 250231.6,
+              "relative_half_width": 0.0611681619264166
+            }
+          ]
+        },
+        {
+          "batch": 3,
+          "counts": {},
+          "seconds": 60.928351402282715,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "reconfig-undine-k8",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 9.267926454544067,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 9.267926454544067,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "repair-borg-k16",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 21.81450653076172,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 21.81450653076172,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "repair-borg-k32",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 28.940500736236572,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 28.940500736236572,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "repair-borg-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 51.41542840003967,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 51.41542840003967,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "repair-borg-k8",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 33.23384499549866,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 33.23384499549866,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "repair-undine-k16",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 9.909586668014526,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 9.909586668014526,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "repair-undine-k32",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 15.832317113876343,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 15.832317113876343,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "repair-undine-k64",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 29.31625533103943,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 29.31625533103943,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "repair-undine-k8",
+      "status": "completed",
+      "maximum_samples": 10,
+      "completed_batch_seconds": 8.043486833572388,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {},
+          "seconds": 8.043486833572388,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "treepir-client-h16-real",
+      "status": "running",
+      "maximum_samples": 80,
+      "completed_batch_seconds": 1831.4874153137207,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "client": 10
+          },
+          "seconds": 272.4159095287323,
+          "misses": [
+            {
+              "metric": "output:treepir-client-h16-real:treepir-index_ns",
+              "n": 10,
+              "mean_ns": 8005.1,
+              "relative_half_width": 0.2943184838049717
+            },
+            {
+              "metric": "output:treepir-client-h16-real:undine-index_ns",
+              "n": 10,
+              "mean_ns": 3101.3,
+              "relative_half_width": 0.08804627987210759
+            },
+            {
+              "metric": "output:treepir-client-h16-real:treepir-serialize_ns",
+              "n": 10,
+              "mean_ns": 2507324.8,
+              "relative_half_width": 0.06245074933103608
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {
+            "client": 10
+          },
+          "seconds": 271.7739496231079,
+          "misses": [
+            {
+              "metric": "output:treepir-client-h16-real:treepir-index_ns",
+              "n": 20,
+              "mean_ns": 7494.45,
+              "relative_half_width": 0.14926399551410582
+            }
+          ]
+        },
+        {
+          "batch": 2,
+          "counts": {
+            "client": 20
+          },
+          "seconds": 455.52316522598267,
+          "misses": [
+            {
+              "metric": "output:treepir-client-h16-real:treepir-index_ns",
+              "n": 40,
+              "mean_ns": 7554.875,
+              "relative_half_width": 0.09461318245665237
+            }
+          ]
+        },
+        {
+          "batch": 3,
+          "counts": {
+            "client": 40
+          },
+          "seconds": 831.7743909358978,
+          "misses": [
+            {
+              "metric": "output:treepir-client-h16-real:undine-index_ns",
+              "n": 80,
+              "mean_ns": 5073.5875,
+              "relative_half_width": 0.13004461473785053
+            },
+            {
+              "metric": "output:treepir-client-h16-real:treepir-index_ns",
+              "n": 80,
+              "mean_ns": 8348.5,
+              "relative_half_width": 0.07805734173601706
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "job": "treepir-client-h32-generated",
+      "status": "pending",
+      "maximum_samples": 0,
+      "completed_batch_seconds": 0,
+      "looks": []
+    },
+    {
+      "job": "treepir-server-h32-m0-c0",
+      "status": "completed",
+      "maximum_samples": 20,
+      "completed_batch_seconds": 4202.03634595871,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10
+          },
+          "seconds": 3652.0000128746033,
+          "misses": [
+            {
+              "metric": "output:treepir-server-h32-m0-c0:treepir-first_pass_ns",
+              "n": 10,
+              "mean_ns": 769019479.8,
+              "relative_half_width": 0.06801808950223999
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {
+            "online": 10,
+            "preprocess": 0
+          },
+          "seconds": 550.0363330841064,
+          "misses": []
+        }
+      ]
+    },
+    {
+      "job": "treepir-server-h32-m31-c31",
+      "status": "completed",
+      "maximum_samples": 40,
+      "completed_batch_seconds": 14130.447172403336,
+      "looks": [
+        {
+          "batch": 0,
+          "counts": {
+            "online": 10,
+            "preprocess": 10
+          },
+          "seconds": 3657.094912290573,
+          "misses": [
+            {
+              "metric": "output:treepir-server-h32-m31-c31:undine-gather_upper_ns",
+              "n": 10,
+              "mean_ns": 74915031.4,
+              "relative_half_width": 0.11766179613732462
+            },
+            {
+              "metric": "output:treepir-server-h32-m31-c31:treepir-first_pass_ns",
+              "n": 10,
+              "mean_ns": 785884033.5,
+              "relative_half_width": 0.06911098529817258
+            }
+          ]
+        },
+        {
+          "batch": 1,
+          "counts": {
+            "online": 10,
+            "preprocess": 10
+          },
+          "seconds": 3656.175551891327,
+          "misses": [
+            {
+              "metric": "output:treepir-server-h32-m31-c31:treepir-first_pass_ns",
+              "n": 20,
+              "mean_ns": 804029452.0,
+              "relative_half_width": 0.06206883361658009
+            },
+            {
+              "metric": "output:treepir-server-h32-m31-c31:undine-gather_upper_ns",
+              "n": 20,
+              "mean_ns": 73994475.95,
+              "relative_half_width": 0.05065131275201326
+            }
+          ]
+        },
+        {
+          "batch": 2,
+          "counts": {
+            "online": 20,
+            "preprocess": 20
+          },
+          "seconds": 6817.176708221436,
+          "misses": []
+        }
+      ]
+    }
+  ]
+}

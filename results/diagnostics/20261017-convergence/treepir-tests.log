@@ -1,0 +1,9 @@
+    Finished `release` profile [optimized] target(s) in 0.19s
+     Running tests/treepir.rs (target/release/deps/treepir-9156686dc9694c59)
+
+running 2 tests
+test encrypted_treepir_reconstructs_real_merkle_paths ... ok
+test exact_height_threshold_comparison_shapes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.05s
+
