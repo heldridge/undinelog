@@ -1,0 +1,3 @@
+panel,row,log-gib,records-mib,table-mib,records-first-pass-ms,table-first-pass-ms,records-answer-ms,table-answer-ms
+,log1gib,1,32.0,41.5,2.6,3.4,49.9,50.3
+,log4gib,4,128.0,147.2,9.4,14.7,100.0,106.3

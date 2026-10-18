@@ -10,7 +10,7 @@ layouts in one run, on one host, under one statistical protocol.
 - `borg/` is the BorgLog implementation, configured with the same segment
   size `kappa^2` and threshold `kappa`.
 
-The reference run `20261009T161432Z-full-6ab859da3a` and all of its
+The reference run `20261018T005140Z-full-b8533f977d` and all of its
 measurements are included under `reference-results/`. No paper source or
 typesetting toolchain is required. The reference run is immutable; new runs
 are written under `results/runs/`.
@@ -62,7 +62,7 @@ The reference machine had an Intel Core Ultra 7 255U, 32 GiB RAM, and 14
 logical CPUs, and ran Linux with Rust 1.98.0. The benchmark processes were
 pinned to logical CPU 2, a performance core, with the `performance` energy
 preference. Exact environment details are retained in
-[`environment.json`](reference-results/20261009T161432Z-full-6ab859da3a/provenance/environment.json).
+[`environment.json`](reference-results/20261018T005140Z-full-b8533f977d/provenance/environment.json).
 Cargo may need network access once to fetch locked dependencies.
 
 ## Reviewer Commands
@@ -218,12 +218,14 @@ only height 32.
 ## Reference Results
 
 The packaged run is
-[`reference-results/20261009T161432Z-full-6ab859da3a/`](reference-results/20261009T161432Z-full-6ab859da3a/).
-Start with its [rendered result groups](reference-results/20261009T161432Z-full-6ab859da3a/tables/README.md).
+[`reference-results/20261018T005140Z-full-b8533f977d/`](reference-results/20261018T005140Z-full-b8533f977d/).
+Start with its [rendered result groups](reference-results/20261018T005140Z-full-b8533f977d/tables/README.md).
 Machine-readable values, units, samples, confidence intervals, raw benchmark
 documents, logs, environment data, and source hashes are retained alongside
-them. The run has 12,110 independent timing samples in 110 batches, and every
-one of its 390 timing series met the precision target.
+them. The run has 8,500 independent timing samples in 107 raw batch
+records. All 440 precision-required timing series met the precision target;
+9 of the 44 diagnostic series did not, which the policy allows, and their
+achieved intervals are retained.
 
 `./artifact verify` checks the complete file-integrity manifest, both crates'
 source hashes, job and measurement semantics, checkpoint completion, every raw

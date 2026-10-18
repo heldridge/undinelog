@@ -1,0 +1,1760 @@
+diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/Cargo.toml b/ypir/Cargo.toml
+--- a/ypir/Cargo.toml	2025-04-01 17:18:20.000000000 -0400
++++ b/ypir/Cargo.toml	2026-10-02 13:52:54.066139416 -0400
+@@ -7,7 +7,7 @@
+ cc = "1.0"
+ 
+ [dependencies]
+-spiral-rs = { git = "https://github.com/menonsamir/spiral-rs.git", rev = "6929441" }
++spiral-rs = { path = "../spiral-rs" }
+ rand = { version = "0.8.5", features = ["small_rng"] }
+ rand_chacha = "0.3.1"
+ serde_json = "1.0"
+diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/factored.rs b/ypir/src/factored.rs
+--- a/ypir/src/factored.rs
++++ b/ypir/src/factored.rs
+@@ -0,0 +1,800 @@
++//! SimplePIR-variant building blocks for a database given by its columns.
++//!
++//! `YServer` stores the database as a matrix. The functions here run the same
++//! computations on a database that the caller describes column by column, so
++//! a server whose rows repeat stored records can answer without building the
++//! matrix. Each function follows the corresponding part of `YServer` and of
++//! `run_simple_ypir_on_params` step for step, and the test at the end checks
++//! that the results equal `YServer`'s byte for byte.
++
++use rand::SeedableRng;
++use rand_chacha::ChaCha20Rng;
++
++use spiral_rs::aligned_memory::AlignedMemory64;
++use spiral_rs::{arith::*, client::*, number_theory::*, params::*, poly::*};
++
++use crate::client::*;
++use crate::modulus_switch::ModulusSwitch;
++use crate::packing::*;
++use crate::params::*;
++use crate::scheme::*;
++use crate::server::*;
++use crate::transpose::*;
++use crate::util::*;
++
++/// Rows of the database: `2^(db_dim_1 + poly_len_log2)`.
++pub fn simplepir_db_rows(params: &Params) -> usize {
++    1 << (params.db_dim_1 + params.poly_len_log2)
++}
++
++/// Columns of the database: `instances * poly_len`.
++pub fn simplepir_db_cols(params: &Params) -> usize {
++    params.instances * params.poly_len
++}
++
++/// The public pseudorandom query of seed `public_seed_idx`, in the form the
++/// hint computation multiplies with the database
++/// (`YServer::generate_pseudorandom_query`).
++pub fn pseudorandom_query<'a>(params: &'a Params, public_seed_idx: u8) -> Vec<PolyMatrixNTT<'a>> {
++    let mut client = Client::init(params);
++    client.generate_secret_keys();
++    let y_client = YClient::new(&mut client, params);
++    let query = y_client.generate_query_impl(public_seed_idx, params.db_dim_1, true, 0);
++    let mut preprocessed_query = Vec::with_capacity(query.len());
++    for query_raw in query.iter().map(|x| x.submatrix(0, 0, 1, 1)) {
++        let query_raw_transformed = negacyclic_perm(query_raw.get_poly(0, 0), 0, params.modulus);
++        let mut query_transformed_pol = PolyMatrixRaw::zero(params, 1, 1);
++        query_transformed_pol
++            .as_mut_slice()
++            .copy_from_slice(&query_raw_transformed);
++        preprocessed_query.push(query_transformed_pol.ntt());
++    }
++    preprocessed_query
++}
++
++/// The SimplePIR hint of the columns `cols` of a database
++/// (`YServer::answer_hint_ring` with `SEED_0`).
++///
++/// `fill_column(col, values)` writes the `db_rows` plaintext values of column
++/// `col`. The result holds `poly_len` values per column, laid out as
++/// `[i * cols.len() + (col - cols.start)]`.
++pub fn hint_from_columns<'a, F>(
++    params: &'a Params,
++    preprocessed_query: &[PolyMatrixNTT<'a>],
++    cols: std::ops::Range<usize>,
++    fill_column: F,
++) -> Vec<u64>
++where
++    F: FnMut(usize, &mut [u16]),
++{
++    let width = cols.len();
++    let column_major = hint_columns_from_columns(params, preprocessed_query, cols, fill_column);
++    transpose_generic(&column_major, width, params.poly_len)
++}
++
++/// [`hint_from_columns`] in column-major order: the hint of column `col`
++/// is `result[(col - cols.start) * poly_len..][..poly_len]`. Produce that
++/// layout directly, without transposing the whole hint twice.
++pub fn hint_columns_from_columns<'a, F>(
++    params: &'a Params,
++    preprocessed_query: &[PolyMatrixNTT<'a>],
++    cols: std::ops::Range<usize>,
++    mut fill_column: F,
++) -> Vec<u64>
++where
++    F: FnMut(usize, &mut [u16]),
++{
++    let mut result = Vec::with_capacity(cols.len() * params.poly_len);
++    let mut column = vec![0u16; simplepir_db_rows(params)];
++    let mut kernel = HintColumnKernel::new(params, preprocessed_query);
++    for col in cols {
++        fill_column(col, &mut column);
++        kernel.append_column(&column, &mut result);
++    }
++    result
++}
++
++/// The shared YPIR hint arithmetic for borrowed plaintext columns.
++///
++/// Each call reads a column in place and appends its `poly_len` hint words.
++/// The caller can reuse a bounded gather buffer or borrow a dense database
++/// column directly. The arithmetic follows the original fill-callback path;
++/// no complete plaintext matrix is materialized by this kernel.
++pub struct HintColumnKernel<'a, 'q> {
++    params: &'a Params,
++    preprocessed_query: &'q [PolyMatrixNTT<'a>],
++    prod: PolyMatrixNTT<'a>,
++    db_elem_poly: PolyMatrixRaw<'a>,
++    db_elem_ntt: PolyMatrixNTT<'a>,
++    symbols_fit: bool,
++}
++
++impl<'a, 'q> HintColumnKernel<'a, 'q> {
++    pub fn new(params: &'a Params, preprocessed_query: &'q [PolyMatrixNTT<'a>]) -> Self {
++        assert_eq!(preprocessed_query.len(), 1 << params.db_dim_1);
++        Self {
++            params,
++            preprocessed_query,
++            prod: PolyMatrixNTT::zero(params, 1, 1),
++            db_elem_poly: PolyMatrixRaw::zero(params, 1, 1),
++            db_elem_ntt: PolyMatrixNTT::zero(params, 1, 1),
++            // The database supplies u16 symbols. When both CRT moduli
++            // exceed that range, the NTT input needs no reductions.
++            symbols_fit: params.moduli[..params.crt_count]
++                .iter()
++                .all(|&modulus| modulus > u16::MAX as u64),
++        }
++    }
++
++    pub fn append_column(&mut self, column: &[u16], result: &mut Vec<u64>) {
++        let params = self.params;
++        assert_eq!(column.len(), simplepir_db_rows(params));
++        let db_rows_poly = 1 << params.db_dim_1;
++        let mut sum = PolyMatrixNTT::zero(params, 1, 1);
++        for row in 0..db_rows_poly {
++            let block = &column[row * params.poly_len..(row + 1) * params.poly_len];
++            if block.iter().all(|&x| x == 0) {
++                self.prod.as_mut_slice().fill(0);
++            } else {
++                for z in 0..params.poly_len {
++                    self.db_elem_poly.data[z] = block[z] as u64;
++                }
++                if self.symbols_fit {
++                    to_ntt_no_reduce(&mut self.db_elem_ntt, &self.db_elem_poly);
++                } else {
++                    to_ntt(&mut self.db_elem_ntt, &self.db_elem_poly);
++                }
++                multiply(
++                    &mut self.prod,
++                    &self.preprocessed_query[row],
++                    &self.db_elem_ntt,
++                );
++            }
++            if row == db_rows_poly - 1 {
++                add_into(&mut sum, &self.prod);
++            } else {
++                add_into_no_reduce(&mut sum, &self.prod);
++            }
++        }
++        let sum_raw = sum.raw();
++        result.extend(sum_raw.as_slice());
++    }
++}
++
++/// The hint of a column that is `1` on the rows `rows` and `0` elsewhere:
++/// `poly_len` values modulo the ciphertext modulus.
++///
++/// The hint is linear in the database, so a column that changes by `delta` on
++/// `rows` changes its hint by `delta` times this vector.
++pub fn hint_of_row_range<'a>(
++    params: &'a Params,
++    preprocessed_query: &[PolyMatrixNTT<'a>],
++    rows: std::ops::Range<usize>,
++) -> Vec<u64> {
++    assert!(rows.end <= simplepir_db_rows(params));
++    let mut sum = PolyMatrixNTT::zero(params, 1, 1);
++    if rows.is_empty() {
++        return sum.raw().as_slice().to_vec();
++    }
++    let mut prod = PolyMatrixNTT::zero(params, 1, 1);
++    let mut db_elem_poly = PolyMatrixRaw::zero(params, 1, 1);
++    let mut db_elem_ntt = PolyMatrixNTT::zero(params, 1, 1);
++    let first_block = rows.start / params.poly_len;
++    let last_block = (rows.end - 1) / params.poly_len;
++    for block in first_block..=last_block {
++        let block_start = block * params.poly_len;
++        for z in 0..params.poly_len {
++            db_elem_poly.data[z] = rows.contains(&(block_start + z)) as u64;
++        }
++        to_ntt(&mut db_elem_ntt, &db_elem_poly);
++        multiply(&mut prod, &preprocessed_query[block], &db_elem_ntt);
++        add_into(&mut sum, &prod);
++    }
++    sum.raw().as_slice().to_vec()
++}
++
++/// Add `delta * range_hint` to column `col` of a hint laid out as
++/// `[i * db_cols + col]`, modulo the ciphertext modulus. `delta` is a signed
++/// change of a plaintext value.
++pub fn add_scaled_to_hint_column(
++    params: &Params,
++    hint: &mut [u64],
++    db_cols: usize,
++    col: usize,
++    range_hint: &[u64],
++    delta: i64,
++) {
++    assert_eq!(range_hint.len(), params.poly_len);
++    assert_eq!(hint.len(), db_cols * params.poly_len);
++    let modulus = params.modulus as u128;
++    let scale = delta.rem_euclid(params.modulus as i64) as u128;
++    for (i, &value) in range_hint.iter().enumerate() {
++        let slot = &mut hint[i * db_cols + col];
++        *slot = ((*slot as u128 + scale * value as u128) % modulus) as u64;
++    }
++}
++
++/// Everything the online phase needs, from the hint of all columns
++/// (`YServer::perform_offline_precomputation_simplepir` after its hint).
++pub fn offline_from_hint<'a>(params: &'a Params, hint_0: Vec<u64>) -> OfflinePrecomputedValues<'a> {
++    let db_cols = simplepir_db_cols(params);
++    let num_rlwe_outputs = db_cols / params.poly_len;
++    assert_eq!(hint_0.len(), db_cols * params.poly_len);
++
++    let y_constants = generate_y_constants(params);
++
++    let fake_pack_pub_params = generate_fake_pack_pub_params(params);
++
++    // The prepacked columns of one output are an input to its table only:
++    // they are derived per output and released, so the state holds the
++    // hint and the tables.
++    let mut precomp: Precomp = Vec::with_capacity(num_rlwe_outputs);
++    for output in 0..num_rlwe_outputs {
++        let (_, table) =
++            packing_table_of_output(params, &hint_0, output, &fake_pack_pub_params, &y_constants);
++        precomp.push(table);
++    }
++
++    OfflinePrecomputedValues {
++        hint_0,
++        hint_1: vec![],
++        pseudorandom_query_1: vec![],
++        y_constants,
++        smaller_server: None,
++        prepacked_lwe: Vec::new(),
++        fake_pack_pub_params,
++        precomp,
++    }
++}
++
++/// [`offline_from_hint`] from a column-major hint, `hint_cols[col * poly_len + j]`,
++/// which the caller keeps: the returned values hold the tables and no hint.
++pub fn offline_from_hint_columns<'a>(
++    params: &'a Params,
++    hint_cols: &[u64],
++) -> OfflinePrecomputedValues<'a> {
++    offline_from_hint_columns_on(params, hint_cols, 1)
++}
++
++/// [`offline_from_hint_columns`] with the tables of the outputs derived on
++/// `threads` threads; each thread holds the table of one output at a time.
++pub fn offline_from_hint_columns_on<'a>(
++    params: &'a Params,
++    hint_cols: &[u64],
++    threads: usize,
++) -> OfflinePrecomputedValues<'a> {
++    let db_cols = simplepir_db_cols(params);
++    let num_rlwe_outputs = db_cols / params.poly_len;
++    assert_eq!(hint_cols.len(), db_cols * params.poly_len);
++    let y_constants = generate_y_constants(params);
++    let fake_pack_pub_params = generate_fake_pack_pub_params(params);
++    let table_of = |output: usize| {
++        packing_table_of_columns(
++            params,
++            hint_cols,
++            output,
++            &fake_pack_pub_params,
++            &y_constants,
++        )
++        .1
++    };
++    let threads = threads.clamp(1, num_rlwe_outputs.max(1));
++    let precomp: Precomp = if threads == 1 {
++        (0..num_rlwe_outputs).map(table_of).collect()
++    } else {
++        // The outputs are independent; each thread takes every `threads`-th.
++        let table_of = &table_of;
++        std::thread::scope(|scope| {
++            let handles = (0..threads)
++                .map(|k| {
++                    scope.spawn(move || {
++                        (k..num_rlwe_outputs)
++                            .step_by(threads)
++                            .map(table_of)
++                            .collect::<Vec<_>>()
++                    })
++                })
++                .collect::<Vec<_>>();
++            let mut parts = handles
++                .into_iter()
++                .map(|h| h.join().expect("table worker").into_iter())
++                .collect::<Vec<_>>();
++            (0..num_rlwe_outputs)
++                .map(|output| {
++                    parts[output % threads]
++                        .next()
++                        .expect("one table per output")
++                })
++                .collect()
++        })
++    };
++    OfflinePrecomputedValues {
++        hint_0: Vec::new(),
++        hint_1: vec![],
++        pseudorandom_query_1: vec![],
++        y_constants,
++        smaller_server: None,
++        prepacked_lwe: Vec::new(),
++        fake_pack_pub_params,
++        precomp,
++    }
++}
++
++/// The response-packing tables of RLWE output `output`, from the hint of all
++/// columns: the entries `prepacked_lwe[output]` and `precomp[output]` of
++/// [`offline_from_hint`], with its `fake_pack_pub_params` and `y_constants`.
++pub fn packing_table_of_output<'a>(
++    params: &'a Params,
++    hint_0: &[u64],
++    output: usize,
++    fake_pack_pub_params: &[PolyMatrixNTT<'a>],
++    y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
++) -> (
++    Vec<PolyMatrixNTT<'a>>,
++    (
++        PolyMatrixNTT<'a>,
++        Vec<crate::packing::Condensed>,
++        Vec<Vec<usize>>,
++    ),
++) {
++    let db_cols = simplepir_db_cols(params);
++    assert_eq!(hint_0.len(), db_cols * params.poly_len);
++    assert!(output < db_cols / params.poly_len);
++
++    // The LWE ciphertexts of this output: their hint rows and a zero row.
++    let mut lwe_cts = Vec::with_capacity((params.poly_len + 1) * params.poly_len);
++    for j in 0..params.poly_len {
++        lwe_cts.extend(&hint_0[j * db_cols + output * params.poly_len..][..params.poly_len]);
++    }
++    packing_table_of_block(params, lwe_cts, fake_pack_pub_params, y_constants)
++}
++
++/// [`packing_table_of_output`] from a column-major hint,
++/// `hint_cols[col * poly_len + j]`.
++pub fn packing_table_of_columns<'a>(
++    params: &'a Params,
++    hint_cols: &[u64],
++    output: usize,
++    fake_pack_pub_params: &[PolyMatrixNTT<'a>],
++    y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
++) -> (
++    Vec<PolyMatrixNTT<'a>>,
++    (
++        PolyMatrixNTT<'a>,
++        Vec<crate::packing::Condensed>,
++        Vec<Vec<usize>>,
++    ),
++) {
++    let db_cols = simplepir_db_cols(params);
++    let n = params.poly_len;
++    assert_eq!(hint_cols.len(), db_cols * n);
++    assert!(output < db_cols / n);
++    let lwe_cts = transpose_generic(&hint_cols[output * n * n..][..n * n], n, n);
++    packing_table_of_block(params, lwe_cts, fake_pack_pub_params, y_constants)
++}
++
++/// The packing table of one output from the row-major block of its hint,
++/// `block[j * poly_len + c]` for the `poly_len` columns of the output.
++pub fn packing_table_of_block<'a>(
++    params: &'a Params,
++    mut lwe_cts: Vec<u64>,
++    fake_pack_pub_params: &[PolyMatrixNTT<'a>],
++    y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
++) -> (
++    Vec<PolyMatrixNTT<'a>>,
++    (
++        PolyMatrixNTT<'a>,
++        Vec<crate::packing::Condensed>,
++        Vec<Vec<usize>>,
++    ),
++) {
++    assert_eq!(lwe_cts.len(), params.poly_len * params.poly_len);
++    lwe_cts.resize((params.poly_len + 1) * params.poly_len, 0);
++    let prepacked = prep_pack_lwes(params, &lwe_cts, params.poly_len);
++    let table = precompute_pack(
++        params,
++        params.poly_len_log2,
++        &prepacked,
++        fake_pack_pub_params,
++        y_constants,
++    );
++    (prepacked, table)
++}
++
++/// The response, from the result of the first pass over the database
++/// (`YServer::perform_online_computation_simplepir` after its dot product).
++///
++/// `first_pass[col]` is the inner product of the packed query with column
++/// `col`, reduced modulo the ciphertext modulus.
++pub fn response_from_first_pass<'a>(
++    params: &'a Params,
++    offline_vals: &OfflinePrecomputedValues<'a>,
++    first_pass: &[u64],
++    pack_pub_params_row_1s: &[PolyMatrixNTT<'a>],
++) -> Vec<Vec<u8>> {
++    let db_cols = simplepir_db_cols(params);
++    assert_eq!(first_pass.len(), db_cols);
++    let rlwe_q_prime_1 = params.get_q_prime_1();
++    let rlwe_q_prime_2 = params.get_q_prime_2();
++    let num_rlwe_outputs = db_cols / params.poly_len;
++
++    let packed = pack_many_lwes(
++        params,
++        &offline_vals.prepacked_lwe,
++        &offline_vals.precomp,
++        first_pass,
++        num_rlwe_outputs,
++        pack_pub_params_row_1s,
++        &offline_vals.y_constants,
++    );
++
++    let mut packed_mod_switched = Vec::with_capacity(packed.len());
++    for ct in packed.iter() {
++        let res = ct.raw();
++        packed_mod_switched.push(res.switch(rlwe_q_prime_1, rlwe_q_prime_2));
++    }
++    packed_mod_switched
++}
++
++/// The reply computed without packing tables: every reply ciphertext is
++/// packed online from the hint of its columns and the first pass, with the
++/// public half of the packing keys regenerated from the public seed.
++pub fn response_from_first_pass_online<'a>(
++    params: &'a Params,
++    hint_0: &[u64],
++    first_pass: &[u64],
++    pack_pub_params_row_1s: &[PolyMatrixNTT<'a>],
++) -> Vec<Vec<u8>> {
++    let db_cols = simplepir_db_cols(params);
++    assert_eq!(first_pass.len(), db_cols);
++    let rlwe_q_prime_1 = params.get_q_prime_1();
++    let rlwe_q_prime_2 = params.get_q_prime_2();
++    let num_rlwe_outputs = db_cols / params.poly_len;
++    let y_constants = generate_y_constants(params);
++    let mut pack_pub_params = generate_fake_pack_pub_params(params);
++    for i in 0..pack_pub_params.len() {
++        let uncondensed = uncondense_matrix(params, &pack_pub_params_row_1s[i]);
++        pack_pub_params[i].copy_into(&uncondensed, 1, 0);
++    }
++    let mut out = Vec::with_capacity(num_rlwe_outputs);
++    let mut lwe_cts = vec![0u64; (params.poly_len + 1) * params.poly_len];
++    for output in 0..num_rlwe_outputs {
++        for j in 0..params.poly_len {
++            lwe_cts[j * params.poly_len..(j + 1) * params.poly_len].copy_from_slice(
++                &hint_0[j * db_cols + output * params.poly_len..][..params.poly_len],
++            );
++        }
++        lwe_cts[params.poly_len * params.poly_len..].fill(0);
++        let prepacked = prep_pack_lwes(params, &lwe_cts, params.poly_len);
++        let packed = pack_lwes(
++            params,
++            &first_pass[output * params.poly_len..(output + 1) * params.poly_len],
++            &prepacked,
++            &[],
++            params.poly_len,
++            &pack_pub_params,
++            &y_constants,
++        );
++        out.push(packed.raw().switch(rlwe_q_prime_1, rlwe_q_prime_2));
++    }
++    out
++}
++
++/// The packing keys a client uploads with its query
++/// (`run_simple_ypir_on_params`, query generation).
++pub fn client_pack_pub_params<'a>(
++    params: &'a Params,
++    client: &Client<'a>,
++) -> Vec<PolyMatrixNTT<'a>> {
++    let sk_reg = client.get_sk_reg();
++    let pack_pub_params = raw_generate_expansion_params(
++        params,
++        sk_reg,
++        params.poly_len_log2,
++        params.t_exp_left,
++        &mut ChaCha20Rng::from_entropy(),
++        &mut ChaCha20Rng::from_seed(STATIC_SEED_2),
++    );
++    let mut pack_pub_params_row_1s = pack_pub_params.to_vec();
++    for i in 0..pack_pub_params.len() {
++        pack_pub_params_row_1s[i] = pack_pub_params[i].submatrix(1, 0, 1, pack_pub_params[i].cols);
++        pack_pub_params_row_1s[i] = condense_matrix(params, &pack_pub_params_row_1s[i]);
++    }
++    pack_pub_params_row_1s
++}
++
++/// The packed query for row `index_row`
++/// (`YClient::generate_query` with `SEED_0` and packing, then `pack_query`).
++pub fn client_query<'a>(
++    params: &'a Params,
++    client: &Client<'a>,
++    index_row: usize,
++) -> AlignedMemory64 {
++    let db_rows = simplepir_db_rows(params);
++    assert!(index_row < db_rows);
++    let mut rng_pub = ChaCha20Rng::from_seed(get_seed(SEED_0));
++    let scale_k = params.modulus / params.pt_modulus;
++    let factor = invert_uint_mod(params.poly_len as u64, params.modulus).unwrap();
++
++    let mut lwes = Vec::with_capacity(db_rows);
++    for i in 0..(1 << params.db_dim_1) {
++        let mut scalar = PolyMatrixRaw::zero(params, 1, 1);
++        if i == index_row / params.poly_len {
++            scalar.data[index_row % params.poly_len] = scale_k;
++        }
++        scalar = scalar_multiply_alloc(
++            &PolyMatrixRaw::single_value(params, factor).ntt(),
++            &scalar.ntt(),
++        )
++        .raw();
++        let ct = client.encrypt_matrix_scaled_reg(
++            &scalar.ntt(),
++            &mut ChaCha20Rng::from_entropy(),
++            &mut rng_pub,
++            factor,
++        );
++        lwes.extend(rlwe_to_lwe_last_row(params, &ct.raw()));
++    }
++    assert_eq!(lwes.len(), db_rows);
++    pack_query(params, &lwes)
++}
++
++/// The plaintext values of the selected row: one per database column
++/// (`run_simple_ypir_on_params`, decoding).
++pub fn client_decode<'a>(
++    params: &'a Params,
++    client: &Client<'a>,
++    response: &[Vec<u8>],
++) -> Vec<u64> {
++    let rlwe_q_prime_1 = params.get_q_prime_1();
++    let rlwe_q_prime_2 = params.get_q_prime_2();
++    let mut out = Vec::with_capacity(response.len() * params.poly_len);
++    for ct_bytes in response {
++        let ct = PolyMatrixRaw::recover(params, rlwe_q_prime_1, rlwe_q_prime_2, ct_bytes);
++        let dec_result = client.decrypt_matrix_reg(&ct.ntt()).raw();
++        for z in 0..params.poly_len {
++            out.push(rescale(
++                dec_result.data[z],
++                params.modulus,
++                params.pt_modulus,
++            ));
++        }
++    }
++    out
++}
++
++#[cfg(test)]
++mod test {
++    use super::*;
++    use crate::bits::*;
++
++    /// The borrowed-column kernel agrees with the independently implemented
++    /// YServer arithmetic, including zero blocks and arbitrary u16 inputs.
++    #[test]
++    fn borrowed_hint_columns_match_yserver_ranges() {
++        let params = params_for_scenario_simplepir(4096, 2048 * 14);
++        let rows = simplepir_db_rows(&params);
++        let cols = simplepir_db_cols(&params);
++        let value = |row: usize, col: usize| -> u16 {
++            if col % 5 == 0 || (row / params.poly_len == 1 && col % 3 == 1) {
++                0
++            } else if row % 7 == 0 {
++                u16::MAX
++            } else {
++                (row as u64 * 2_654_435_761 + col as u64 * 40_503 + 17) as u16
++            }
++        };
++        let data = (0..rows).flat_map(|row| (0..cols).map(move |col| value(row, col)));
++        let server = YServer::<u16>::new(&params, data, true, false, true);
++        let query = pseudorandom_query(&params, SEED_0);
++        for range in [0..23, 3..17] {
++            let expected = server.multiply_with_db_ring(&query, range.clone(), SEED_0);
++            let expected = transpose_generic(&expected, params.poly_len, range.len());
++            for reduce_input in [false, true] {
++                let mut kernel = HintColumnKernel::new(&params, &query);
++                if reduce_input {
++                    // Exercise the general reduction path with the same valid
++                    // parameters; do not invent unsupported small NTT moduli.
++                    kernel.symbols_fit = false;
++                }
++                let mut actual = Vec::with_capacity(expected.len());
++                for col in range.clone() {
++                    kernel.append_column(&server.db()[col * rows..(col + 1) * rows], &mut actual);
++                }
++                assert_eq!(actual, expected);
++            }
++            let callback = hint_columns_from_columns(&params, &query, range, |col, out| {
++                out.copy_from_slice(&server.db()[col * rows..(col + 1) * rows]);
++            });
++            assert_eq!(callback, expected);
++        }
++        let empty = hint_columns_from_columns(&params, &query, 9..9, |_, _| {
++            panic!("an empty column range must not call its source");
++        });
++        assert!(empty.is_empty());
++    }
++
++    /// The column-based path gives `YServer`'s hint and response byte for
++    /// byte, and the client decodes the selected row.
++    #[test]
++    fn column_based_path_equals_yserver() {
++        // 4096 rows, three RLWE outputs per row.
++        let params = params_for_scenario_simplepir(4096, 3 * 2048 * 14);
++        let db_rows = simplepir_db_rows(&params);
++        let db_cols = simplepir_db_cols(&params);
++        assert_eq!((db_rows, db_cols), (4096, 3 * 2048));
++
++        // A database with some all-zero blocks and columns.
++        let value = |row: usize, col: usize| -> u16 {
++            if col % 7 == 3 || (row / 2048 == 1 && col % 5 == 0) {
++                0
++            } else {
++                ((row as u64 * 2_654_435_761 + col as u64 * 40_503 + 17) % params.pt_modulus) as u16
++            }
++        };
++        // `YServer::new` reads its input row by row.
++        let row_major = (0..db_rows).flat_map(|row| (0..db_cols).map(move |col| value(row, col)));
++        let y_server = YServer::<u16>::new(&params, row_major, true, false, true);
++        let offline = y_server.perform_offline_precomputation_simplepir(None);
++
++        let preprocessed_query = pseudorandom_query(&params, SEED_0);
++        let hint = hint_from_columns(&params, &preprocessed_query, 0..db_cols, |col, values| {
++            for (row, out) in values.iter_mut().enumerate() {
++                *out = value(row, col);
++            }
++        });
++        assert!(hint == offline.hint_0, "hint differs from YServer's");
++
++        // Columns computed in two ranges and joined give the same hint.
++        let split = 1000;
++        let left = hint_from_columns(&params, &preprocessed_query, 0..split, |col, values| {
++            for (row, out) in values.iter_mut().enumerate() {
++                *out = value(row, col);
++            }
++        });
++        let right = hint_from_columns(
++            &params,
++            &preprocessed_query,
++            split..db_cols,
++            |col, values| {
++                for (row, out) in values.iter_mut().enumerate() {
++                    *out = value(row, col);
++                }
++            },
++        );
++        for i in 0..params.poly_len {
++            assert!(left[i * split..(i + 1) * split] == hint[i * db_cols..i * db_cols + split]);
++            assert!(
++                right[i * (db_cols - split)..(i + 1) * (db_cols - split)]
++                    == hint[i * db_cols + split..(i + 1) * db_cols]
++            );
++        }
++
++        // The hint is linear: changing a column on a range of rows changes
++        // its hint by the change times the hint of that range.
++        let changed_col = 4;
++        let changed_rows = 1500..2600;
++        let delta: i64 = 5;
++        let range_hint = hint_of_row_range(&params, &preprocessed_query, changed_rows.clone());
++        let changed = hint_from_columns(&params, &preprocessed_query, 0..db_cols, |col, values| {
++            for (row, out) in values.iter_mut().enumerate() {
++                *out = value(row, col);
++                if col == changed_col && changed_rows.contains(&row) {
++                    *out += delta as u16;
++                }
++            }
++        });
++        assert!(changed != hint);
++        let mut patched = hint.clone();
++        add_scaled_to_hint_column(
++            &params,
++            &mut patched,
++            db_cols,
++            changed_col,
++            &range_hint,
++            delta,
++        );
++        assert!(
++            patched == changed,
++            "patched hint differs from a recomputed one"
++        );
++        // A negative change takes the hint back.
++        add_scaled_to_hint_column(
++            &params,
++            &mut patched,
++            db_cols,
++            changed_col,
++            &range_hint,
++            -delta,
++        );
++        assert!(
++            patched == hint,
++            "the reverse patch does not restore the hint"
++        );
++
++        // A database with more rows keeps the public query of the first rows.
++        let taller = params_for_scenario_simplepir(8192, 3 * 2048 * 14);
++        let taller_query = pseudorandom_query(&taller, SEED_0);
++        assert_eq!(taller_query.len(), 2 * preprocessed_query.len());
++        for (short, tall) in preprocessed_query.iter().zip(taller_query.iter()) {
++            assert!(short.as_slice() == tall.as_slice());
++        }
++
++        let column_offline = offline_from_hint(&params, hint);
++        let hint_for_online = column_offline.hint_0.clone();
++        for output in 0..db_cols / params.poly_len {
++            let (prepacked, (first, rest, indices)) = packing_table_of_output(
++                &params,
++                &column_offline.hint_0,
++                output,
++                &column_offline.fake_pack_pub_params,
++                &column_offline.y_constants,
++            );
++            assert_eq!(prepacked.len(), params.poly_len);
++            let expected = &column_offline.precomp[output];
++            assert!(first.as_slice() == expected.0.as_slice());
++            assert!(
++                rest.len() == expected.1.len()
++                    && rest
++                        .iter()
++                        .zip(&expected.1)
++                        .all(|(a, b)| a.as_slice() == b.as_slice())
++            );
++            assert!(indices == expected.2, "packing table of output {output}");
++        }
++
++        let mut client = Client::init(&params);
++        client.generate_secret_keys();
++        let pack_pub_params = client_pack_pub_params(&params, &client);
++        for target_row in [0usize, 1, 2047, 2048, 4095] {
++            let query = client_query(&params, &client, target_row);
++            let expected = y_server.perform_online_computation_simplepir(
++                query.as_slice(),
++                &offline,
++                &[pack_pub_params.as_slice()],
++                None,
++            );
++            let first_pass = y_server.answer_query(query.as_slice());
++            let response = response_from_first_pass(
++                &params,
++                &column_offline,
++                first_pass.as_slice(),
++                &pack_pub_params,
++            );
++            assert!(response == expected, "response differs from YServer's");
++            let started = std::time::Instant::now();
++            let online = response_from_first_pass_online(
++                &params,
++                &hint_for_online,
++                first_pass.as_slice(),
++                &pack_pub_params,
++            );
++            let online_time = started.elapsed();
++            let started = std::time::Instant::now();
++            let _ = response_from_first_pass(
++                &params,
++                &column_offline,
++                first_pass.as_slice(),
++                &pack_pub_params,
++            );
++            let table_time = started.elapsed();
++            eprintln!(
++                "packing of {} ciphertexts: online {:?}, with tables {:?}",
++                online.len(),
++                online_time,
++                table_time
++            );
++
++            let decoded = client_decode(&params, &client, &response);
++            let row = (0..db_cols)
++                .map(|col| value(target_row, col) as u64)
++                .collect::<Vec<_>>();
++            assert!(decoded == row, "decoded row {target_row} is wrong");
++            let decoded_online = client_decode(&params, &client, &online);
++            assert!(
++                decoded_online == row,
++                "online packing decodes row {target_row} wrong"
++            );
++        }
++    }
++}
+diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/kernel.rs b/ypir/src/kernel.rs
+--- a/ypir/src/kernel.rs	2025-04-01 17:18:20.000000000 -0400
++++ b/ypir/src/kernel.rs	2026-10-02 13:53:38.225374503 -0400
+@@ -1,9 +1,14 @@
++#[cfg(target_feature = "avx512f")]
+ use std::arch::x86_64::*;
+ 
+ use spiral_rs::{arith::*, params::*};
+ 
++#[cfg(target_feature = "avx512f")]
+ use super::server::ToM512;
++#[cfg(not(target_feature = "avx512f"))]
++use super::server::ToU64;
+ 
++#[cfg(target_feature = "avx512f")]
+ pub fn fast_batched_dot_product_avx512<const K: usize, T: Copy>(
+     params: &Params,
+     c: &mut [u64],
+@@ -129,6 +134,50 @@
+         }
+     }
+ }
++
++#[cfg(not(target_feature = "avx512f"))]
++pub fn fast_batched_dot_product_avx512<const K: usize, T: Copy + ToU64>(
++    params: &Params,
++    c: &mut [u64],
++    a: &[u64],
++    a_elems: usize,
++    b_t: &[T], // transposed
++    b_rows: usize,
++    b_cols: usize,
++) {
++    assert_eq!(a_elems, b_rows);
++    assert!(a.len() >= K * a_elems);
++    assert!(c.len() >= K * b_cols);
++
++    // Each product is below 2^32 * 2^16, so a chunk of this many terms stays
++    // below 2^64 before it is reduced.
++    const CHUNK: usize = 1 << 15;
++    let low_mask = (1u64 << 32) - 1;
++    let a_stride = a.len() / K;
++    let c_stride = c.len() / K;
++
++    for j in 0..b_cols {
++        let b_col = &b_t[j * b_rows..(j + 1) * b_rows];
++        for batch in 0..K {
++            let a_slc = &a[batch * a_stride..batch * a_stride + a_elems];
++            let mut acc = c[batch * c_stride + j];
++            for (a_chunk, b_chunk) in a_slc.chunks(CHUNK).zip(b_col.chunks(CHUNK)) {
++                let mut sum_lo = 0u64;
++                let mut sum_hi = 0u64;
++                for (&a_val, &b_val) in a_chunk.iter().zip(b_chunk.iter()) {
++                    let b_val = b_val.to_u64();
++                    sum_lo += (a_val & low_mask) * b_val;
++                    sum_hi += (a_val >> 32) * b_val;
++                }
++                let lo = barrett_coeff_u64(params, sum_lo, 0);
++                let hi = barrett_coeff_u64(params, sum_hi, 1);
++                let res = params.crt_compose_2(lo, hi);
++                acc = barrett_u64(params, acc + res);
++            }
++            c[batch * c_stride + j] = acc;
++        }
++    }
++}
+ 
+ #[cfg(test)]
+ mod test {
+diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/lib.rs b/ypir/src/lib.rs
+--- a/ypir/src/lib.rs	2025-04-01 17:18:20.000000000 -0400
++++ b/ypir/src/lib.rs	2026-10-02 14:19:02.369300770 -0400
+@@ -1,8 +1,10 @@
+-#![feature(stdarch_x86_avx512)]
++#![allow(warnings)]
++
+ 
+ pub mod bits;
+ pub mod client;
+ pub mod convolution;
++pub mod factored;
+ pub mod kernel;
+ pub mod lwe;
+ pub mod matmul;
+diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/packing.rs b/ypir/src/packing.rs
+--- a/ypir/src/packing.rs	2025-04-01 17:18:20.000000000 -0400
++++ b/ypir/src/packing.rs	2026-10-05 12:28:18.277685022 -0400
+@@ -1,4 +1,6 @@
+-use std::{arch::x86_64::*, time::Instant};
++#[cfg(target_feature = "avx512f")]
++use std::arch::x86_64::*;
++use std::time::Instant;
+ 
+ use log::debug;
+ 
+@@ -240,7 +242,10 @@
+                 // let ginv_ct_ntt = ginv_ct.ntt();
+                 // let w_times_ginv_ct = pub_param * &ginv_ct_ntt;
+                 w_times_ginv_ct.as_mut_slice().fill(0);
++                #[cfg(target_feature = "avx512f")]
+                 multiply_no_reduce(&mut w_times_ginv_ct, &pub_param, &cur_ginv_ct_ntt, 1);
++                #[cfg(not(target_feature = "avx512f"))]
++                multiply_no_reduce_scalar(params, &mut w_times_ginv_ct, &pub_param, &cur_ginv_ct_ntt, 1);
+ 
+                 // &ct_auto_1_ntt.pad_top(1) + &w_times_ginv_ct
+                 let now = Instant::now();
+@@ -278,7 +283,7 @@
+     rlwe_cts: &[PolyMatrixNTT<'a>],
+     fake_pub_params: &[PolyMatrixNTT<'a>],
+     y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
+-) -> (PolyMatrixNTT<'a>, Vec<PolyMatrixNTT<'a>>, Vec<Vec<usize>>) {
++) -> (PolyMatrixNTT<'a>, Vec<Condensed>, Vec<Vec<usize>>) {
+     assert!(fake_pub_params.len() == params.poly_len_log2);
+     assert_eq!(params.crt_count, 2);
+ 
+@@ -382,13 +387,16 @@
+                 //     &ct_auto_1_ntt.raw().as_slice()[..30]
+                 // );
+ 
+-                res.push(condense_matrix(params, cur_ginv_ct_ntt));
++                res.push(condense_compact(params, cur_ginv_ct_ntt));
+ 
+                 let pub_param = &fake_pub_params[params.poly_len_log2 - 1 - (cur_ell - 1)];
+                 // let ginv_ct_ntt = ginv_ct.ntt();
+                 // let w_times_ginv_ct = pub_param * &ginv_ct_ntt;
+                 w_times_ginv_ct.as_mut_slice().fill(0);
++                #[cfg(target_feature = "avx512f")]
+                 multiply_no_reduce(&mut w_times_ginv_ct, &pub_param, &cur_ginv_ct_ntt, 0);
++                #[cfg(not(target_feature = "avx512f"))]
++                multiply_no_reduce_scalar(params, &mut w_times_ginv_ct, &pub_param, &cur_ginv_ct_ntt, 0);
+ 
+                 // &ct_auto_1_ntt.pad_top(1) + &w_times_ginv_ct
+                 let now = Instant::now();
+@@ -419,16 +427,47 @@
+     pub_params: &[PolyMatrixNTT<'a>],
+     b_values: &[u64],
+     precomp_res: &PolyMatrixNTT<'a>,
+-    precomp_vals: &[PolyMatrixNTT<'a>],
++    precomp_vals: &[Condensed],
+     precomp_tables: &[Vec<usize>],
+     y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
+ ) -> PolyMatrixNTT<'a> {
+-    // let now = Instant::now();
+-    // let mut working_set = vec![PolyMatrixNTT::zero(params, 1, 1); 1 << ell];
++    let mut working_set = packing_working_set(params, ell);
++    pack_using_precomp_vals_with(
++        params,
++        ell,
++        pub_params,
++        b_values,
++        precomp_res,
++        precomp_vals,
++        precomp_tables,
++        y_constants,
++        &mut working_set,
++    )
++}
++
++/// The working set of [`pack_using_precomp_vals_with`]: `2^(ell-1)`
++/// polynomials. Every entry is written before it is read, so a set can be
++/// reused across ciphertexts without clearing it.
++pub fn packing_working_set<'a>(params: &'a Params, ell: usize) -> Vec<PolyMatrixNTT<'a>> {
+     let mut working_set = Vec::with_capacity(1 << (ell - 1));
+     for _ in 0..(1 << (ell - 1)) {
+         working_set.push(PolyMatrixNTT::zero(params, 1, 1));
+     }
++    working_set
++}
++
++pub fn pack_using_precomp_vals_with<'a>(
++    params: &'a Params,
++    ell: usize,
++    pub_params: &[PolyMatrixNTT<'a>],
++    b_values: &[u64],
++    precomp_res: &PolyMatrixNTT<'a>,
++    precomp_vals: &[Condensed],
++    precomp_tables: &[Vec<usize>],
++    y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
++    working_set: &mut Vec<PolyMatrixNTT<'a>>,
++) -> PolyMatrixNTT<'a> {
++    assert_eq!(working_set.len(), 1 << (ell - 1));
+ 
+     let mut y_times_ct_odd = PolyMatrixNTT::zero(params, 1, 1);
+     let mut neg_y_times_ct_odd = PolyMatrixNTT::zero(params, 1, 1);
+@@ -437,6 +476,7 @@
+ 
+     // println!("time_-1: {} us", now.elapsed().as_micros());
+ 
++    let profile = std::env::var_os("YPIR_PACK_PROFILE").is_some();
+     let mut time_0 = 0;
+     let mut time_1 = 0;
+     let mut time_2 = 0;
+@@ -456,30 +496,48 @@
+         let (first_half, second_half) = (&mut working_set[..num_in]).split_at_mut(num_out);
+ 
+         for i in 0..num_out {
+-            let now = Instant::now();
++            let now = profile.then(Instant::now);
+             let ct_even = &mut first_half[i];
+ 
+             let (y, neg_y) = (&y_constants.0[cur_ell - 1], &y_constants.1[cur_ell - 1]);
+ 
+-            if cur_ell > 1 {
++            #[cfg(all(target_arch = "x86_64", not(target_feature = "avx512f")))]
++            let fused = cur_ell > 1 && avx2::available();
++            #[cfg(not(all(target_arch = "x86_64", not(target_feature = "avx512f"))))]
++            let fused = false;
++
++            if cur_ell > 1 && !fused {
+                 let ct_odd = &mut second_half[i];
+                 scalar_multiply_avx(&mut y_times_ct_odd, &y, &ct_odd);
+                 scalar_multiply_avx(&mut neg_y_times_ct_odd, &neg_y, &ct_odd);
+             }
+ 
+-            time_0 += now.elapsed().as_micros();
++            if let Some(now) = now { time_0 += now.elapsed().as_micros(); }
+ 
+-            let now = Instant::now();
+-            if cur_ell > 1 {
++            let now = profile.then(Instant::now);
++            #[cfg(all(target_arch = "x86_64", not(target_feature = "avx512f")))]
++            if fused {
++                // SAFETY: the host supports AVX2.
++                unsafe {
++                    avx2::combine_halves(
++                        ct_even.as_mut_slice(),
++                        second_half[i].as_slice(),
++                        y.as_slice(),
++                        neg_y.as_slice(),
++                        ct_sum_1.as_mut_slice(),
++                    )
++                };
++            }
++            if cur_ell > 1 && !fused {
+                 ct_sum_1.as_mut_slice().copy_from_slice(ct_even.as_slice());
+                 fast_add_into_no_reduce(&mut ct_sum_1, &neg_y_times_ct_odd);
+                 fast_add_into_no_reduce(ct_even, &y_times_ct_odd);
+             }
+-            time_1 += now.elapsed().as_micros();
++            if let Some(now) = now { time_1 += now.elapsed().as_micros(); }
+ 
+             // --
+ 
+-            let now = Instant::now();
++            let now = profile.then(Instant::now);
+             let ct: &PolyMatrixNTT<'_> = &ct_sum_1;
+             let t = (1 << cur_ell) + 1;
+ 
+@@ -491,17 +549,17 @@
+             // let w_times_ginv_ct = &w * cur_ginv_ct_ntt;
+             // multiply(&mut w_times_ginv_ct, &w, &cur_ginv_ct_ntt);
+             // w_times_ginv_ct.as_mut_slice().fill(0);
+-            fast_multiply_no_reduce(params, &mut w_times_ginv_ct, &w, &cur_ginv_ct_ntt, 0);
++            fast_multiply_condensed(params, &mut w_times_ginv_ct, &w, cur_ginv_ct_ntt);
+             num_muls += 1;
+-            time_2 += now.elapsed().as_micros();
++            if let Some(now) = now { time_2 += now.elapsed().as_micros(); }
+ 
+             if cur_ell > 1 {
+-                let now = Instant::now();
++                let now = profile.then(Instant::now);
+                 apply_automorph_ntt(params, &precomp_tables, &ct, ct_even, t);
+ 
+                 // fast_add_into_no_reduce(ct_even, &ct_auto_1_ntt);
+-                time_3 += now.elapsed().as_micros();
+-                let now = Instant::now();
++                if let Some(now) = now { time_3 += now.elapsed().as_micros(); }
++                let now = profile.then(Instant::now);
+ 
+                 // second condition prevents overflow
+                 if i < num_out / 2 && ((cur_ell - 1) % 5 != 0) {
+@@ -510,31 +568,31 @@
+                     // reduction right before or after addition is much faster than at multiplication time
+                     fast_add_into(ct_even, &w_times_ginv_ct);
+                 }
+-                time_4 += now.elapsed().as_micros();
++                if let Some(now) = now { time_4 += now.elapsed().as_micros(); }
+             } else {
+-                let now = Instant::now();
+-                if i < num_out / 2 {
+-                    fast_add_into_no_reduce(ct_even, &w_times_ginv_ct);
+-                } else {
+-                    fast_add_into(ct_even, &w_times_ginv_ct);
++                let now = profile.then(Instant::now);
++                // The first level writes every entry of the working set.
++                ct_even
++                    .as_mut_slice()
++                    .copy_from_slice(w_times_ginv_ct.as_slice());
++                if i >= num_out / 2 {
++                    fast_reduce(ct_even);
+                 }
+-                time_4 += now.elapsed().as_micros();
++                if let Some(now) = now { time_4 += now.elapsed().as_micros(); }
+             }
+         }
+     }
+     // let now = Instant::now();
+ 
+-    if false {
+-        println!("time_0: {} us", time_0);
+-        println!("time_1: {} us", time_1);
+-        println!("time_2: {} us", time_2);
+-        println!("time_3: {} us", time_3);
+-        println!("time_4: {} us", time_4);
+-        println!("idx_precomp: {}", idx_precomp);
+-        println!("num_muls: {}", num_muls);
++    if std::env::var_os("YPIR_PACK_PROFILE").is_some() {
++        eprintln!(
++            "pack profile: scalar-mul {} us, add-no-reduce {} us, key-switch mul {} us, automorph {} us, add {} us",
++            time_0, time_1, time_2, time_3, time_4
++        );
+     }
+ 
+     assert_eq!(idx_precomp, precomp_vals.len());
++    let tail_started = Instant::now();
+ 
+     let mut resulting_row_1 = working_set[0].clone();
+     fast_reduce(&mut resulting_row_1);
+@@ -570,7 +628,9 @@
+         }
+     }
+     let out = out_raw.ntt();
+-    // println!("time_5: {} us", now.elapsed().as_micros());
++    if std::env::var_os("YPIR_PACK_PROFILE").is_some() {
++        eprintln!("pack tail: {} us", tail_started.elapsed().as_micros());
++    }
+ 
+     // for z in 0..params.poly_len {
+     //     let b_value = b_values[z];
+@@ -661,6 +721,22 @@
+         for j in 0..res.cols {
+             let res_poly = res.get_poly_mut(i, j);
+             let a_poly = a.get_poly(i, j);
++            #[cfg(all(target_arch = "x86_64", not(target_feature = "avx512f")))]
++            if avx2::available() {
++                for c in 0..params.crt_count {
++                    let range = c * params.poly_len..(c + 1) * params.poly_len;
++                    // SAFETY: the host supports AVX2.
++                    unsafe {
++                        avx2::add_into_barrett(
++                            &mut res_poly[range.clone()],
++                            &a_poly[range],
++                            params.barrett_cr_1[c],
++                            params.moduli[c],
++                        )
++                    };
++                }
++                continue;
++            }
+             for c in 0..params.crt_count {
+                 for i in 0..params.poly_len {
+                     let idx = c * params.poly_len + i;
+@@ -678,6 +754,98 @@
+     }
+ }
+ 
++/// `res = a * b` without reduction, for a condensed key matrix `a` of one
++/// row (stride `2 * poly_len` words per polynomial) and a compact table
++/// matrix `b` (stride `poly_len`): the low and the high 32-bit halves are
++/// multiplied separately and summed over the gadget digits.
++#[cfg(target_feature = "avx512f")]
++pub fn fast_multiply_condensed(
++    params: &Params,
++    res: &mut PolyMatrixNTT,
++    a: &PolyMatrixNTT,
++    b: &Condensed,
++) {
++    assert_eq!(res.rows, 1);
++    assert_eq!(res.cols, 1);
++    assert_eq!(a.rows, 1);
++    assert_eq!(a.cols, b.rows);
++    assert_eq!(params.crt_count * params.poly_len, 2 * 2048);
++
++    unsafe {
++        let a_ptr = a.as_slice().as_ptr();
++        let b_ptr = b.as_slice().as_ptr();
++        let res_ptr = res.as_mut_slice().as_mut_ptr();
++        let pol_sz = params.poly_len;
++
++        for idx in (0..pol_sz).step_by(8) {
++            let mut sum_lo = _mm512_setzero_si512();
++            let mut sum_hi = _mm512_setzero_si512();
++            for k in 0..a.cols {
++                let p_x = a_ptr.add(k * 2 * pol_sz + idx);
++                let p_y = b_ptr.add(k * pol_sz + idx);
++
++                let x = _mm512_load_si512(p_x as *const _);
++                let x_lo = x;
++                let x_hi = _mm512_srli_epi64(x, 32);
++                let y = _mm512_loadu_si512(p_y as *const _);
++                let y_lo = y;
++                let y_hi = _mm512_srli_epi64(y, 32);
++
++                let product_lo = _mm512_mul_epu32(x_lo, y_lo);
++                let product_hi = _mm512_mul_epu32(x_hi, y_hi);
++
++                sum_lo = _mm512_add_epi64(sum_lo, product_lo);
++                sum_hi = _mm512_add_epi64(sum_hi, product_hi);
++            }
++
++            let p_z = res_ptr.add(idx);
++            _mm512_store_si512(p_z as *mut _, sum_lo);
++            let p_z = res_ptr.add(pol_sz + idx);
++            _mm512_store_si512(p_z as *mut _, sum_hi);
++        }
++    }
++}
++
++#[cfg(not(target_feature = "avx512f"))]
++pub fn fast_multiply_condensed(
++    params: &Params,
++    res: &mut PolyMatrixNTT,
++    a: &PolyMatrixNTT,
++    b: &Condensed,
++) {
++    assert_eq!(res.rows, 1);
++    assert_eq!(res.cols, 1);
++    assert_eq!(a.rows, 1);
++    assert_eq!(a.cols, b.rows);
++    assert_eq!(params.crt_count * params.poly_len, 2 * 2048);
++
++    #[cfg(target_arch = "x86_64")]
++    if avx2::available() {
++        unsafe { avx2::multiply_condensed(params, res, a, b) };
++        return;
++    }
++
++    let a_slc = a.as_slice();
++    let b_slc = b.as_slice();
++    let res_slc = res.as_mut_slice();
++    let pol_sz = params.poly_len;
++    let low_mask = (1u64 << 32) - 1;
++
++    for idx in 0..pol_sz {
++        let mut sum_lo = 0u64;
++        let mut sum_hi = 0u64;
++        for k in 0..a.cols {
++            let x = a_slc[k * 2 * pol_sz + idx];
++            let y = b_slc[k * pol_sz + idx];
++            sum_lo = sum_lo.wrapping_add((x & low_mask) * (y & low_mask));
++            sum_hi = sum_hi.wrapping_add((x >> 32) * (y >> 32));
++        }
++        res_slc[idx] = sum_lo;
++        res_slc[pol_sz + idx] = sum_hi;
++    }
++}
++
++#[cfg(target_feature = "avx512f")]
+ pub fn fast_multiply_no_reduce(
+     params: &Params,
+     res: &mut PolyMatrixNTT,
+@@ -728,6 +896,108 @@
+     }
+ }
+ 
++#[cfg(not(target_feature = "avx512f"))]
++pub fn fast_multiply_no_reduce(
++    params: &Params,
++    res: &mut PolyMatrixNTT,
++    a: &PolyMatrixNTT,
++    b: &PolyMatrixNTT,
++    _start_inner_dim: usize,
++) {
++    assert_eq!(res.rows, a.rows);
++    assert_eq!(res.cols, b.cols);
++    assert_eq!(res.rows, 1);
++    assert_eq!(res.cols, 1);
++
++    assert_eq!(a.cols, b.rows);
++    assert_eq!(params.crt_count * params.poly_len, 2 * 2048);
++
++    #[cfg(target_arch = "x86_64")]
++    if avx2::available() {
++        // SAFETY: the host supports AVX2.
++        unsafe { avx2::multiply_no_reduce(params, res, a, b) };
++        return;
++    }
++
++    let a_slc = a.as_slice();
++    let b_slc = b.as_slice();
++    let res_slc = res.as_mut_slice();
++    let pol_sz = params.poly_len;
++    let low_mask = (1u64 << 32) - 1;
++
++    for idx in 0..pol_sz {
++        let mut sum_lo = 0u64;
++        let mut sum_hi = 0u64;
++        for k in 0..a.cols {
++            let x = a_slc[k * 2 * pol_sz + idx];
++            let y = b_slc[k * 2 * pol_sz + idx];
++            sum_lo = sum_lo.wrapping_add((x & low_mask) * (y & low_mask));
++            sum_hi = sum_hi.wrapping_add((x >> 32) * (y >> 32));
++        }
++        res_slc[idx] = sum_lo;
++        res_slc[pol_sz + idx] = sum_hi;
++    }
++}
++
++#[cfg(not(target_feature = "avx512f"))]
++fn multiply_no_reduce_scalar(
++    params: &Params,
++    res: &mut PolyMatrixNTT,
++    a: &PolyMatrixNTT,
++    b: &PolyMatrixNTT,
++    start_inner_dim: usize,
++) {
++    assert_eq!(res.rows, a.rows);
++    assert_eq!(res.cols, b.cols);
++    assert_eq!(a.cols, b.rows);
++
++    for i in 0..a.rows {
++        for j in 0..b.cols {
++            let res_poly = res.get_poly_mut(i, j);
++            for k in start_inner_dim..a.cols {
++                let pol1 = a.get_poly(i, k);
++                let pol2 = b.get_poly(k, j);
++                multiply_add_poly_avx(params, res_poly, pol1, pol2);
++            }
++        }
++    }
++}
++
++/// A condensed polynomial matrix of one column: the two CRT residues of
++/// every coefficient packed into one 64-bit word, so a polynomial is
++/// `poly_len` words and a matrix of `rows` rows is `rows * poly_len` words.
++/// The response-packing tables are stored in this form, half the size of
++/// a `PolyMatrixNTT` of the same shape.
++#[derive(Clone)]
++pub struct Condensed {
++    pub rows: usize,
++    pub poly_len: usize,
++    pub data: Vec<u64>,
++}
++
++impl Condensed {
++    pub fn as_slice(&self) -> &[u64] {
++        &self.data
++    }
++
++    pub fn row(&self, k: usize) -> &[u64] {
++        &self.data[k * self.poly_len..(k + 1) * self.poly_len]
++    }
++}
++
++/// Condense a one-column matrix into the compact form.
++pub fn condense_compact<'a>(params: &'a Params, a: &PolyMatrixNTT<'a>) -> Condensed {
++    assert_eq!(a.cols, 1);
++    let mut data = Vec::with_capacity(a.rows * params.poly_len);
++    for i in 0..a.rows {
++        let a_poly = a.get_poly(i, 0);
++        for z in 0..params.poly_len {
++            data.push(a_poly[z] | (a_poly[z + params.poly_len] << 32));
++        }
++    }
++    Condensed { rows: a.rows, poly_len: params.poly_len, data }
++}
++
+ pub fn condense_matrix<'a>(params: &'a Params, a: &PolyMatrixNTT<'a>) -> PolyMatrixNTT<'a> {
+     let mut res = PolyMatrixNTT::zero(params, a.rows, a.cols);
+     for i in 0..a.rows {
+@@ -757,6 +1027,7 @@
+     res
+ }
+ 
++#[cfg(target_feature = "avx512f")]
+ pub fn multiply_add_poly_avx(_params: &Params, res: &mut [u64], a: &[u64], b: &[u64]) {
+     unsafe {
+         let a_ptr = a.as_ptr();
+@@ -779,6 +1050,21 @@
+     }
+ }
+ 
++#[cfg(not(target_feature = "avx512f"))]
++pub fn multiply_add_poly_avx(_params: &Params, res: &mut [u64], a: &[u64], b: &[u64]) {
++    #[cfg(target_arch = "x86_64")]
++    if avx2::available() {
++        // SAFETY: the host supports AVX2.
++        unsafe { avx2::multiply_add_poly(res, a, b) };
++        return;
++    }
++    let low_mask = (1u64 << 32) - 1;
++    for ((z, &x), &y) in res.iter_mut().zip(a.iter()).zip(b.iter()) {
++        *z = z.wrapping_add((x & low_mask) * (y & low_mask));
++    }
++}
++
++#[cfg(target_feature = "avx512f")]
+ pub fn multiply_poly_avx(_params: &Params, res: &mut [u64], a: &[u64], b: &[u64]) {
+     unsafe {
+         let a_ptr = a.as_ptr();
+@@ -800,6 +1086,252 @@
+     }
+ }
+ 
++#[cfg(not(target_feature = "avx512f"))]
++pub fn multiply_poly_avx(_params: &Params, res: &mut [u64], a: &[u64], b: &[u64]) {
++    #[cfg(target_arch = "x86_64")]
++    if avx2::available() {
++        // SAFETY: the host supports AVX2.
++        unsafe { avx2::multiply_poly(res, a, b) };
++        return;
++    }
++    let low_mask = (1u64 << 32) - 1;
++    for ((z, &x), &y) in res.iter_mut().zip(a.iter()).zip(b.iter()) {
++        *z = (x & low_mask) * (y & low_mask);
++    }
++}
++
++/// The multiply kernels on AVX2, selected at run time on hosts without
++/// AVX-512. The products are of the low 32 bits of each 64-bit lane, as in
++/// the AVX-512 kernels.
++#[cfg(all(target_arch = "x86_64", not(target_feature = "avx512f")))]
++mod avx2 {
++    use std::arch::x86_64::*;
++
++    use spiral_rs::params::Params;
++    use spiral_rs::poly::{PolyMatrix, PolyMatrixNTT};
++
++    pub fn available() -> bool {
++        use std::sync::OnceLock;
++        static AVAILABLE: OnceLock<bool> = OnceLock::new();
++        *AVAILABLE.get_or_init(|| is_x86_feature_detected!("avx2"))
++    }
++
++    #[target_feature(enable = "avx2")]
++    pub unsafe fn multiply_no_reduce(
++        params: &Params,
++        res: &mut PolyMatrixNTT,
++        a: &PolyMatrixNTT,
++        b: &PolyMatrixNTT,
++    ) {
++        let a_ptr = a.as_slice().as_ptr();
++        let b_ptr = b.as_slice().as_ptr();
++        let res_ptr = res.as_mut_slice().as_mut_ptr();
++        let pol_sz = params.poly_len;
++        let cols = a.cols;
++        for idx in (0..pol_sz).step_by(4) {
++            let mut sum_lo = _mm256_setzero_si256();
++            let mut sum_hi = _mm256_setzero_si256();
++            for k in 0..cols {
++                let x = _mm256_loadu_si256(a_ptr.add(k * 2 * pol_sz + idx) as *const _);
++                let y = _mm256_loadu_si256(b_ptr.add(k * 2 * pol_sz + idx) as *const _);
++                let x_hi = _mm256_srli_epi64(x, 32);
++                let y_hi = _mm256_srli_epi64(y, 32);
++                sum_lo = _mm256_add_epi64(sum_lo, _mm256_mul_epu32(x, y));
++                sum_hi = _mm256_add_epi64(sum_hi, _mm256_mul_epu32(x_hi, y_hi));
++            }
++            _mm256_storeu_si256(res_ptr.add(idx) as *mut _, sum_lo);
++            _mm256_storeu_si256(res_ptr.add(pol_sz + idx) as *mut _, sum_hi);
++        }
++    }
++
++    /// `res = a * b` without reduction, `b` a compact table matrix.
++    #[target_feature(enable = "avx2")]
++    pub unsafe fn multiply_condensed(
++        params: &Params,
++        res: &mut PolyMatrixNTT,
++        a: &PolyMatrixNTT,
++        b: &super::Condensed,
++    ) {
++        let a_ptr = a.as_slice().as_ptr();
++        let b_ptr = b.as_slice().as_ptr();
++        let res_ptr = res.as_mut_slice().as_mut_ptr();
++        let pol_sz = params.poly_len;
++        let cols = a.cols;
++        for idx in (0..pol_sz).step_by(4) {
++            let mut sum_lo = _mm256_setzero_si256();
++            let mut sum_hi = _mm256_setzero_si256();
++            for k in 0..cols {
++                let x = _mm256_loadu_si256(a_ptr.add(k * 2 * pol_sz + idx) as *const _);
++                let y = _mm256_loadu_si256(b_ptr.add(k * pol_sz + idx) as *const _);
++                let x_hi = _mm256_srli_epi64(x, 32);
++                let y_hi = _mm256_srli_epi64(y, 32);
++                sum_lo = _mm256_add_epi64(sum_lo, _mm256_mul_epu32(x, y));
++                sum_hi = _mm256_add_epi64(sum_hi, _mm256_mul_epu32(x_hi, y_hi));
++            }
++            _mm256_storeu_si256(res_ptr.add(idx) as *mut _, sum_lo);
++            _mm256_storeu_si256(res_ptr.add(pol_sz + idx) as *mut _, sum_hi);
++        }
++    }
++
++    /// `sum = even + neg_y * odd` and `even += y * odd`, in one pass.
++    #[target_feature(enable = "avx2")]
++    pub unsafe fn combine_halves(
++        even: &mut [u64],
++        odd: &[u64],
++        y: &[u64],
++        neg_y: &[u64],
++        sum: &mut [u64],
++    ) {
++        let n = even.len();
++        let (even_ptr, odd_ptr, y_ptr, neg_y_ptr, sum_ptr) = (
++            even.as_mut_ptr(),
++            odd.as_ptr(),
++            y.as_ptr(),
++            neg_y.as_ptr(),
++            sum.as_mut_ptr(),
++        );
++        let mut i = 0;
++        while i + 4 <= n {
++            let e = _mm256_loadu_si256(even_ptr.add(i) as *const _);
++            let o = _mm256_loadu_si256(odd_ptr.add(i) as *const _);
++            let yy = _mm256_loadu_si256(y_ptr.add(i) as *const _);
++            let ny = _mm256_loadu_si256(neg_y_ptr.add(i) as *const _);
++            _mm256_storeu_si256(
++                sum_ptr.add(i) as *mut _,
++                _mm256_add_epi64(e, _mm256_mul_epu32(o, ny)),
++            );
++            _mm256_storeu_si256(
++                even_ptr.add(i) as *mut _,
++                _mm256_add_epi64(e, _mm256_mul_epu32(o, yy)),
++            );
++            i += 4;
++        }
++        let low_mask = (1u64 << 32) - 1;
++        while i < n {
++            let e = even[i];
++            sum[i] = e.wrapping_add((odd[i] & low_mask) * (neg_y[i] & low_mask));
++            even[i] = e.wrapping_add((odd[i] & low_mask) * (y[i] & low_mask));
++            i += 1;
++        }
++    }
++
++    /// `res[k] = barrett(res[k] + a[k])` with the Barrett step of
++    /// [`super::fast_barrett_raw_u64`]: the quotient `floor(x * ratio / 2^64)`
++    /// is assembled from 32-bit products, so the result is the scalar one.
++    #[target_feature(enable = "avx2")]
++    pub unsafe fn add_into_barrett(res: &mut [u64], a: &[u64], ratio: u64, modulus: u64) {
++        let n = res.len();
++        let (a_ptr, res_ptr) = (a.as_ptr(), res.as_mut_ptr());
++        let mask = _mm256_set1_epi64x(0xffff_ffff);
++        let r_lo = _mm256_set1_epi64x((ratio & 0xffff_ffff) as i64);
++        let r_hi = _mm256_set1_epi64x((ratio >> 32) as i64);
++        let m = _mm256_set1_epi64x(modulus as i64);
++        let mut i = 0;
++        while i + 4 <= n {
++            let x = _mm256_add_epi64(
++                _mm256_loadu_si256(res_ptr.add(i) as *const _),
++                _mm256_loadu_si256(a_ptr.add(i) as *const _),
++            );
++            let v_lo = _mm256_and_si256(x, mask);
++            let v_hi = _mm256_srli_epi64(x, 32);
++            // x * ratio = A 2^64 + (m1 + m2) 2^32 + c
++            let a_part = _mm256_mul_epu32(v_hi, r_hi);
++            let m1 = _mm256_mul_epu32(v_hi, r_lo);
++            let m2 = _mm256_mul_epu32(v_lo, r_hi);
++            let c = _mm256_srli_epi64(_mm256_mul_epu32(v_lo, r_lo), 32);
++            let low = _mm256_add_epi64(_mm256_add_epi64(_mm256_and_si256(m1, mask), m2), c);
++            let quotient = _mm256_add_epi64(
++                _mm256_add_epi64(a_part, _mm256_srli_epi64(m1, 32)),
++                _mm256_srli_epi64(low, 32),
++            );
++            // x - quotient * modulus, modulo 2^64
++            let q_lo = _mm256_and_si256(quotient, mask);
++            let q_hi = _mm256_srli_epi64(quotient, 32);
++            let product = _mm256_add_epi64(
++                _mm256_mul_epu32(q_lo, m),
++                _mm256_slli_epi64(_mm256_mul_epu32(q_hi, m), 32),
++            );
++            _mm256_storeu_si256(res_ptr.add(i) as *mut _, _mm256_sub_epi64(x, product));
++            i += 4;
++        }
++        while i < n {
++            res[i] = super::fast_barrett_raw_u64(res[i] + a[i], ratio, modulus);
++            i += 1;
++        }
++    }
++
++    #[cfg(test)]
++    mod tests {
++        #[test]
++        fn barrett_add_matches_the_scalar_step() {
++            if !super::available() {
++                return;
++            }
++            let params = crate::params::params_for_scenario_simplepir(2048, 2048 * 14);
++            let mut state = 0x1234_5678_9abc_def0u64;
++            let mut next = || {
++                state ^= state << 13;
++                state ^= state >> 7;
++                state ^= state << 17;
++                state
++            };
++            for c in 0..params.crt_count {
++                let ratio = params.barrett_cr_1[c];
++                let modulus = params.moduli[c];
++                // Sums of products below 2^63 each, as the packing produces.
++                let res: Vec<u64> = (0..4099).map(|_| next() >> 1).collect();
++                let a: Vec<u64> = (0..4099).map(|_| next() >> 1).collect();
++                let expected: Vec<u64> = res
++                    .iter()
++                    .zip(&a)
++                    .map(|(&x, &y)| super::super::fast_barrett_raw_u64(x + y, ratio, modulus))
++                    .collect();
++                let mut got = res.clone();
++                unsafe { super::add_into_barrett(&mut got, &a, ratio, modulus) };
++                assert!(got == expected, "modulus {c}");
++            }
++        }
++    }
++
++    #[target_feature(enable = "avx2")]
++    pub unsafe fn multiply_add_poly(res: &mut [u64], a: &[u64], b: &[u64]) {
++        let n = res.len();
++        let (a_ptr, b_ptr, res_ptr) = (a.as_ptr(), b.as_ptr(), res.as_mut_ptr());
++        let mut i = 0;
++        while i + 4 <= n {
++            let x = _mm256_loadu_si256(a_ptr.add(i) as *const _);
++            let y = _mm256_loadu_si256(b_ptr.add(i) as *const _);
++            let z = _mm256_loadu_si256(res_ptr.add(i) as *const _);
++            let out = _mm256_add_epi64(z, _mm256_mul_epu32(x, y));
++            _mm256_storeu_si256(res_ptr.add(i) as *mut _, out);
++            i += 4;
++        }
++        let low_mask = (1u64 << 32) - 1;
++        while i < n {
++            res[i] = res[i].wrapping_add((a[i] & low_mask) * (b[i] & low_mask));
++            i += 1;
++        }
++    }
++
++    #[target_feature(enable = "avx2")]
++    pub unsafe fn multiply_poly(res: &mut [u64], a: &[u64], b: &[u64]) {
++        let n = res.len();
++        let (a_ptr, b_ptr, res_ptr) = (a.as_ptr(), b.as_ptr(), res.as_mut_ptr());
++        let mut i = 0;
++        while i + 4 <= n {
++            let x = _mm256_loadu_si256(a_ptr.add(i) as *const _);
++            let y = _mm256_loadu_si256(b_ptr.add(i) as *const _);
++            _mm256_storeu_si256(res_ptr.add(i) as *mut _, _mm256_mul_epu32(x, y));
++            i += 4;
++        }
++        let low_mask = (1u64 << 32) - 1;
++        while i < n {
++            res[i] = (a[i] & low_mask) * (b[i] & low_mask);
++            i += 1;
++        }
++    }
++}
++
+ pub fn fast_add_into_no_reduce(res: &mut PolyMatrixNTT, a: &PolyMatrixNTT) {
+     assert!(res.rows == a.rows);
+     assert!(res.cols == a.cols);
+@@ -1011,15 +1543,21 @@
+     pack_pub_params_row_1s: &[PolyMatrixNTT<'a>],
+     y_constants: &(Vec<PolyMatrixNTT<'a>>, Vec<PolyMatrixNTT<'a>>),
+ ) -> Vec<PolyMatrixNTT<'a>> {
+-    assert_eq!(prep_rlwe_cts.len(), num_rlwe_outputs);
+-    assert_eq!(prep_rlwe_cts[0].len(), params.poly_len);
++    // The prepacked columns are an input to the tables, not to the packing;
++    // a caller that released them passes an empty slice.
++    if !prep_rlwe_cts.is_empty() {
++        assert_eq!(prep_rlwe_cts.len(), num_rlwe_outputs);
++        assert_eq!(prep_rlwe_cts[0].len(), params.poly_len);
++    }
++    assert_eq!(precomp.len(), num_rlwe_outputs);
+     assert_eq!(b_values.len(), num_rlwe_outputs * params.poly_len);
+ 
+     let mut res = Vec::new();
++    let mut working_set = packing_working_set(params, params.poly_len_log2);
+     for i in 0..num_rlwe_outputs {
+         let (precomp_res, precomp_vals, precomp_tables) = &precomp[i];
+ 
+-        let packed = pack_using_precomp_vals(
++        let packed = pack_using_precomp_vals_with(
+             &params,
+             params.poly_len_log2,
+             &pack_pub_params_row_1s,
+@@ -1028,6 +1566,7 @@
+             &precomp_vals,
+             &precomp_tables,
+             &y_constants,
++            &mut working_set,
+         );
+ 
+         res.push(packed);
+diff -ruN -x Cargo.lock -x target -x rodeo -x rust-toolchain.toml a/ypir/src/server.rs b/ypir/src/server.rs
+--- a/ypir/src/server.rs	2025-04-01 17:18:20.000000000 -0400
++++ b/ypir/src/server.rs	2026-10-05 12:27:36.185783437 -0400
+@@ -141,7 +141,7 @@
+     pack_pub_params
+ }
+ 
+-pub type Precomp<'a> = Vec<(PolyMatrixNTT<'a>, Vec<PolyMatrixNTT<'a>>, Vec<Vec<usize>>)>;
++pub type Precomp<'a> = Vec<(PolyMatrixNTT<'a>, Vec<crate::packing::Condensed>, Vec<Vec<usize>>)>;
+ 
+ #[derive(Clone)]
+ pub struct OfflinePrecomputedValues<'a> {
+@@ -576,7 +576,7 @@
+     pub fn perform_offline_precomputation_simplepir(
+         &self,
+         measurement: Option<&mut Measurement>,
+-    ) -> OfflinePrecomputedValues {
++    ) -> OfflinePrecomputedValues<'a> {
+         // Set up some parameters
+ 
+         let params = self.params;
+@@ -1157,14 +1157,14 @@
+     }
+ }
+ 
+-#[cfg(not(target_feature = "avx2"))]
+-#[allow(non_camel_case_types)]
+-type __m512i = u64;
+-
++#[cfg(target_feature = "avx512f")]
+ pub trait ToM512 {
+     fn to_m512(self) -> __m512i;
+ }
+ 
++#[cfg(not(target_feature = "avx512f"))]
++pub trait ToM512 {}
++
+ #[cfg(target_feature = "avx512f")]
+ mod m512_impl {
+     use super::*;
+@@ -1195,26 +1195,7 @@
+ mod m512_impl {
+     use super::*;
+ 
+-    impl ToM512 for *const u8 {
+-        #[inline(always)]
+-        fn to_m512(self) -> __m512i {
+-            self as __m512i
+-        }
+-    }
+-
+-    impl ToM512 for *const u16 {
+-        #[inline(always)]
+-        fn to_m512(self) -> __m512i {
+-            self as __m512i
+-        }
+-    }
+-
+-    impl ToM512 for *const u32 {
+-        #[inline(always)]
+-        fn to_m512(self) -> __m512i {
+-            self as __m512i
+-        }
+-    }
++    impl<T> ToM512 for *const T {}
+ }
+ 
+ pub trait ToU64 {

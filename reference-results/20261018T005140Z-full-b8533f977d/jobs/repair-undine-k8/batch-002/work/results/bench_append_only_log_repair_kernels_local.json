@@ -1,0 +1,139 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 23,
+    "committed_bulk_update_batches": 3,
+    "helper_surplus": 1,
+    "max_errors": 0,
+    "corrupt_helper_count": 0,
+    "timestamp_unix_ms": 1792288750012,
+    "git": "ca3ba294bef82f02436b936382ab801fac66ecf5",
+    "notes": "local append-only-log repair kernels: warm a real one-claim-per-party cluster through aligned bulk updates appends, then time selected helper and wiped-claimant repair operations; the helper RPC metric includes response serialization, while warmup, helper selection, TCP, and per-claim planning stay outside the timed region. Set BENCH_APPEND_ONLY_LOG_REPAIR_MAX_ERRORS>0 to enable simulated client-side correction fixtures.",
+    "metrics": [
+      "helper_rpc",
+      "recover_install"
+    ]
+  },
+  "entries": [
+    {
+      "kappa": 8,
+      "segment_len": 64,
+      "n_grid": 64,
+      "need": 8,
+      "shard_count": 9,
+      "repair_helper_count": 8,
+      "bulk_updates_bytes": 4194304,
+      "bulk_updates_size": 131072,
+      "committed_bulk_update_batches": 3,
+      "allocated_leaves": 393216,
+      "live_unauth_len": 786463,
+      "segment_count": 12289,
+      "target_registry_index": 0,
+      "target_row_count": 1,
+      "helper_registry_index": 1,
+      "max_errors": 0,
+      "corrupt_helper_count": 0,
+      "correcting_repair_helper_count": 0,
+      "helper_row_replies_per_segment": 1,
+      "helper_eval_scalars_per_segment": 1,
+      "helper_row_reply_wire_bytes": 393254,
+      "helper_eval_reply_wire_bytes": 393254,
+      "helper_assist_total_wire_bytes": 786508,
+      "recover_helper_reply_bytes_modeled": 6291968,
+      "recover_correcting_helper_reply_bytes_modeled": null,
+      "full_bulk_updates_download_bytes": 12582912,
+      "helper_assist_core_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "helper_assist_net_adapter_ns": {
+        "mean": 11385769,
+        "p50": 11375776,
+        "p95": 11493597,
+        "trials": 23,
+        "samples": [
+          11419585,
+          11410870,
+          11338152,
+          11493597,
+          11521817,
+          11362403,
+          11394682,
+          11313983,
+          11373036,
+          11470330,
+          11343199,
+          11416048,
+          11376559,
+          11370018,
+          11374883,
+          11377160,
+          11286267,
+          11295437,
+          11409440,
+          11375776,
+          11508688,
+          11329719,
+          11311049
+        ]
+      },
+      "recoverer_recover_kernel_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "recoverer_recover_correcting_clean_kernel_ns": null,
+      "recoverer_recover_correcting_corrupt_kernel_ns": null,
+      "recoverer_install_kernel_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "recoverer_recover_install_kernel_ns": {
+        "mean": 114181812,
+        "p50": 106882895,
+        "p95": 136625724,
+        "trials": 23,
+        "samples": [
+          107595172,
+          106638104,
+          134964113,
+          105446844,
+          106882895,
+          105620730,
+          107320840,
+          108245203,
+          106720665,
+          106500635,
+          108329800,
+          123144910,
+          136625724,
+          137979581,
+          141419188,
+          135797859,
+          106737861,
+          106858125,
+          107160715,
+          106361939,
+          106866152,
+          106778164,
+          106186457
+        ]
+      },
+      "bulk_updates_rebuild_from_downloaded_batches_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      }
+    }
+  ]
+}

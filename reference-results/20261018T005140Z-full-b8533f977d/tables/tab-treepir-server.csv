@@ -1,0 +1,5 @@
+panel,row,system,server,outputs,pir-mib,hint-mib,packing-mib,state-mib,hint-blocks,zero-blocks,padding-blocks,fill-s,preprocess-s,gather-cells-s,gather-upper-s,enumerate-s,columns-s,hint-s,packing-s,prepare-s,first-pass-ms,answer-ms,request-kib,query-kib,key-kib,reply-kib
+m0-c0,m0-c0:undine,undine,0,37,9417.0,1184.0,3558.9,14159.9,2424832,0,0,12.1,122.0,12.1,0.076,--,--,90.0,32.0,134.2,667.3,1188.2,910.0,448.0,462.0,444.1
+m0-c0,m0-c0:treepir,treepir,0,37,9472.0,1184.0,3558.9,14214.9,2424832,28095,28064,13.2,118.0,--,--,6.2,13.2,86.4,31.6,137.4,875.2,1309.8,910.0,448.0,462.0,444.1
+m31-c31,m31-c31:undine,undine,31,37,9417.0,1184.0,3558.9,14159.9,2424832,0,0,12.1,121.5,12.1,0.073,--,--,89.5,32.0,133.6,653.3,1195.6,910.0,448.0,462.0,444.1
+m31-c31,m31-c31:treepir,treepir,31,37,9472.0,1184.0,3558.9,14214.9,2424832,28095,28064,13.2,117.7,--,--,6.3,13.2,86.0,31.7,137.3,789.0,1335.1,910.0,448.0,462.0,444.1

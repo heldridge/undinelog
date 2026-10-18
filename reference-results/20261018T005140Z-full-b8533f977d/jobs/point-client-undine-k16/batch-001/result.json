@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 13,
+    "committed_bulk_update_batches": 3,
+    "query_bulk_update_batch": 1,
+    "query_value_offset": 65536,
+    "query_value_index": 196608,
+    "timestamp_unix_ms": 1792286146775,
+    "git": "ca3ba294bef82f02436b936382ab801fac66ecf5",
+    "notes": "simulated append-only-log client point-open benchmark: warm local auth state from canonical field-entry bulk-update batches through the app codec and frontier path, split a full read reply into helper replies, then time client-side Combine+Verify with kappa replies and 0 bad helpers, and with 3*kappa replies containing kappa staggered bad helpers"
+  },
+  "entries": [
+    {
+      "Seg": 256,
+      "encoded_cells_N": 256,
+      "encoded_segment_bytes": 8192,
+      "kappa": 16,
+      "primary_slice_field_elements": 16,
+      "registry_helper_count": 48,
+      "bulk_updates_bytes": 4194304,
+      "inserted_values": 131072,
+      "zero_bad_helper_replies": 16,
+      "correcting_helper_replies": 48,
+      "bad_helper_replies": 16,
+      "auth_nodes_per_helper": 51,
+      "array_shares_per_helper": 20,
+      "zero_bad_array_shares": 320,
+      "correcting_array_shares": 960,
+      "client_zero_bad_helpers_combine_verify_ns": {
+        "mean": 321640,
+        "p50": 316097,
+        "p95": 339410,
+        "trials": 13,
+        "samples": [
+          339410,
+          321041,
+          318696,
+          314874,
+          312719,
+          316108,
+          311861,
+          313102,
+          372942,
+          321028,
+          315352,
+          316097,
+          308101
+        ]
+      },
+      "client_kappa_bad_helpers_combine_verify_ns": {
+        "mean": 2946369,
+        "p50": 2943499,
+        "p95": 2956047,
+        "trials": 13,
+        "samples": [
+          2970817,
+          2942307,
+          2943962,
+          2956047,
+          2951179,
+          2946541,
+          2937241,
+          2943365,
+          2943415,
+          2943499,
+          2954879,
+          2933138,
+          2936418
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,174 @@
+{
+  "meta": {
+    "first_pass_warmup_calls": 1,
+    "sample_groups": {
+      "online": 13,
+      "preprocess": 0,
+      "update": 0
+    },
+    "seed": 42,
+    "trials": 13,
+    "role": "maintainer",
+    "kappa": 32,
+    "leaves": 134217728,
+    "tree_height": 50,
+    "segments_per_record": 1,
+    "cells_per_record": 64,
+    "append_leaves": 131072,
+    "hint_check_columns": 4096,
+    "pir_path": "avx2",
+    "setup_threads": 14,
+    "setup_cpus": "0-13",
+    "timed_cpus": "2",
+    "setup_seconds": 11.942002227,
+    "peak_rss_bytes": 1595256832,
+    "timestamp_unix_ms": 1792293487979,
+    "git": "ca3ba294bef82f02436b936382ab801fac66ecf5",
+    "notes": "private openings of one position: one server's first pass and answer to a serialized request, the client's request and decoding, complete single-core hint and packing-table rebuilds in every preprocessing sample, and the preprocessing update after appends; preprocessing totals exclude tree construction, encoding and conversion to PIR cells; sampled hint columns are only an untimed update correctness check; or one client's Combine and Verify from private and from public replies"
+  },
+  "entries": [
+    {
+      "role": "maintainer",
+      "kappa": 32,
+      "segments_per_record": 1,
+      "cells_per_record": 1024,
+      "leaves": 134217728,
+      "log_bytes": 4294967296,
+      "record_bytes": 1024,
+      "records": 262145,
+      "patterns": 16384,
+      "pattern_bits": 13,
+      "slots": 31,
+      "group_slots": 17,
+      "db_rows": 16384,
+      "db_cols": 10240,
+      "record_columns": 10204,
+      "outputs": 5,
+      "database_bytes": 268436480,
+      "request_bytes": 587794,
+      "reply_bytes": 61459,
+      "preprocessed_bytes": 672071680,
+      "serving_state_bytes": 982582344,
+      "client_request_ns": {
+        "mean": 36379692,
+        "p50": 36270005,
+        "p95": 36635067,
+        "trials": 13,
+        "samples": [
+          36626941,
+          36186952,
+          36511779,
+          36270005,
+          36154212,
+          36330403,
+          36132980,
+          36635067,
+          36245698,
+          37047189,
+          36145758,
+          36489298,
+          36159726
+        ]
+      },
+      "server_first_pass_ns": {
+        "mean": 19658989,
+        "p50": 19593259,
+        "p95": 19757920,
+        "trials": 13,
+        "samples": [
+          19510304,
+          19467353,
+          19711338,
+          19460085,
+          19624779,
+          19730654,
+          19378414,
+          19499500,
+          20587162,
+          19757920,
+          19570970,
+          19593259,
+          19675121
+        ]
+      },
+      "server_answer_ns": {
+        "mean": 95345823,
+        "p50": 95284549,
+        "p95": 95662069,
+        "trials": 13,
+        "samples": [
+          95143396,
+          95308631,
+          95493159,
+          95418497,
+          94970031,
+          95107193,
+          95064941,
+          95284549,
+          96441092,
+          95416892,
+          95161896,
+          95662069,
+          95023361
+        ]
+      },
+      "client_decode_ns": {
+        "mean": 1374165,
+        "p50": 1373559,
+        "p95": 1382152,
+        "trials": 13,
+        "samples": [
+          1371284,
+          1386551,
+          1382152,
+          1375970,
+          1372953,
+          1379502,
+          1363897,
+          1368493,
+          1368598,
+          1374746,
+          1373559,
+          1372648,
+          1373798
+        ]
+      },
+      "hint_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "packing_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "preprocess_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "update_hint_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "update_packing_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "append_leaves": 131072
+    }
+  ]
+}

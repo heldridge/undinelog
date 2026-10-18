@@ -1,0 +1,6 @@
+panel,row,range-mib,full-segment-reads,point-reads,undine-per-helper-kib,undine-helper-work,undine-clean-client,undine-corrupt-client,borg-per-helper-kib,borg-helper-work,borg-clean-client,borg-corrupt-client
+,range-1mib,1,16,41,33.9,0.030,0.129,0.680,33.9,0.673,0.154,0.779
+,range-4mib,4,64,37,130.0,0.094,0.503,1.931,130.0,0.670,0.597,2.305
+,range-8mib,8,128,35,258.3,0.182,1.006,2.683,258.3,0.724,1.202,3.149
+,range-32mib,32,512,31,1028.9,0.716,4.409,7.466,1028.9,1.200,5.128,8.482
+,range-128mib,128,2048,27,4112.7,3.361,18.488,27.467,4112.7,3.671,21.609,30.644

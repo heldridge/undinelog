@@ -360,6 +360,134 @@
         "borg/src/value.rs": {
           "bytes": 2296,
           "sha256": "d4e6ccf295959593baee3927af7c72fef0df7bc63ef66fe3a9ff96691889f66b"
+        },
+        "borg/tests/allocation_append_only.rs": {
+          "bytes": 7815,
+          "sha256": "1f5eb1de560fad21b15673f7a486f454a2796e4e1daff7a6f64f60b0fe6af6dd"
+        },
+        "borg/tests/allocation_does_not_overwrite.rs": {
+          "bytes": 3660,
+          "sha256": "c9d8a4677e81d129204e0d832ecb1a09132e510b14d19d892ddf7844485c90e2"
+        },
+        "borg/tests/auth_cached_extend.rs": {
+          "bytes": 5651,
+          "sha256": "f6b68fbf2278b8b349fed4693356bdad074e41ade8a5f72a783cb9d1124d926d"
+        },
+        "borg/tests/auth_invalid_proof.rs": {
+          "bytes": 2587,
+          "sha256": "cb0a255d56a6d5cc6b5cf2aae4f2d7ecb24820fbc8253f46075917a679b70c93"
+        },
+        "borg/tests/auth_segment_double.rs": {
+          "bytes": 11775,
+          "sha256": "5b4815fb12256e960e15909bc286283ea238f56f087be8d8a8a87184b4ecd627"
+        },
+        "borg/tests/auth_subtree.rs": {
+          "bytes": 39044,
+          "sha256": "0935dc050aa115b75440c4229d25beaec0b24c9e3fd0d1ce51d875649cec05bd"
+        },
+        "borg/tests/batch_write.rs": {
+          "bytes": 18414,
+          "sha256": "a3d3af44df0e0649c1a4062907d480d529cf8d388216c31c3dbcb8e21c91db78"
+        },
+        "borg/tests/bench_compile.rs": {
+          "bytes": 1059,
+          "sha256": "fa13b65b56e6be718382d5fe756e119fe1719eab47ef84adee55b2f00dfcf772"
+        },
+        "borg/tests/benchmark_setup.rs": {
+          "bytes": 63,
+          "sha256": "0f3106ddb6034c6dd7ca79e1da75b73ef38343cd255653795eb91d20f983864d"
+        },
+        "borg/tests/client_cli.rs": {
+          "bytes": 1278,
+          "sha256": "3d64bfe1edfd179451d299bb433e31ac853f9b2383f7a9f8c23d1f6a4ed06168"
+        },
+        "borg/tests/docs_smoke.rs": {
+          "bytes": 6318,
+          "sha256": "d905630f0c6e3a7539415315e58c06fc24c7bfdd4e11c35fbe7ac5a4ca0f9be0"
+        },
+        "borg/tests/heavy_multi_party.rs": {
+          "bytes": 6097,
+          "sha256": "cb3e083dfba9ab88e46bb3fe5c83c6d921b548ebede3857c4dfe4c33c0b71404"
+        },
+        "borg/tests/modes_smoke.rs": {
+          "bytes": 5454,
+          "sha256": "a23968c6c35fbbff72a9e49b620f1cc8aad32dcba9bb063f25f84705f7a76964"
+        },
+        "borg/tests/network_demo.rs": {
+          "bytes": 33068,
+          "sha256": "fae84ac12a4546ab16a687d59057cb2fb56be9f4aebecc08eb185a79a1923bb4"
+        },
+        "borg/tests/paper_geometry.rs": {
+          "bytes": 911,
+          "sha256": "1e9244cdb74ac1d15d3a428d181e91630d7bddd3b2f85247b20eb072283abf4a"
+        },
+        "borg/tests/preorder_indices_stable.rs": {
+          "bytes": 4201,
+          "sha256": "89fe48b7d8150e90100bdbefa21a48425447ccce0249a4908ef5412e805a012d"
+        },
+        "borg/tests/raw_segment.rs": {
+          "bytes": 4626,
+          "sha256": "29bf8ef4d0564659d4e7fcf8db31f5c67059b09acb95972c80f200f146cc8863"
+        },
+        "borg/tests/rs_error_correction.rs": {
+          "bytes": 24571,
+          "sha256": "453168f6d2c74188e1e6ae033037d37d4e9eb1878b0b6b9bae719366b9974f07"
+        },
+        "borg/tests/sanity_dump.rs": {
+          "bytes": 3589,
+          "sha256": "65fa87dd657f88f32b1b374bb26208003aef882c9b31cdf67d9362ff47807b55"
+        },
+        "borg/tests/setup_timings.rs": {
+          "bytes": 10404,
+          "sha256": "955bdfb8dce3a3f89eecca08b628ef0efb3ddfc199bc6717e7d1aa5e08e326e6"
+        },
+        "borg/tests/sparse_defaults.rs": {
+          "bytes": 6294,
+          "sha256": "d56d65c41e5b57e329ae1274491062b4818038ec579638198e27a4d4f011b5ce"
+        },
+        "borg/tests/support/mod.rs": {
+          "bytes": 158,
+          "sha256": "6069552b9fefb352b6b07e4ca1fa56f18159e520bccf526b0ce77be95c9763a5"
+        },
+        "borg/tests/tier2.rs": {
+          "bytes": 7993,
+          "sha256": "9f1e19f169f2caf75eca98c39f0d4329fc0d1a2b4c9655eac53ecaee226afd11"
+        },
+        "borg/tests/unauth_basic.rs": {
+          "bytes": 3811,
+          "sha256": "5b8399f3ee4d313a4f37967db4528255c4fc4534c9f1f87ce8717fadd2c44306"
+        },
+        "borg/tests/unauth_block.rs": {
+          "bytes": 76252,
+          "sha256": "28ed32c1cd10cfa0fc71c78e685f87fd8162decf593f1bc11a61d7e789985eae"
+        },
+        "borg/tests/unauth_claims.rs": {
+          "bytes": 30629,
+          "sha256": "cc41d2159f6cffc8e46fbd9aee264511098bab1fba51c9a12eaa0720776109fa"
+        },
+        "borg/tests/unauth_migrate.rs": {
+          "bytes": 36680,
+          "sha256": "aad8a2fb7f1f3b5869035397960cd91214270a6e751a1166d73c55cdc58c00e9"
+        },
+        "borg/tests/unauth_oracle.rs": {
+          "bytes": 14041,
+          "sha256": "1ee759154aee5360d9d8f893a8d6b6799b3ee3c351d5b8c0d18724d08986f5a0"
+        },
+        "borg/tests/unauth_repair.rs": {
+          "bytes": 6533,
+          "sha256": "f6f10ea3018a4b5a1623563e72da99829acbb261c6ad450fa6e13e24a679df85"
+        },
+        "borg/tests/unauth_rows.rs": {
+          "bytes": 26794,
+          "sha256": "cad4111244f41df2fe236a6277956b4d6978ab6b8a895ef0ea5294828cea4b03"
+        },
+        "borg/tests/unauth_segment_double.rs": {
+          "bytes": 22100,
+          "sha256": "3b0cced15f4f5f7f4c937c99eff7257ce14bc0fd0af5ad0ec3f75736f76ce829"
+        },
+        "borg/tests/unauth_templates.rs": {
+          "bytes": 6057,
+          "sha256": "d91c2e77996e634cc05c88b41f06b2b3b68eeb398a988d45698b9dd9dd80c1a4"
         }
       },
       "origin": "BorgLog evaluation artifact"
@@ -753,6 +881,170 @@
         "undine/src/value.rs": {
           "bytes": 2296,
           "sha256": "d4e6ccf295959593baee3927af7c72fef0df7bc63ef66fe3a9ff96691889f66b"
+        },
+        "undine/tests/allocation_append_only.rs": {
+          "bytes": 7639,
+          "sha256": "e0eb1210ac78a940bacf423ed829a380618534dba0ba9f568c6ded4b8d0d31b3"
+        },
+        "undine/tests/allocation_does_not_overwrite.rs": {
+          "bytes": 3452,
+          "sha256": "31b607db0fa3042fed07ad97c656dc3fbe9b04fe8a121f41a53518847808c590"
+        },
+        "undine/tests/auth_cached_extend.rs": {
+          "bytes": 5567,
+          "sha256": "7b73e59d674feae0244868f93290533ea8fb741d3756f1d4626df0188b0ee9a3"
+        },
+        "undine/tests/auth_invalid_proof.rs": {
+          "bytes": 2481,
+          "sha256": "1e4529f32600e923e4536b3755095b8de8d143177d10d352944de0ff51bdfd79"
+        },
+        "undine/tests/auth_kappa_rescale.rs": {
+          "bytes": 23241,
+          "sha256": "6b0d911bcf5a2540e3ef2d54a3aa2cb80d013e5a06bbcfaa701c7e70cfc9f474"
+        },
+        "undine/tests/auth_subtree.rs": {
+          "bytes": 38322,
+          "sha256": "4688350c3c76e83056e8be0021785989a0bcee026972120b06490958697bb9f0"
+        },
+        "undine/tests/batch_write.rs": {
+          "bytes": 18103,
+          "sha256": "0a975f9763498ff117d28d410e5514ecb6ccb16aaaaf00b1769e76ef5b5d84af"
+        },
+        "undine/tests/bench_compile.rs": {
+          "bytes": 787,
+          "sha256": "9e274bb08d4bad1b2fb85331059ff362228e1d60d9a934a924cb2120ca2933ab"
+        },
+        "undine/tests/benchmark_fixtures.rs": {
+          "bytes": 3195,
+          "sha256": "178e4fcd977a0c8f80fbb496921ec581003bc58f4ec2be575074f30ed1b6d0f7"
+        },
+        "undine/tests/benchmark_setup.rs": {
+          "bytes": 63,
+          "sha256": "0f3106ddb6034c6dd7ca79e1da75b73ef38343cd255653795eb91d20f983864d"
+        },
+        "undine/tests/client_cli.rs": {
+          "bytes": 13400,
+          "sha256": "5b8ba0afc596f95ca7fac84638156c5d545c3df0f19e9f4d9151903f541525cc"
+        },
+        "undine/tests/docs_smoke.rs": {
+          "bytes": 6313,
+          "sha256": "3b6ad6f59e787b32b9a813e8442587edfa474d06896f524f64ee096fc9e13934"
+        },
+        "undine/tests/fixtures/treepir-reference.csv": {
+          "bytes": 7145,
+          "sha256": "90d175183ae6022f465e49a023a9f49041422d407f481eb07cb252685425f27e"
+        },
+        "undine/tests/heavy_multi_party.rs": {
+          "bytes": 5870,
+          "sha256": "b7b63c1a89b795e7fb3a83b1bf4ac222fdc0bde406e273d449b90b4b687799b3"
+        },
+        "undine/tests/modes_smoke.rs": {
+          "bytes": 8190,
+          "sha256": "95ddeecdf2657d58a31aec9071673af151bf8ecc9b845f197aad687d80c95e44"
+        },
+        "undine/tests/network_demo.rs": {
+          "bytes": 35667,
+          "sha256": "c52369ae8dc4c1d718481386521dc0f769d8f17f08e35cb510bce14068c391a8"
+        },
+        "undine/tests/paper_geometry.rs": {
+          "bytes": 1100,
+          "sha256": "d17b279ca7bbb121a79073af68595dd6878d2615cfe441cbde89d61883fa84d0"
+        },
+        "undine/tests/preorder_indices_stable.rs": {
+          "bytes": 4092,
+          "sha256": "aed5818790520b2ef0d8e2343c80df8f1c27de49d63ad464613c208205c5dba3"
+        },
+        "undine/tests/private_bulk.rs": {
+          "bytes": 19875,
+          "sha256": "d906001324c05c9245d9f5613c88dcc3188e40473a1ad2fa89b8bee11e3b2968"
+        },
+        "undine/tests/private_layout.rs": {
+          "bytes": 14586,
+          "sha256": "35c7104649e05c4d7cdd8c47475a0979c21c402fa173b5353a2fb44b4d71218a"
+        },
+        "undine/tests/private_opening.rs": {
+          "bytes": 9621,
+          "sha256": "74bed93a487955a156ab171ec5658e54aed0232534949fee9978194663ad12e8"
+        },
+        "undine/tests/private_pir.rs": {
+          "bytes": 8461,
+          "sha256": "9b0a6d0d83223b67bb00a7c4ec6f32a11c6e18c900dc1d4309e4ba991df9aae7"
+        },
+        "undine/tests/private_selected_records.rs": {
+          "bytes": 4664,
+          "sha256": "18a12bdeccd77090c47b0424c302ee8af2e78677424487130e1e6e9fbd5be503"
+        },
+        "undine/tests/private_update.rs": {
+          "bytes": 7681,
+          "sha256": "8dd3a9065ec1013fbdfb5a97d9ce90b0f2c4546d6041d5d25a32a94f2608b055"
+        },
+        "undine/tests/raw_segment.rs": {
+          "bytes": 4540,
+          "sha256": "f75f8d484be59e50dea91c18d7b1806b515bd27dc1878bcaece0b492ed21dca8"
+        },
+        "undine/tests/rs_error_correction.rs": {
+          "bytes": 28112,
+          "sha256": "705a4fa65cefb1212d7056f50979088407909592f349af9b4ef5d682b675f3f6"
+        },
+        "undine/tests/sanity_dump.rs": {
+          "bytes": 3480,
+          "sha256": "5595fb3bd0733fadfcab7faf2d5c4d73c3192daaf8da957b4bc01805dc8fabcf"
+        },
+        "undine/tests/setup_timings.rs": {
+          "bytes": 10746,
+          "sha256": "9ec05d00fd095e2ccfeab360227fe5525c30933db60a6cda5e8caf47d6767f62"
+        },
+        "undine/tests/sparse_defaults.rs": {
+          "bytes": 5994,
+          "sha256": "68c6c0fea57cdf89b25b9162279bca0bb900400af0cf15cb6365d75bef361e20"
+        },
+        "undine/tests/support/cluster.rs": {
+          "bytes": 11536,
+          "sha256": "aa82edb6820d2ab8a99afbc06f46b711faa130bac0a95d165bef3f8a660dfcc8"
+        },
+        "undine/tests/support/mod.rs": {
+          "bytes": 158,
+          "sha256": "6069552b9fefb352b6b07e4ca1fa56f18159e520bccf526b0ce77be95c9763a5"
+        },
+        "undine/tests/tier2.rs": {
+          "bytes": 7682,
+          "sha256": "afea351fae9028c2bf32dca64eb60d0dfad041a43d539b938bd9f74f1cde721d"
+        },
+        "undine/tests/treepir.rs": {
+          "bytes": 3405,
+          "sha256": "ddda1049901e2639ea3eadddc2a149d3799fd7564a90ec22ec73642a041b5111"
+        },
+        "undine/tests/unauth_basic.rs": {
+          "bytes": 3583,
+          "sha256": "99e2fc48e1aead8355ac32809dfbda642ba74fe272201ba2aa3949a6758387bf"
+        },
+        "undine/tests/unauth_block.rs": {
+          "bytes": 76217,
+          "sha256": "01dfee319412e78cb06e2a1ca80b1d408f1e24ed0996cd0d1b32c7101058f32a"
+        },
+        "undine/tests/unauth_claims.rs": {
+          "bytes": 19833,
+          "sha256": "f96a26e2bdab22fcfd0e672547bad71eb3d3798e924c2e40f68655f614fb67cf"
+        },
+        "undine/tests/unauth_kappa_rescale.rs": {
+          "bytes": 56833,
+          "sha256": "aa612f8973ae56069b5e1c2514b9b2bccae6aa792e8b92d9831d5ac339dff902"
+        },
+        "undine/tests/unauth_oracle.rs": {
+          "bytes": 16877,
+          "sha256": "083720f3c3c359224a90da078b1cc29a73edc69344400d3bd4748008fcf60557"
+        },
+        "undine/tests/unauth_repair.rs": {
+          "bytes": 7158,
+          "sha256": "833f34353cadc339d89ce013e5b556ba23a96054d21661a2738dd2fc0c519294"
+        },
+        "undine/tests/unauth_rows.rs": {
+          "bytes": 28015,
+          "sha256": "b60787afddd42c3a565c0450cc7494c52fd12c9d42459b22989aebddfcf17399"
+        },
+        "undine/tests/unauth_templates.rs": {
+          "bytes": 7083,
+          "sha256": "e47680f5695cd1ade6a210d4030a0f65fb52d9d09ce68ab5a756d955e943eb38"
         },
         "undine/third_party/README.md": {
           "bytes": 4962,

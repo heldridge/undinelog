@@ -26,6 +26,11 @@ def is_upstream_document(path: pathlib.Path) -> bool:
     return "third_party" in parts and parts[-2] != "third_party"
 
 
+def is_archived_source(path: pathlib.Path) -> bool:
+    """A file of the exact source tree that a run archives under its provenance."""
+    return "source-tree" in path.relative_to(ROOT).parts
+
+
 def markdown_files() -> set[pathlib.Path]:
     return {
         path.resolve()
@@ -33,6 +38,7 @@ def markdown_files() -> set[pathlib.Path]:
         if ".git" not in path.parts
         and "results" not in path.parts
         and not is_upstream_document(path)
+        and not is_archived_source(path)
     }
 
 

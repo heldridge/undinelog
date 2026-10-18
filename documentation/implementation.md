@@ -91,7 +91,8 @@ manifest, execution, statistics, and result rendering.
 ## Source Provenance
 
 [`provenance/sources.json`](../provenance/sources.json) records where each
-crate comes from and the size and SHA-256 of every measured source file.
+crate comes from and the size and SHA-256 of every measured source and
+test file.
 
 - `undine/` is the `undinelog` branch of the implementation repository at the
   recorded commit, with the crate manifest reduced to the append-only-log

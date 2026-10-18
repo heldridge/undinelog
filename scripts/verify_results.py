@@ -106,9 +106,9 @@ def crate_files() -> set[str]:
         root = ROOT / crate
         for name in ("Cargo.toml", "Cargo.lock"):
             result.add(f"{crate}/{name}")
-        for base in ("src", "benches", "apps/appendOnlyLog", "third_party"):
+        for base in ("src", "benches", "tests", "apps/appendOnlyLog", "third_party"):
             for path in (root / base).rglob("*"):
-                if path.is_file():
+                if path.is_file() and "target" not in path.relative_to(root).parts:
                     result.add(path.relative_to(ROOT).as_posix())
     return result
 

@@ -1,0 +1,18 @@
+   Compiling paper-a-optimized v0.1.0 (/home/nicolas/Documents/undinelog-publication-artifact/borg)
+   Compiling append-only-log-demo v0.1.0 (/home/nicolas/Documents/undinelog-publication-artifact/borg/apps/appendOnlyLog)
+warning: unused import: `super::*`
+  --> benches/support/local_setup.rs:39:9
+   |
+39 |     use super::*;
+   |         ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::sync::mpsc`
+  --> benches/support/local_setup.rs:40:9
+   |
+40 |     use std::sync::mpsc;
+   |         ^^^^^^^^^^^^^^^
+
+warning: `paper-a-optimized` (bench "bench_append_only_log_range_open_local") generated 2 warnings (run `cargo fix --bench "bench_append_only_log_range_open_local" -p paper-a-optimized` to apply 2 suggestions)
+    Finished `bench` profile [optimized] target(s) in 14.73s

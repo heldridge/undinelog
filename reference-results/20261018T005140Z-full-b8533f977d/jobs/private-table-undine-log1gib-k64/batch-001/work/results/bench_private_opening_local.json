@@ -1,0 +1,89 @@
+{
+  "meta": {
+    "first_pass_warmup_calls": 1,
+    "seed": 42,
+    "trials": 13,
+    "role": "table",
+    "kappa": 64,
+    "leaves": 33554432,
+    "tree_height": 50,
+    "segments_per_record": 1,
+    "cells_per_record": 64,
+    "append_leaves": 1024,
+    "hint_check_columns": 4096,
+    "pir_path": "avx2",
+    "setup_threads": 14,
+    "setup_cpus": "0-13",
+    "timed_cpus": "2",
+    "setup_seconds": 6.8708762199999995,
+    "peak_rss_bytes": 2020876288,
+    "timestamp_unix_ms": 1792302640089,
+    "git": "ca3ba294bef82f02436b936382ab801fac66ecf5",
+    "notes": "private openings of one position: one server's first pass and answer to a serialized request, the client's request and decoding, complete single-core hint and packing-table rebuilds in every preprocessing sample, and the preprocessing update after appends; preprocessing totals exclude tree construction, encoding and conversion to PIR cells; sampled hint columns are only an untimed update correctness check; or one client's Combine and Verify from private and from public replies"
+  },
+  "entries": [
+    {
+      "role": "table",
+      "kappa": 64,
+      "segments_per_record": 1,
+      "leaves": 33554432,
+      "log_bytes": 1073741824,
+      "record_bytes": 2048,
+      "records": 16385,
+      "patterns": 4096,
+      "pattern_bits": 13,
+      "slots": 17,
+      "group_slots": 5,
+      "db_rows": 4096,
+      "db_cols": 6144,
+      "record_columns": 6071,
+      "outputs": 3,
+      "database_bytes": 33556480,
+      "request_bytes": 501776,
+      "reply_bytes": 36877,
+      "table_bytes": 43515904,
+      "server_first_pass_ns": {
+        "mean": 3420523,
+        "p50": 3417398,
+        "p95": 3453469,
+        "trials": 13,
+        "samples": [
+          3857379,
+          3372861,
+          3426600,
+          3352823,
+          3425161,
+          3417398,
+          3221414,
+          3340358,
+          3339267,
+          3448425,
+          3371627,
+          3453469,
+          3440028
+        ]
+      },
+      "server_answer_ns": {
+        "mean": 50248181,
+        "p50": 50306058,
+        "p95": 50726643,
+        "trials": 13,
+        "samples": [
+          49740651,
+          50567490,
+          49997278,
+          50480952,
+          50217095,
+          50726643,
+          49963375,
+          50306058,
+          50348585,
+          50323827,
+          49821618,
+          50779835,
+          49952948
+        ]
+      }
+    }
+  ]
+}

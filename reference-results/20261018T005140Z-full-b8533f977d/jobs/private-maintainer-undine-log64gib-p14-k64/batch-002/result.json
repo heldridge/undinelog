@@ -1,0 +1,166 @@
+{
+  "meta": {
+    "first_pass_warmup_calls": 1,
+    "sample_groups": {
+      "online": 0,
+      "preprocess": 0,
+      "update": 23
+    },
+    "seed": 42,
+    "trials": 23,
+    "role": "maintainer",
+    "kappa": 64,
+    "leaves": 2147483648,
+    "tree_height": 50,
+    "segments_per_record": 1,
+    "cells_per_record": 64,
+    "append_leaves": 131072,
+    "hint_check_columns": 4096,
+    "pir_path": "avx2",
+    "setup_threads": 14,
+    "setup_cpus": "0-13",
+    "timed_cpus": "2",
+    "setup_seconds": 189.325022771,
+    "peak_rss_bytes": 5954187264,
+    "timestamp_unix_ms": 1792294255153,
+    "git": "ca3ba294bef82f02436b936382ab801fac66ecf5",
+    "notes": "private openings of one position: one server's first pass and answer to a serialized request, the client's request and decoding, complete single-core hint and packing-table rebuilds in every preprocessing sample, and the preprocessing update after appends; preprocessing totals exclude tree construction, encoding and conversion to PIR cells; sampled hint columns are only an untimed update correctness check; or one client's Combine and Verify from private and from public replies"
+  },
+  "entries": [
+    {
+      "role": "maintainer",
+      "kappa": 64,
+      "segments_per_record": 1,
+      "cells_per_record": 4096,
+      "leaves": 2147483648,
+      "log_bytes": 68719476736,
+      "record_bytes": 2048,
+      "records": 1048577,
+      "patterns": 131072,
+      "pattern_bits": 14,
+      "slots": 26,
+      "group_slots": 9,
+      "db_rows": 131072,
+      "db_cols": 12288,
+      "record_columns": 10844,
+      "outputs": 6,
+      "database_bytes": 2147485696,
+      "request_bytes": 1390610,
+      "reply_bytes": 73750,
+      "preprocessed_bytes": 806486016,
+      "serving_state_bytes": 3285846234,
+      "client_request_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "server_first_pass_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "server_answer_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "client_decode_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "hint_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "packing_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "preprocess_ns": {
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "trials": 0,
+        "samples": []
+      },
+      "update_hint_ns": {
+        "mean": 376066584,
+        "p50": 372176926,
+        "p95": 380304209,
+        "trials": 23,
+        "samples": [
+          380304209,
+          366125556,
+          376399849,
+          369204620,
+          374675842,
+          368738766,
+          373310910,
+          376443979,
+          369347138,
+          371051524,
+          372614045,
+          383504791,
+          372804284,
+          367559857,
+          367734985,
+          463353819,
+          371011868,
+          370894180,
+          367962857,
+          372176926,
+          368376365,
+          373442320,
+          372492753
+        ]
+      },
+      "update_packing_ns": {
+        "mean": 5203388602,
+        "p50": 5187114365,
+        "p95": 5310485225,
+        "trials": 23,
+        "samples": [
+          5335265774,
+          5374071185,
+          5164495678,
+          5135830409,
+          5187883707,
+          5167410978,
+          5184167690,
+          5216118482,
+          5118479260,
+          5132590948,
+          5150034917,
+          5310485225,
+          5130720469,
+          5127021609,
+          5185280987,
+          5256377897,
+          5265892102,
+          5226245058,
+          5187114365,
+          5154579163,
+          5222924019,
+          5234892134,
+          5210055805
+        ]
+      },
+      "append_leaves": 131072
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "seed": 42,
+    "trials": 13,
+    "committed_bulk_update_batches": 3,
+    "query_bulk_update_batch": 1,
+    "query_value_offset": 65536,
+    "query_value_index": 196608,
+    "timestamp_unix_ms": 1792286196555,
+    "git": "ca3ba294bef82f02436b936382ab801fac66ecf5",
+    "notes": "simulated append-only-log client point-open benchmark: warm local auth state from canonical field-entry bulk-update batches through the app codec and frontier path, split a full read reply into helper replies, then time client-side Combine+Verify with kappa replies and 0 bad helpers, and with 3*kappa replies containing kappa staggered bad helpers"
+  },
+  "entries": [
+    {
+      "Seg": 4096,
+      "encoded_cells_N": 4096,
+      "encoded_segment_bytes": 131072,
+      "kappa": 64,
+      "primary_slice_field_elements": 64,
+      "registry_helper_count": 192,
+      "bulk_updates_bytes": 4194304,
+      "inserted_values": 131072,
+      "zero_bad_helper_replies": 64,
+      "correcting_helper_replies": 192,
+      "bad_helper_replies": 64,
+      "auth_nodes_per_helper": 51,
+      "array_shares_per_helper": 20,
+      "zero_bad_array_shares": 1280,
+      "correcting_array_shares": 3840,
+      "client_zero_bad_helpers_combine_verify_ns": {
+        "mean": 1688946,
+        "p50": 1694082,
+        "p95": 1727922,
+        "trials": 13,
+        "samples": [
+          1727922,
+          1694082,
+          1666086,
+          1679624,
+          1643452,
+          1734091,
+          1673882,
+          1664093,
+          1702764,
+          1696881,
+          1707994,
+          1670236,
+          1695193
+        ]
+      },
+      "client_kappa_bad_helpers_combine_verify_ns": {
+        "mean": 55318351,
+        "p50": 55286066,
+        "p95": 55670984,
+        "trials": 13,
+        "samples": [
+          55394753,
+          55428354,
+          55310760,
+          55670984,
+          55286066,
+          54860819,
+          54923957,
+          55049135,
+          55138756,
+          55378780,
+          56337579,
+          55129450,
+          55229182
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,270 @@
+#!/usr/bin/env python3
+"""Reviewer entry point for testing, reproducing, and validating the artifact."""
+
+from __future__ import annotations
+
+import argparse
+import importlib.util
+import json
+import pathlib
+import subprocess
+import sys
+from typing import Sequence
+
+
+ROOT = pathlib.Path(__file__).resolve().parent
+REPRODUCE = ROOT / "scripts" / "reproduce.py"
+VERIFY = ROOT / "scripts" / "verify_results.py"
+
+
+class ArtifactError(RuntimeError):
+    pass
+
+
+def run(command: Sequence[str], *, expected: tuple[int, ...] = (0,)) -> int:
+    completed = subprocess.run(list(command), cwd=ROOT, check=False)
+    if completed.returncode not in expected:
+        raise ArtifactError(
+            f"command exited with {completed.returncode}: {' '.join(command)}"
+        )
+    return completed.returncode
+
+
+def reproduce_args(mode: str, *, cpu: int | None = None) -> list[str]:
+    command = [sys.executable, str(REPRODUCE), mode]
+    if cpu is not None:
+        command.extend(["--cpu", str(cpu)])
+    return command
+
+
+def resume_args(run_id: str, *, cpu: int | None = None) -> list[str]:
+    command = [sys.executable, str(REPRODUCE), "--resume", run_id]
+    if cpu is not None:
+        command.extend(["--cpu", str(cpu)])
+    return command
+
+
+def load_reproduction_module():
+    spec = importlib.util.spec_from_file_location("artifact_reproduce_cli", REPRODUCE)
+    if spec is None or spec.loader is None:
+        raise ArtifactError("cannot load reproduction pipeline")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def current_snapshot_and_gates() -> tuple[str, pathlib.Path]:
+    module = load_reproduction_module()
+    snapshot_id = module.collect_source_snapshot()["snapshot_id"]
+    return snapshot_id, module.gate_dir(snapshot_id)
+
+
+def valid_gate(path: pathlib.Path, name: str, snapshot_id: str) -> bool:
+    gate = path / f"{name}.json"
+    try:
+        record = json.loads(gate.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return False
+    return (
+        record.get("pipeline_version") == load_reproduction_module().PIPELINE_VERSION
+        and record.get("snapshot_id") == snapshot_id
+        and record.get("gate") == name
+    )
+
+
+def ensure_plan(cpu: int | None) -> None:
+    snapshot_id, gates = current_snapshot_and_gates()
+    if not valid_gate(gates, "plan", snapshot_id):
+        run(reproduce_args("--plan", cpu=cpu))
+
+
+def ensure_smoke(cpu: int | None) -> None:
+    ensure_plan(cpu)
+    snapshot_id, gates = current_snapshot_and_gates()
+    required = ("unit-tests", "smoke", "result-validation")
+    if not all(valid_gate(gates, name, snapshot_id) for name in required):
+        run(reproduce_args("--smoke", cpu=cpu))
+
+
+def interrupted_resume_canary(cpu: int | None) -> None:
+    ensure_plan(cpu)
+    runs_root = ROOT / "results" / "runs"
+    before = {path.name for path in runs_root.iterdir() if path.is_dir()}
+    command = reproduce_args("--smoke", cpu=cpu)
+    command.extend(["--stop-after-batches", "1"])
+    run(command, expected=(75,))
+    candidates = []
+    for path in runs_root.iterdir():
+        if not path.is_dir() or path.name in before:
+            continue
+        checkpoint = path / "checkpoint.json"
+        try:
+            record = json.loads(checkpoint.read_text(encoding="utf-8"))
+        except (FileNotFoundError, json.JSONDecodeError):
+            continue
+        if record.get("status") == "interrupted":
+            candidates.append(path)
+    if len(candidates) != 1:
+        raise ArtifactError(
+            "could not identify the single interrupted canary run: "
+            f"{[path.name for path in candidates]}"
+        )
+    run(resume_args(candidates[0].name, cpu=cpu))
+
+
+def ensure_resume_gate(cpu: int | None) -> None:
+    snapshot_id, gates = current_snapshot_and_gates()
+    if not valid_gate(gates, "resume", snapshot_id):
+        interrupted_resume_canary(cpu)
+
+
+def ensure_canary(cpu: int | None) -> None:
+    ensure_smoke(cpu)
+    ensure_resume_gate(cpu)
+    snapshot_id, gates = current_snapshot_and_gates()
+    if not all(
+        valid_gate(gates, name, snapshot_id) for name in ("canary", "preflight")
+    ):
+        run(reproduce_args("--canary", cpu=cpu))
+
+
+def command_smoke(args: argparse.Namespace) -> None:
+    ensure_plan(args.cpu)
+    run(reproduce_args("--smoke", cpu=args.cpu))
+
+
+def command_verify(_: argparse.Namespace) -> None:
+    run([sys.executable, str(VERIFY)])
+
+
+def command_full(args: argparse.Namespace) -> None:
+    ensure_canary(args.cpu)
+    run(reproduce_args("--full", cpu=args.cpu))
+
+
+def command_jobs(args: argparse.Namespace) -> None:
+    ensure_canary(args.cpu)
+    command = [sys.executable, str(REPRODUCE), "--jobs", ",".join(args.jobs)]
+    if args.cpu is not None:
+        command.extend(["--cpu", str(args.cpu)])
+    run(command, expected=(0, 2))
+
+
+def command_resume(args: argparse.Namespace) -> None:
+    run(resume_args(args.run_id, cpu=args.cpu))
+
+
+def command_validate(args: argparse.Namespace) -> None:
+    candidate = pathlib.Path(args.run)
+    run_dir = candidate if candidate.exists() else ROOT / "results" / "runs" / args.run
+    run([sys.executable, str(VERIFY), str(run_dir)])
+
+
+def command_resume_canary(args: argparse.Namespace) -> None:
+    interrupted_resume_canary(args.cpu)
+
+
+def command_package(args: argparse.Namespace) -> None:
+    run([sys.executable, str(ROOT / "scripts" / "package_reference.py"), args.run_id])
+    run([sys.executable, str(VERIFY)])
+
+
+def command_test(_: argparse.Namespace) -> None:
+    run([sys.executable, str(ROOT / "scripts" / "test_reproduce.py")])
+    for crate in ("undine", "borg"):
+        manifest = str(ROOT / crate / "Cargo.toml")
+        run(["cargo", "test", "--locked", "--workspace", "--manifest-path", manifest])
+        run(
+            [
+                "cargo",
+                "build",
+                "--locked",
+                "--benches",
+                "--features",
+                "bench",
+                "--manifest-path",
+                manifest,
+            ]
+        )
+    run([sys.executable, str(ROOT / "scripts" / "check_artifact.py")])
+
+
+def add_cpu_option(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--cpu",
+        type=int,
+        help="logical CPU for benchmark processes (default: automatic selection)",
+    )
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    smoke = commands.add_parser("smoke", help="run the quick path-coverage experiment")
+    add_cpu_option(smoke)
+    smoke.set_defaults(handler=command_smoke)
+
+    verify = commands.add_parser(
+        "verify", help="validate the included reference run without benchmarking"
+    )
+    verify.set_defaults(handler=command_verify)
+
+    full = commands.add_parser(
+        "full", help="run preflight gates and the complete adaptive experiment"
+    )
+    add_cpu_option(full)
+    full.set_defaults(handler=command_full)
+
+    jobs = commands.add_parser(
+        "jobs",
+        help=(
+            "run preflight gates and the named jobs with the full run's "
+            "sampling; the run is partial and is not packaged"
+        ),
+    )
+    jobs.add_argument("jobs", nargs="+", metavar="JOB")
+    add_cpu_option(jobs)
+    jobs.set_defaults(handler=command_jobs)
+
+    resume = commands.add_parser("resume", help="resume an interrupted run")
+    resume.add_argument("run_id")
+    add_cpu_option(resume)
+    resume.set_defaults(handler=command_resume)
+
+    validate = commands.add_parser(
+        "validate", help="validate a completed newly generated run"
+    )
+    validate.add_argument("run", help="run ID or path")
+    validate.set_defaults(handler=command_validate)
+
+    package = commands.add_parser(
+        "package", help="package a completed full run as the reference run"
+    )
+    package.add_argument("run_id")
+    package.set_defaults(handler=command_package)
+
+    canary = commands.add_parser(
+        "resume-canary", help="test checkpoint interruption and resume"
+    )
+    add_cpu_option(canary)
+    canary.set_defaults(handler=command_resume_canary)
+
+    test = commands.add_parser("test", help="run pipeline tests and build all targets")
+    test.set_defaults(handler=command_test)
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    args.handler(args)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except ArtifactError as exc:
+        print(f"artifact error: {exc}", file=sys.stderr)
+        raise SystemExit(1)

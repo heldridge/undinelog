@@ -34,7 +34,7 @@ def sha256_file(path: pathlib.Path) -> str:
 def crate_file_records(crate: str) -> dict[str, dict[str, object]]:
     root = ROOT / crate
     paths = [root / "Cargo.toml", root / "Cargo.lock"]
-    for base in ("src", "benches", "apps/appendOnlyLog", "third_party"):
+    for base in ("src", "benches", "tests", "apps/appendOnlyLog", "third_party"):
         paths.extend(
             path
             for path in (root / base).rglob("*")
