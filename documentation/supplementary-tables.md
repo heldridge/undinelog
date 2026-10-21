@@ -30,9 +30,38 @@ every opening.
 | 64 | 16 GiB | 37.6 | 176 | 2.39 | 535 | 18.7 | 585 | 70.0 |
 | 64 | 32 GiB | 41.4 | 176 | 2.45 | 537 | 19.3 | 588 | 72.8 |
 
+## Private serving per maintainer cID and single server, all configurations
+
+The paper's Table 2 with the single-server rows the laptop cannot run:
+for the whole-tree server at 16 GiB and above, the database and message
+sizes are calculated from the configuration and the timings are
+unmeasured (dashes). *Database* counts maintainer primary columns or
+single-server tree entries; *preproc. size* counts the hint and packing
+tables; *request* and *reply* are serialized sizes; *answer* includes the
+first pass; preprocessing time is estimated from measured kernels; *update*
+times PIR preprocessing after a 4 MiB append.
+
+| Log | kappa | Database | Preproc. size | Request total | Query | Reply | First pass | Answer | Preproc. time | Update |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 GiB | 64 | 32.0 MiB | 385 MiB | 490 KiB | 28.0 KiB | 36.0 KiB | 2.61 ms | 49.9 ms | 3.54 s | 2.70 s |
+| 4 GiB | 64 | 128 MiB | 769 MiB | 518 KiB | 56.0 KiB | 72.0 KiB | 9.38 ms | 100 ms | 7.64 s | 5.32 s |
+| 16 GiB | 64 | 512 MiB | 1.25 GiB | 574 KiB | 112 KiB | 120 KiB | 36.5 ms | 184 ms | 15.9 s | 8.78 s |
+| 64 GiB | 64 | 2.00 GiB | 2.38 GiB | 686 KiB | 224 KiB | 228 KiB | 158 ms | 440 ms | 40.7 s | 16.6 s |
+| 256 GiB | 64 | 8.00 GiB | 4.76 GiB | 910 KiB | 448 KiB | 456 KiB | 603 ms | 1.15 s | 121 s | 33.1 s |
+| 4 GiB | 8 | 1.00 GiB | 1.25 GiB | 686 KiB | 224 KiB | 120 KiB | 104 ms | 252 ms | 20.8 s | 9.90 s |
+| 4 GiB | 16 | 512 MiB | 1.25 GiB | 574 KiB | 112 KiB | 120 KiB | 42.8 ms | 190 ms | 15.6 s | 9.07 s |
+| 4 GiB | 32 | 256 MiB | 641 MiB | 574 KiB | 112 KiB | 60.0 KiB | 19.7 ms | 95.5 ms | 7.93 s | 4.51 s |
+| 1 TiB | 256 | 8.00 GiB | 4.88 GiB | 910 KiB | 448 KiB | 468 KiB | 570 ms | 1.13 s | 126 s | 34.4 s |
+| 1 GiB | 1 | 2.00 GiB | 2.38 GiB | 686 KiB | 224 KiB | 228 KiB | 151 ms | 429 ms | 40.7 s | -- |
+| 4 GiB | 1 | 8.00 GiB | 4.76 GiB | 910 KiB | 448 KiB | 456 KiB | 603 ms | 1.15 s | 123 s | -- |
+| 16 GiB | 1 | 32.0 GiB | -- | 1.33 MiB | 896 KiB | 888 KiB | -- | -- | -- | -- |
+| 64 GiB | 1 | 128 GiB | -- | 2.20 MiB | 1.75 MiB | 1.73 MiB | -- | -- | -- | -- |
+| 256 GiB | 1 | 512 GiB | -- | 3.95 MiB | 3.50 MiB | 3.45 MiB | -- | -- | -- | -- |
+| 1 TiB | 1 | 2.00 TiB | -- | 7.45 MiB | 7.00 MiB | 6.87 MiB | -- | -- | -- | -- |
+
 ## Range openings at kappa = 64
 
-UndineLog (U) and BorgLog (B). *Response* is the size of one helper's
+UndineLog (UL) and BorgLog (BL). *Response* is the size of one helper's
 response; *corrupted* is the client correcting kappa corrupted responses
 among 3kappa.
 
