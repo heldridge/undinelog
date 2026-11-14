@@ -1,8 +1,8 @@
 {
   "files": {
     "checks.json": {
-      "bytes": 1423,
-      "sha256": "e787ca0c1bd642a1f8081e5811a9424b848274e665af50cd7f8fa4ceb9ee81fa"
+      "bytes": 1429,
+      "sha256": "2da158cef77a832a31f8a65d7ce51bc5951fa122af687be27fadbb4fa5f3f59e"
     },
     "client/results/bench_treepir_comparison_local.json": {
       "bytes": 13562,

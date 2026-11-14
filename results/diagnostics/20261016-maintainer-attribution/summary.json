@@ -121,7 +121,7 @@
     ],
     "markers_absent_from_recorded_benchmark_source": true,
     "cargo_reported_fresh": true,
-    "build_log": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261016T005529Z-full-2e1033e8d8/builds/177282142665a14a/stdout.jsonl",
+    "build_log": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261016T005529Z-full-2e1033e8d8/builds/177282142665a14a/stdout.jsonl",
     "affected_jobs": [
       "private-client-undine-k16",
       "private-client-undine-k256",

@@ -14,7 +14,7 @@
       "taskset",
       "--cpu-list",
       "2",
-      "/home/nicolas/Documents/paper-a-optimized/target/release/deps/bench_treepir_comparison_local-ff0f6c42a1ad7f68"
+      "/home/anonymous/Documents/paper-a-optimized/target/release/deps/bench_treepir_comparison_local-ff0f6c42a1ad7f68"
     ]
   },
   {
@@ -32,7 +32,7 @@
       "taskset",
       "--cpu-list",
       "2",
-      "/home/nicolas/Documents/paper-a-optimized/target/release/deps/bench_treepir_comparison_local-ff0f6c42a1ad7f68"
+      "/home/anonymous/Documents/paper-a-optimized/target/release/deps/bench_treepir_comparison_local-ff0f6c42a1ad7f68"
     ]
   },
   {
@@ -50,7 +50,7 @@
       "taskset",
       "--cpu-list",
       "2",
-      "/home/nicolas/Documents/paper-a-optimized/target/release/deps/bench_treepir_comparison_local-ff0f6c42a1ad7f68"
+      "/home/anonymous/Documents/paper-a-optimized/target/release/deps/bench_treepir_comparison_local-ff0f6c42a1ad7f68"
     ]
   }
 ]

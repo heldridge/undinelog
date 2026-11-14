@@ -3,7 +3,7 @@
     "taskset",
     "--cpu-list",
     "2",
-    "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
+    "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
     "--bench"
   ],
   "env": {

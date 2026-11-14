@@ -13,8 +13,8 @@
       "sha256": "c16cc2f0d52cd5807e0dbfd763a6ff55c0aab69829ee80902176a410c54b4bc9"
     },
     "h32-original-0/command.json": {
-      "bytes": 704,
-      "sha256": "1949f66523c28e9c9a375405845f9705c26d650a92e2922756274d4cf273d9bd"
+      "bytes": 706,
+      "sha256": "9544857a86ce7b9d7496813fb620fe14eab3839bf5bbe0d01bf3881ef0b6d128"
     },
     "h32-original-0/results/bench_treepir_comparison_local.json": {
       "bytes": 50691,
@@ -45,12 +45,12 @@
       "sha256": "85f77919968dd3532f141c09cd03f52fd91c81abddab3544a6412d2f4b9b27e7"
     },
     "source-run/checkpoint.json": {
-      "bytes": 1153739,
-      "sha256": "94caea40dc9a1062a5ab79e621cc412ff0547df2067184d4499a2881816b922f"
+      "bytes": 1154323,
+      "sha256": "3667759f599de6ecef988f3d99674329160f0918e8211e61b3f6f7708024d544"
     },
     "source-run/environment.json": {
-      "bytes": 29230,
-      "sha256": "27dd2aff91818769571bf8e8990ca22595e24a6367e9278c221d8c554af326b0"
+      "bytes": 29212,
+      "sha256": "887b1250046b775a8c44a65ad7a519e5ca713dc073e420f13c7fe0175991b479"
     },
     "source-run/jobs/treepir-client-h16-real/batch-000/raw-samples.json": {
       "bytes": 9820,

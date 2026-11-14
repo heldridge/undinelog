@@ -12,7 +12,7 @@
         "--no-run",
         "--message-format=json-render-diagnostics",
         "--target-dir",
-        "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg",
+        "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg",
         "--features",
         "bench",
         "--bench",
@@ -26,7 +26,7 @@
       "layout": "borg",
       "path": "binaries/008e536f17aa92e5/bench_append_only_log_client_point_open_local",
       "sha256": "8ef9ff1b6ba2419b6f5552bf996babd5e634321faf991bcf58aae4c6eacde6c3",
-      "source_path": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg/release/deps/bench_append_only_log_client_point_open_local-cafa5527334b4865",
+      "source_path": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg/release/deps/bench_append_only_log_client_point_open_local-cafa5527334b4865",
       "source_snapshot_id": "a1dd1b9f8034ff175fe21c172aebf4cbc16fb79f73a737f0259d0ef82a1a55c2"
     },
     "152d6af5a572c7f8": {
@@ -40,7 +40,7 @@
         "--no-run",
         "--message-format=json-render-diagnostics",
         "--target-dir",
-        "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
+        "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
         "--features",
         "bench",
         "--bench",
@@ -54,7 +54,7 @@
       "layout": "undine",
       "path": "binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
       "sha256": "1ac8075cf61f8d2fcddf272fb6843ddfa0f0a2b25c80a695e561ca7d04ce808f",
-      "source_path": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_append_only_log_point_open_local-a061cac6cc9f97fa",
+      "source_path": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_append_only_log_point_open_local-a061cac6cc9f97fa",
       "source_snapshot_id": "a1dd1b9f8034ff175fe21c172aebf4cbc16fb79f73a737f0259d0ef82a1a55c2"
     },
     "177282142665a14a": {
@@ -68,7 +68,7 @@
         "--no-run",
         "--message-format=json-render-diagnostics",
         "--target-dir",
-        "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
+        "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
         "--features",
         "bench",
         "--bench",
@@ -82,7 +82,7 @@
       "layout": "undine",
       "path": "binaries/177282142665a14a/bench_private_opening_local",
       "sha256": "d94d3b70e2e3c1f38e214f66703c9368f525bd4f14d721bf002495357dba47b2",
-      "source_path": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_private_opening_local-993b4764cbccba69",
+      "source_path": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_private_opening_local-993b4764cbccba69",
       "source_snapshot_id": "a1dd1b9f8034ff175fe21c172aebf4cbc16fb79f73a737f0259d0ef82a1a55c2"
     },
     "18bae44fbc346556": {
@@ -96,7 +96,7 @@
         "--no-run",
         "--message-format=json-render-diagnostics",
         "--target-dir",
-        "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
+        "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
         "--features",
         "bench,log-bulk-updates-8mb",
         "--bench",
@@ -111,7 +111,7 @@
       "layout": "undine",
       "path": "binaries/18bae44fbc346556/bench_append_only_log_range_open_local",
       "sha256": "c93267dac35a23b0a9812669a0c7067145e00c951a61361002022994e544a2e8",
-      "source_path": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_append_only_log_range_open_local-bf7887529aed0325",
+      "source_path": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_append_only_log_range_open_local-bf7887529aed0325",
       "source_snapshot_id": "a1dd1b9f8034ff175fe21c172aebf4cbc16fb79f73a737f0259d0ef82a1a55c2"
     },
     "3122de823ed44ec3": {
@@ -125,7 +125,7 @@
         "--no-run",
         "--message-format=json-render-diagnostics",
         "--target-dir",
-        "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
+        "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
         "--features",
         "bench",
         "--bench",
@@ -139,7 +139,7 @@
       "layout": "undine",
       "path": "binaries/3122de823ed44ec3/bench_append_only_log_bulk_updates_append_local",
       "sha256": "f7889c3618e33725f2631e44f0fed24dc4c9605d591fdc8acb72e096d829f550",
-      "source_path": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_append_only_log_bulk_updates_append_local-86baf856a7ddd761",
+      "source_path": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_append_only_log_bulk_updates_append_local-86baf856a7ddd761",
       "source_snapshot_id": "a1dd1b9f8034ff175fe21c172aebf4cbc16fb79f73a737f0259d0ef82a1a55c2"
     },
     "34e4aa392ac98115": {
@@ -153,7 +153,7 @@
         "--no-run",
         "--message-format=json-render-diagnostics",
         "--target-dir",
-        "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg",
+        "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg",
         "--features",
         "bench",
         "--bench",
@@ -167,7 +167,7 @@
       "layout": "borg",
       "path": "binaries/34e4aa392ac98115/bench_append_only_log_bulk_updates_append_local",
       "sha256": "6c648118756a5c2795504badc8b9e5bee843e1c490053481d1bca89f6bd509f3",
-      "source_path": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg/release/deps/bench_append_only_log_bulk_updates_append_local-2f5f1cf5027de3ff",
+      "source_path": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg/release/deps/bench_append_only_log_bulk_updates_append_local-2f5f1cf5027de3ff",
       "source_snapshot_id": "a1dd1b9f8034ff175fe21c172aebf4cbc16fb79f73a737f0259d0ef82a1a55c2"
     },
     "63cf67c40265b1be": {
@@ -181,7 +181,7 @@
         "--no-run",
         "--message-format=json-render-diagnostics",
         "--target-dir",
-        "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
+        "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
         "--features",
         "bench",
         "--bench",
@@ -195,7 +195,7 @@
       "layout": "undine",
       "path": "binaries/63cf67c40265b1be/bench_append_only_log_client_point_open_local",
       "sha256": "5c222350b5c8769e0e34a82e9a862a8fea484e1dd43d3b211399ec032e9388aa",
-      "source_path": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_append_only_log_client_point_open_local-ad0f8cd8c76a5df0",
+      "source_path": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_append_only_log_client_point_open_local-ad0f8cd8c76a5df0",
       "source_snapshot_id": "a1dd1b9f8034ff175fe21c172aebf4cbc16fb79f73a737f0259d0ef82a1a55c2"
     },
     "76752ca261904d5a": {
@@ -209,7 +209,7 @@
         "--no-run",
         "--message-format=json-render-diagnostics",
         "--target-dir",
-        "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg",
+        "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg",
         "--features",
         "bench",
         "--bench",
@@ -223,7 +223,7 @@
       "layout": "borg",
       "path": "binaries/76752ca261904d5a/bench_append_only_log_repair_kernels_local",
       "sha256": "258c5317efe44d6a1df78cc8eee98f208650f6fb8a779fe86d32bae6a97dcf20",
-      "source_path": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg/release/deps/bench_append_only_log_repair_kernels_local-89ea0edd1b24c9c8",
+      "source_path": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg/release/deps/bench_append_only_log_repair_kernels_local-89ea0edd1b24c9c8",
       "source_snapshot_id": "a1dd1b9f8034ff175fe21c172aebf4cbc16fb79f73a737f0259d0ef82a1a55c2"
     },
     "8bcf28afedfa1855": {
@@ -237,7 +237,7 @@
         "--no-run",
         "--message-format=json-render-diagnostics",
         "--target-dir",
-        "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg",
+        "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg",
         "--features",
         "bench",
         "--bench",
@@ -251,7 +251,7 @@
       "layout": "borg",
       "path": "binaries/8bcf28afedfa1855/bench_append_only_log_point_open_local",
       "sha256": "871b74f54c76e1eb3a5aa57b18d28d721901b08deeb57f363e5855ef861840cc",
-      "source_path": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg/release/deps/bench_append_only_log_point_open_local-c0461e6ce3a7a389",
+      "source_path": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg/release/deps/bench_append_only_log_point_open_local-c0461e6ce3a7a389",
       "source_snapshot_id": "a1dd1b9f8034ff175fe21c172aebf4cbc16fb79f73a737f0259d0ef82a1a55c2"
     },
     "904262b7411d6241": {
@@ -265,7 +265,7 @@
         "--no-run",
         "--message-format=json-render-diagnostics",
         "--target-dir",
-        "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
+        "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
         "--features",
         "bench",
         "--bench",
@@ -279,7 +279,7 @@
       "layout": "undine",
       "path": "binaries/904262b7411d6241/bench_append_only_log_repair_kernels_local",
       "sha256": "e3dca989dd4f31a9e74bfbb5563fb66cd96b7f9b3fd45e918b4cebb99878c1b3",
-      "source_path": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_append_only_log_repair_kernels_local-3701412d38f6e151",
+      "source_path": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_append_only_log_repair_kernels_local-3701412d38f6e151",
       "source_snapshot_id": "a1dd1b9f8034ff175fe21c172aebf4cbc16fb79f73a737f0259d0ef82a1a55c2"
     },
     "a54a64fb6a2c5d77": {
@@ -293,7 +293,7 @@
         "--no-run",
         "--message-format=json-render-diagnostics",
         "--target-dir",
-        "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
+        "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
         "--features",
         "bench",
         "--bench",
@@ -307,7 +307,7 @@
       "layout": "undine",
       "path": "binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
       "sha256": "1d83c2b0024f03eda790704037fa336fc98516e89ee0948384089eaa24720270",
-      "source_path": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_treepir_comparison_local-fd2a46d4c66d0819",
+      "source_path": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_treepir_comparison_local-fd2a46d4c66d0819",
       "source_snapshot_id": "a1dd1b9f8034ff175fe21c172aebf4cbc16fb79f73a737f0259d0ef82a1a55c2"
     },
     "bcaa9a831b970bb2": {
@@ -321,7 +321,7 @@
         "--no-run",
         "--message-format=json-render-diagnostics",
         "--target-dir",
-        "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
+        "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
         "--features",
         "bench",
         "--bench",
@@ -335,7 +335,7 @@
       "layout": "undine",
       "path": "binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
       "sha256": "fc523a7d34db77fe3b5093d9c19283020df8387a14b55a4ddf2b9aed7ef62c13",
-      "source_path": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_append_only_log_on_the_fly_open_local-c4a681373f87d389",
+      "source_path": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_append_only_log_on_the_fly_open_local-c4a681373f87d389",
       "source_snapshot_id": "a1dd1b9f8034ff175fe21c172aebf4cbc16fb79f73a737f0259d0ef82a1a55c2"
     },
     "d83712c82f76759f": {
@@ -349,7 +349,7 @@
         "--no-run",
         "--message-format=json-render-diagnostics",
         "--target-dir",
-        "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg",
+        "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg",
         "--features",
         "bench,log-bulk-updates-8mb",
         "--bench",
@@ -364,7 +364,7 @@
       "layout": "borg",
       "path": "binaries/d83712c82f76759f/bench_append_only_log_range_open_local",
       "sha256": "aec22798908a264c9e92d02396eb7bc847c6e848d85da71649cbea0809979f50",
-      "source_path": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg/release/deps/bench_append_only_log_range_open_local-c9caf0ae86c3ec00",
+      "source_path": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg/release/deps/bench_append_only_log_range_open_local-c9caf0ae86c3ec00",
       "source_snapshot_id": "a1dd1b9f8034ff175fe21c172aebf4cbc16fb79f73a737f0259d0ef82a1a55c2"
     },
     "f2bc1d33d27cb3f7": {
@@ -378,7 +378,7 @@
         "--no-run",
         "--message-format=json-render-diagnostics",
         "--target-dir",
-        "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
+        "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine",
         "--features",
         "bench",
         "--bench",
@@ -392,7 +392,7 @@
       "layout": "undine",
       "path": "binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
       "sha256": "b0aba2cae1e1fc49a5476ca0bab881bb36108ff17b6f895b794f00cd1d1e5460",
-      "source_path": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_append_only_log_one_server_kappa_rescale_local-67501cafb7a9e984",
+      "source_path": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/undine/release/deps/bench_append_only_log_one_server_kappa_rescale_local-67501cafb7a9e984",
       "source_snapshot_id": "a1dd1b9f8034ff175fe21c172aebf4cbc16fb79f73a737f0259d0ef82a1a55c2"
     },
     "fc50fd60a795d874": {
@@ -406,7 +406,7 @@
         "--no-run",
         "--message-format=json-render-diagnostics",
         "--target-dir",
-        "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg",
+        "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg",
         "--features",
         "bench",
         "--bench",
@@ -420,7 +420,7 @@
       "layout": "borg",
       "path": "binaries/fc50fd60a795d874/bench_append_only_log_one_server_kappa_rescale_local",
       "sha256": "4c3d6938334d033984306bd18b8ae5d350b537fbd5d0df4c038bafd1ba7d0a1a",
-      "source_path": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg/release/deps/bench_append_only_log_one_server_kappa_rescale_local-334c1837a6d4ed52",
+      "source_path": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/build-targets/borg/release/deps/bench_append_only_log_one_server_kappa_rescale_local-334c1837a6d4ed52",
       "source_snapshot_id": "a1dd1b9f8034ff175fe21c172aebf4cbc16fb79f73a737f0259d0ef82a1a55c2"
     }
   },
@@ -435,7 +435,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/34e4aa392ac98115/bench_append_only_log_bulk_updates_append_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/34e4aa392ac98115/bench_append_only_log_bulk_updates_append_local",
             "--bench"
           ],
           "elapsed_seconds": 201.86606407165527,
@@ -449,7 +449,7 @@
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_SKIP_GENERIC": "true",
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_TRIALS": "11",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:37:55.011322+00:00",
           "group_repetitions": {},
@@ -500,7 +500,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/34e4aa392ac98115/bench_append_only_log_bulk_updates_append_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/34e4aa392ac98115/bench_append_only_log_bulk_updates_append_local",
             "--bench"
           ],
           "elapsed_seconds": 191.04045414924622,
@@ -514,7 +514,7 @@
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_SKIP_GENERIC": "true",
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_TRIALS": "11",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:43:17.100518+00:00",
           "group_repetitions": {},
@@ -565,7 +565,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/34e4aa392ac98115/bench_append_only_log_bulk_updates_append_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/34e4aa392ac98115/bench_append_only_log_bulk_updates_append_local",
             "--bench"
           ],
           "elapsed_seconds": 196.9771647453308,
@@ -579,7 +579,7 @@
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_SKIP_GENERIC": "true",
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_TRIALS": "11",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:48:50.597332+00:00",
           "group_repetitions": {},
@@ -630,7 +630,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/34e4aa392ac98115/bench_append_only_log_bulk_updates_append_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/34e4aa392ac98115/bench_append_only_log_bulk_updates_append_local",
             "--bench"
           ],
           "elapsed_seconds": 252.35320401191711,
@@ -644,7 +644,7 @@
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_SKIP_GENERIC": "true",
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_TRIALS": "11",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:32:21.524015+00:00",
           "group_repetitions": {},
@@ -695,7 +695,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/3122de823ed44ec3/bench_append_only_log_bulk_updates_append_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/3122de823ed44ec3/bench_append_only_log_bulk_updates_append_local",
             "--bench"
           ],
           "elapsed_seconds": 130.9884021282196,
@@ -708,7 +708,7 @@
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_SKIP_GENERIC": "true",
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_TRIALS": "11",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:34:32.830613+00:00",
           "group_repetitions": {},
@@ -759,7 +759,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/3122de823ed44ec3/bench_append_only_log_bulk_updates_append_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/3122de823ed44ec3/bench_append_only_log_bulk_updates_append_local",
             "--bench"
           ],
           "elapsed_seconds": 130.41026425361633,
@@ -772,7 +772,7 @@
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_SKIP_GENERIC": "true",
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_TRIALS": "11",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:40:05.745202+00:00",
           "group_repetitions": {},
@@ -823,7 +823,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/3122de823ed44ec3/bench_append_only_log_bulk_updates_append_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/3122de823ed44ec3/bench_append_only_log_bulk_updates_append_local",
             "--bench"
           ],
           "elapsed_seconds": 135.8723909854889,
@@ -836,7 +836,7 @@
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_SKIP_GENERIC": "true",
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_TRIALS": "11",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:45:33.287854+00:00",
           "group_repetitions": {},
@@ -887,7 +887,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/3122de823ed44ec3/bench_append_only_log_bulk_updates_append_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/3122de823ed44ec3/bench_append_only_log_bulk_updates_append_local",
             "--bench"
           ],
           "elapsed_seconds": 131.9741654396057,
@@ -900,7 +900,7 @@
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_SKIP_GENERIC": "true",
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_BULK_UPDATES_APPEND_TRIALS": "11",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:27:46.466972+00:00",
           "group_repetitions": {},
@@ -951,7 +951,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.7277333736419678,
@@ -963,7 +963,7 @@
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_RANGE_BYTE_LEN_LIST": "1048576,4194304",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:56:42.920722+00:00",
           "group_repetitions": {},
@@ -1014,7 +1014,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.7242629528045654,
@@ -1026,7 +1026,7 @@
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_RANGE_BYTE_LEN_LIST": "1048576,4194304",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:56:44.800783+00:00",
           "group_repetitions": {},
@@ -1077,7 +1077,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.9608373641967773,
@@ -1089,7 +1089,7 @@
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_RANGE_BYTE_LEN_LIST": "1048576,4194304",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TRIALS": "23",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:56:46.918019+00:00",
           "group_repetitions": {},
@@ -1140,7 +1140,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
             "--bench"
           ],
           "elapsed_seconds": 2.4386298656463623,
@@ -1152,7 +1152,7 @@
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_RANGE_BYTE_LEN_LIST": "1048576,4194304",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TRIALS": "43",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:56:49.527614+00:00",
           "group_repetitions": {},
@@ -1203,7 +1203,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
             "--bench"
           ],
           "elapsed_seconds": 3.353196382522583,
@@ -1215,7 +1215,7 @@
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_RANGE_BYTE_LEN_LIST": "1048576,4194304",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TRIALS": "83",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:56:53.067657+00:00",
           "group_repetitions": {},
@@ -5254,7 +5254,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.8340063095092773,
@@ -5266,7 +5266,7 @@
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_RANGE_BYTE_LEN_LIST": "1048576,4194304",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:56:55.300618+00:00",
           "group_repetitions": {},
@@ -5317,7 +5317,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.8197708129882812,
@@ -5329,7 +5329,7 @@
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_RANGE_BYTE_LEN_LIST": "1048576,4194304",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:56:57.278481+00:00",
           "group_repetitions": {},
@@ -5380,7 +5380,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
             "--bench"
           ],
           "elapsed_seconds": 2.1390507221221924,
@@ -5392,7 +5392,7 @@
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_RANGE_BYTE_LEN_LIST": "1048576,4194304",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TRIALS": "23",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:56:59.591331+00:00",
           "group_repetitions": {},
@@ -5443,7 +5443,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
             "--bench"
           ],
           "elapsed_seconds": 2.713355779647827,
@@ -5455,7 +5455,7 @@
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_RANGE_BYTE_LEN_LIST": "1048576,4194304",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TRIALS": "43",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:57:02.492891+00:00",
           "group_repetitions": {},
@@ -7561,7 +7561,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
             "--bench"
           ],
           "elapsed_seconds": 2.668992519378662,
@@ -7573,7 +7573,7 @@
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_RANGE_BYTE_LEN_LIST": "1048576,4194304",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:57:05.558016+00:00",
           "group_repetitions": {},
@@ -7624,7 +7624,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
             "--bench"
           ],
           "elapsed_seconds": 2.6550848484039307,
@@ -7636,7 +7636,7 @@
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_RANGE_BYTE_LEN_LIST": "1048576,4194304",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:57:08.374553+00:00",
           "group_repetitions": {},
@@ -8276,7 +8276,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.9666271209716797,
@@ -8288,7 +8288,7 @@
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_RANGE_BYTE_LEN_LIST": "1048576,4194304",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:56:38.678897+00:00",
           "group_repetitions": {},
@@ -8339,7 +8339,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/bcaa9a831b970bb2/bench_append_only_log_on_the_fly_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.9845101833343506,
@@ -8351,7 +8351,7 @@
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_RANGE_BYTE_LEN_LIST": "1048576,4194304",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_ON_THE_FLY_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:56:40.815995+00:00",
           "group_repetitions": {},
@@ -8991,7 +8991,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/008e536f17aa92e5/bench_append_only_log_client_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/008e536f17aa92e5/bench_append_only_log_client_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 4.832137107849121,
@@ -9001,7 +9001,7 @@
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_SEG": "256",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:27.031934+00:00",
           "group_repetitions": {},
@@ -9030,7 +9030,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/008e536f17aa92e5/bench_append_only_log_client_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/008e536f17aa92e5/bench_append_only_log_client_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 4.82674241065979,
@@ -9040,7 +9040,7 @@
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_SEG": "256",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:31.975500+00:00",
           "group_repetitions": {},
@@ -9069,7 +9069,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/008e536f17aa92e5/bench_append_only_log_client_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/008e536f17aa92e5/bench_append_only_log_client_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 4.87347936630249,
@@ -9079,7 +9079,7 @@
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_SEG": "256",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TRIALS": "23",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:36.972037+00:00",
           "group_repetitions": {},
@@ -9108,7 +9108,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/008e536f17aa92e5/bench_append_only_log_client_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/008e536f17aa92e5/bench_append_only_log_client_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 4.95212459564209,
@@ -9118,7 +9118,7 @@
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_SEG": "256",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TRIALS": "43",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:42.047768+00:00",
           "group_repetitions": {},
@@ -9325,7 +9325,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/008e536f17aa92e5/bench_append_only_log_client_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/008e536f17aa92e5/bench_append_only_log_client_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 6.922291994094849,
@@ -9335,7 +9335,7 @@
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_SEG": "1024",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:59.392766+00:00",
           "group_repetitions": {},
@@ -9399,7 +9399,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/008e536f17aa92e5/bench_append_only_log_client_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/008e536f17aa92e5/bench_append_only_log_client_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 11.488488912582397,
@@ -9409,7 +9409,7 @@
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_SEG": "4096",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:50:26.278515+00:00",
           "group_repetitions": {},
@@ -9473,7 +9473,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/008e536f17aa92e5/bench_append_only_log_client_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/008e536f17aa92e5/bench_append_only_log_client_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 4.020890712738037,
@@ -9483,7 +9483,7 @@
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_SEG": "64",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:10.624142+00:00",
           "group_repetitions": {},
@@ -9547,7 +9547,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/63cf67c40265b1be/bench_append_only_log_client_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/63cf67c40265b1be/bench_append_only_log_client_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 3.1506106853485107,
@@ -9556,7 +9556,7 @@
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_KAPPA": "16",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:16.866884+00:00",
           "group_repetitions": {},
@@ -9585,7 +9585,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/63cf67c40265b1be/bench_append_only_log_client_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/63cf67c40265b1be/bench_append_only_log_client_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 3.1262457370758057,
@@ -9594,7 +9594,7 @@
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_KAPPA": "16",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:20.105349+00:00",
           "group_repetitions": {},
@@ -9679,7 +9679,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/63cf67c40265b1be/bench_append_only_log_client_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/63cf67c40265b1be/bench_append_only_log_client_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 5.196389675140381,
@@ -9688,7 +9688,7 @@
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_KAPPA": "32",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:50.371313+00:00",
           "group_repetitions": {},
@@ -9752,7 +9752,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/63cf67c40265b1be/bench_append_only_log_client_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/63cf67c40265b1be/bench_append_only_log_client_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 10.094245433807373,
@@ -9761,7 +9761,7 @@
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_KAPPA": "64",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:50:12.655665+00:00",
           "group_repetitions": {},
@@ -9825,7 +9825,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/63cf67c40265b1be/bench_append_only_log_client_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/63cf67c40265b1be/bench_append_only_log_client_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 2.295032262802124,
@@ -9834,7 +9834,7 @@
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_KAPPA": "8",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_CLIENT_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:02.125931+00:00",
           "group_repetitions": {},
@@ -9898,7 +9898,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/8bcf28afedfa1855/bench_append_only_log_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/8bcf28afedfa1855/bench_append_only_log_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.4603712558746338,
@@ -9910,7 +9910,7 @@
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_SEG": "256",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:21.887996+00:00",
           "group_repetitions": {},
@@ -9965,7 +9965,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/8bcf28afedfa1855/bench_append_only_log_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/8bcf28afedfa1855/bench_append_only_log_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.4419825077056885,
@@ -9977,7 +9977,7 @@
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_SEG": "1024",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:52.139942+00:00",
           "group_repetitions": {},
@@ -10032,7 +10032,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/8bcf28afedfa1855/bench_append_only_log_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/8bcf28afedfa1855/bench_append_only_log_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.4959208965301514,
@@ -10044,7 +10044,7 @@
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_SEG": "4096",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:50:14.477022+00:00",
           "group_repetitions": {},
@@ -10099,7 +10099,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/8bcf28afedfa1855/bench_append_only_log_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/8bcf28afedfa1855/bench_append_only_log_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.653520107269287,
@@ -10111,7 +10111,7 @@
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_SEG": "64",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:05.235307+00:00",
           "group_repetitions": {},
@@ -10166,7 +10166,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.1771442890167236,
@@ -10177,7 +10177,7 @@
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_METRICS": "serialized",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:12.112601+00:00",
           "group_repetitions": {},
@@ -10205,7 +10205,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.1694037914276123,
@@ -10216,7 +10216,7 @@
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_METRICS": "serialized",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:13.401117+00:00",
           "group_repetitions": {},
@@ -10283,7 +10283,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.1853454113006592,
@@ -10294,7 +10294,7 @@
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_METRICS": "serialized",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:43.550282+00:00",
           "group_repetitions": {},
@@ -10322,7 +10322,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.1930832862854004,
@@ -10333,7 +10333,7 @@
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_METRICS": "serialized",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:49:44.866207+00:00",
           "group_repetitions": {},
@@ -10400,7 +10400,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.2026278972625732,
@@ -10411,7 +10411,7 @@
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_METRICS": "serialized",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:50:00.912328+00:00",
           "group_repetitions": {},
@@ -10439,7 +10439,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.2071986198425293,
@@ -10450,7 +10450,7 @@
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_METRICS": "serialized",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:50:02.245710+00:00",
           "group_repetitions": {},
@@ -10517,7 +10517,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.1828677654266357,
@@ -10528,7 +10528,7 @@
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_METRICS": "serialized",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:48:53.224598+00:00",
           "group_repetitions": {},
@@ -10556,7 +10556,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.182143211364746,
@@ -10567,7 +10567,7 @@
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_METRICS": "serialized",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:48:54.525487+00:00",
           "group_repetitions": {},
@@ -10595,7 +10595,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.181149959564209,
@@ -10606,7 +10606,7 @@
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_METRICS": "serialized",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "23",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:48:55.822609+00:00",
           "group_repetitions": {},
@@ -10634,7 +10634,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.1897106170654297,
@@ -10645,7 +10645,7 @@
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_METRICS": "serialized",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "43",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:48:57.134353+00:00",
           "group_repetitions": {},
@@ -10673,7 +10673,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/152d6af5a572c7f8/bench_append_only_log_point_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1.1948339939117432,
@@ -10684,7 +10684,7 @@
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_METRICS": "serialized",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_POINT_OPEN_TRIALS": "83",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:48:58.457586+00:00",
           "group_repetitions": {},
@@ -10897,12 +10897,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 4.86853814125061,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "16",
             "BENCH_PRIVATE_OPENING_LEAVES": "134217728",
@@ -10944,12 +10944,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 4.809144735336304,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "16",
             "BENCH_PRIVATE_OPENING_LEAVES": "134217728",
@@ -10991,12 +10991,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 8.32520318031311,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "16",
             "BENCH_PRIVATE_OPENING_LEAVES": "134217728",
@@ -11038,12 +11038,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 15.347895622253418,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "16",
             "BENCH_PRIVATE_OPENING_LEAVES": "134217728",
@@ -11686,12 +11686,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 81.69992065429688,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "256",
             "BENCH_PRIVATE_OPENING_LEAVES": "134217728",
@@ -11835,12 +11835,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 5.282554864883423,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "32",
             "BENCH_PRIVATE_OPENING_LEAVES": "134217728",
@@ -11984,12 +11984,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 12.857367038726807,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
             "BENCH_PRIVATE_OPENING_LEAVES": "134217728",
@@ -12133,12 +12133,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 2.70693302154541,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "8",
             "BENCH_PRIVATE_OPENING_LEAVES": "134217728",
@@ -12180,12 +12180,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 2.7104599475860596,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "8",
             "BENCH_PRIVATE_OPENING_LEAVES": "134217728",
@@ -12227,12 +12227,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 4.670390605926514,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "8",
             "BENCH_PRIVATE_OPENING_LEAVES": "134217728",
@@ -12592,12 +12592,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 19.58884620666504,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
             "BENCH_PRIVATE_OPENING_LEAVES": "536870912",
@@ -12741,12 +12741,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 19.754190921783447,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
             "BENCH_PRIVATE_OPENING_LEAVES": "1073741824",
@@ -12890,12 +12890,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 12.907759666442871,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
             "BENCH_PRIVATE_OPENING_LEAVES": "268435456",
@@ -13039,12 +13039,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 6825.721968889236,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "256",
@@ -13102,12 +13102,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 667.1097662448883,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "256",
@@ -13158,12 +13158,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 1017.6006095409393,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "256",
@@ -13426,12 +13426,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 367.4625701904297,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
@@ -13489,12 +13489,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 23.343010425567627,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
@@ -13732,12 +13732,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 81.5035171508789,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
@@ -13795,12 +13795,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 5.084682941436768,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
@@ -13853,12 +13853,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 5.908138275146484,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
@@ -14183,12 +14183,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 3073.9244356155396,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
@@ -14384,12 +14384,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 394.2180244922638,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "8",
@@ -14447,12 +14447,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 34.00361347198486,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "8",
@@ -14690,12 +14690,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 320.2445983886719,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "16",
@@ -14891,12 +14891,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 171.36454272270203,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "32",
@@ -15092,12 +15092,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 175.00460290908813,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
@@ -15293,12 +15293,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 440.2742073535919,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
@@ -15494,12 +15494,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 503.9076373577118,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
@@ -15695,12 +15695,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 983.0629217624664,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
@@ -15758,12 +15758,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 279.40776085853577,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
@@ -15979,12 +15979,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 1126.2943937778473,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_APPEND_LEAVES": "131072",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
@@ -16180,12 +16180,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 467.30236768722534,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_CELLS_PER_RECORD": "64",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_LEAVES": "33554432",
@@ -16399,12 +16399,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 682.9471731185913,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_CELLS_PER_RECORD": "64",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_LEAVES": "33554432",
@@ -16569,12 +16569,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 372.3969988822937,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_CELLS_PER_RECORD": "64",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_LEAVES": "33554432",
@@ -16739,12 +16739,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 1416.7429592609406,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_CELLS_PER_RECORD": "64",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_LEAVES": "134217728",
@@ -16909,12 +16909,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 7.073594570159912,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
             "BENCH_PRIVATE_OPENING_LEAVES": "33554432",
@@ -16951,12 +16951,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 6.911231279373169,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
             "BENCH_PRIVATE_OPENING_LEAVES": "33554432",
@@ -16993,12 +16993,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 7.94153904914856,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
             "BENCH_PRIVATE_OPENING_LEAVES": "33554432",
@@ -17035,12 +17035,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 9.865786075592041,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
             "BENCH_PRIVATE_OPENING_LEAVES": "33554432",
@@ -17077,12 +17077,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 13.443135738372803,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
             "BENCH_PRIVATE_OPENING_LEAVES": "33554432",
@@ -17466,12 +17466,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 13.69213080406189,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
             "BENCH_PRIVATE_OPENING_LEAVES": "134217728",
@@ -17508,12 +17508,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 13.69524884223938,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
             "BENCH_PRIVATE_OPENING_LEAVES": "134217728",
@@ -17550,12 +17550,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 15.405128717422485,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
             "BENCH_PRIVATE_OPENING_LEAVES": "134217728",
@@ -17592,12 +17592,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 18.96381139755249,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
             "BENCH_PRIVATE_OPENING_LEAVES": "134217728",
@@ -17634,12 +17634,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/177282142665a14a/bench_private_opening_local",
             "--bench"
           ],
           "elapsed_seconds": 26.133915424346924,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_PRIVATE_OPENING_HINT_CHECK_COLUMNS": "4096",
             "BENCH_PRIVATE_OPENING_KAPPA": "64",
             "BENCH_PRIVATE_OPENING_LEAVES": "134217728",
@@ -18023,7 +18023,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/d83712c82f76759f/bench_append_only_log_range_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/d83712c82f76759f/bench_append_only_log_range_open_local",
             "--bench"
           ],
           "elapsed_seconds": 1158.8959782123566,
@@ -18038,7 +18038,7 @@
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_SPLIT_COUNT": "1",
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:40:36.176578+00:00",
           "group_repetitions": {},
@@ -18206,7 +18206,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/18bae44fbc346556/bench_append_only_log_range_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/18bae44fbc346556/bench_append_only_log_range_open_local",
             "--bench"
           ],
           "elapsed_seconds": 990.2410731315613,
@@ -18220,7 +18220,7 @@
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_SPLIT_COUNT": "1",
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:13:16.085521+00:00",
           "group_repetitions": {},
@@ -18388,7 +18388,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/d83712c82f76759f/bench_append_only_log_range_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/d83712c82f76759f/bench_append_only_log_range_open_local",
             "--bench"
           ],
           "elapsed_seconds": 266.60569405555725,
@@ -18403,7 +18403,7 @@
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_SPLIT_COUNT": "1",
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:17:58.123962+00:00",
           "group_repetitions": {},
@@ -18435,7 +18435,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/d83712c82f76759f/bench_append_only_log_range_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/d83712c82f76759f/bench_append_only_log_range_open_local",
             "--bench"
           ],
           "elapsed_seconds": 198.6842656135559,
@@ -18450,7 +18450,7 @@
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_SPLIT_COUNT": "1",
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:21:16.932744+00:00",
           "group_repetitions": {},
@@ -18625,7 +18625,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/18bae44fbc346556/bench_append_only_log_range_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/18bae44fbc346556/bench_append_only_log_range_open_local",
             "--bench"
           ],
           "elapsed_seconds": 217.71230149269104,
@@ -18639,7 +18639,7 @@
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_SPLIT_COUNT": "1",
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:54:15.521013+00:00",
           "group_repetitions": {},
@@ -18671,7 +18671,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/18bae44fbc346556/bench_append_only_log_range_open_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/18bae44fbc346556/bench_append_only_log_range_open_local",
             "--bench"
           ],
           "elapsed_seconds": 149.87143731117249,
@@ -18685,7 +18685,7 @@
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_SPLIT_COUNT": "1",
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_RANGE_OPEN_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T01:56:45.524290+00:00",
           "group_repetitions": {},
@@ -18900,7 +18900,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/fc50fd60a795d874/bench_append_only_log_one_server_kappa_rescale_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/fc50fd60a795d874/bench_append_only_log_one_server_kappa_rescale_local",
             "--bench"
           ],
           "elapsed_seconds": 53.34038472175598,
@@ -18911,7 +18911,7 @@
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_SOURCE_S": "16",
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_TRIALS": "13",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:50:19.694545+00:00",
           "group_repetitions": {},
@@ -19021,7 +19021,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/fc50fd60a795d874/bench_append_only_log_one_server_kappa_rescale_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/fc50fd60a795d874/bench_append_only_log_one_server_kappa_rescale_local",
             "--bench"
           ],
           "elapsed_seconds": 95.86589241027832,
@@ -19032,7 +19032,7 @@
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_SOURCE_S": "32",
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_TRIALS": "13",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:52:25.151589+00:00",
           "group_repetitions": {},
@@ -19142,7 +19142,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/fc50fd60a795d874/bench_append_only_log_one_server_kappa_rescale_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/fc50fd60a795d874/bench_append_only_log_one_server_kappa_rescale_local",
             "--bench"
           ],
           "elapsed_seconds": 197.87616157531738,
@@ -19153,7 +19153,7 @@
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_SOURCE_S": "64",
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_TRIALS": "13",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:56:35.125978+00:00",
           "group_repetitions": {},
@@ -19263,7 +19263,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/fc50fd60a795d874/bench_append_only_log_one_server_kappa_rescale_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/fc50fd60a795d874/bench_append_only_log_one_server_kappa_rescale_local",
             "--bench"
           ],
           "elapsed_seconds": 44.35424566268921,
@@ -19274,7 +19274,7 @@
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_SOURCE_S": "8",
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_TRIALS": "13",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:49:03.867933+00:00",
           "group_repetitions": {},
@@ -19384,7 +19384,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
             "--bench"
           ],
           "elapsed_seconds": 15.801302671432495,
@@ -19394,7 +19394,7 @@
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_METRICS": "receiver_double,helper_halve,receiver_halve,receiver_halve_diagonal",
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_TRIALS": "13",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:41:23.956638+00:00",
           "group_repetitions": {},
@@ -19497,7 +19497,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
             "--bench"
           ],
           "elapsed_seconds": 29.944698333740234,
@@ -19507,7 +19507,7 @@
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_METRICS": "receiver_double,helper_halve,receiver_halve,receiver_halve_diagonal",
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_TRIALS": "13",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:42:10.367591+00:00",
           "group_repetitions": {},
@@ -19538,7 +19538,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
             "--bench"
           ],
           "elapsed_seconds": 29.93830370903015,
@@ -19548,7 +19548,7 @@
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_METRICS": "receiver_double,helper_halve,receiver_halve,receiver_halve_diagonal",
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_TRIALS": "13",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:42:40.433670+00:00",
           "group_repetitions": {},
@@ -19579,7 +19579,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
             "--bench"
           ],
           "elapsed_seconds": 30.299079656600952,
@@ -19589,7 +19589,7 @@
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_METRICS": "receiver_double,helper_halve,receiver_halve,receiver_halve_diagonal",
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_TRIALS": "23",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:43:10.861203+00:00",
           "group_repetitions": {},
@@ -19822,7 +19822,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
             "--bench"
           ],
           "elapsed_seconds": 59.93899750709534,
@@ -19832,7 +19832,7 @@
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_METRICS": "receiver_double,helper_halve,receiver_halve,receiver_halve_diagonal",
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_TRIALS": "13",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:44:40.789036+00:00",
           "group_repetitions": {},
@@ -19863,7 +19863,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
             "--bench"
           ],
           "elapsed_seconds": 59.8319571018219,
@@ -19873,7 +19873,7 @@
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_METRICS": "receiver_double,helper_halve,receiver_halve,receiver_halve_diagonal",
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_TRIALS": "13",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:45:40.754838+00:00",
           "group_repetitions": {},
@@ -19904,7 +19904,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
             "--bench"
           ],
           "elapsed_seconds": 60.17534017562866,
@@ -19914,7 +19914,7 @@
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_METRICS": "receiver_double,helper_halve,receiver_halve,receiver_halve_diagonal",
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_TRIALS": "23",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:46:41.058947+00:00",
           "group_repetitions": {},
@@ -19945,7 +19945,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
             "--bench"
           ],
           "elapsed_seconds": 60.928351402282715,
@@ -19955,7 +19955,7 @@
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_METRICS": "receiver_double,helper_halve,receiver_halve,receiver_halve_diagonal",
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_TRIALS": "43",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:47:42.128036+00:00",
           "group_repetitions": {},
@@ -20353,7 +20353,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/f2bc1d33d27cb3f7/bench_append_only_log_one_server_kappa_rescale_local",
             "--bench"
           ],
           "elapsed_seconds": 9.267926454544067,
@@ -20363,7 +20363,7 @@
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_METRICS": "receiver_double,helper_halve,receiver_halve,receiver_halve_diagonal",
             "BENCH_APPEND_ONLY_LOG_KAPPA_RESCALE_TRIALS": "13",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:40:57.574103+00:00",
           "group_repetitions": {},
@@ -20466,7 +20466,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/76752ca261904d5a/bench_append_only_log_repair_kernels_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/76752ca261904d5a/bench_append_only_log_repair_kernels_local",
             "--bench"
           ],
           "elapsed_seconds": 21.81450653076172,
@@ -20479,7 +20479,7 @@
             "BENCH_APPEND_ONLY_LOG_REPAIR_SEGMENT_LEN": "256",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:49:26.018047+00:00",
           "group_repetitions": {},
@@ -20547,7 +20547,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/76752ca261904d5a/bench_append_only_log_repair_kernels_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/76752ca261904d5a/bench_append_only_log_repair_kernels_local",
             "--bench"
           ],
           "elapsed_seconds": 28.940500736236572,
@@ -20560,7 +20560,7 @@
             "BENCH_APPEND_ONLY_LOG_REPAIR_SEGMENT_LEN": "1024",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:50:48.956262+00:00",
           "group_repetitions": {},
@@ -20628,7 +20628,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/76752ca261904d5a/bench_append_only_log_repair_kernels_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/76752ca261904d5a/bench_append_only_log_repair_kernels_local",
             "--bench"
           ],
           "elapsed_seconds": 51.41542840003967,
@@ -20641,7 +20641,7 @@
             "BENCH_APPEND_ONLY_LOG_REPAIR_SEGMENT_LEN": "4096",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:53:16.906985+00:00",
           "group_repetitions": {},
@@ -20709,7 +20709,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/76752ca261904d5a/bench_append_only_log_repair_kernels_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/76752ca261904d5a/bench_append_only_log_repair_kernels_local",
             "--bench"
           ],
           "elapsed_seconds": 33.23384499549866,
@@ -20722,7 +20722,7 @@
             "BENCH_APPEND_ONLY_LOG_REPAIR_SEGMENT_LEN": "64",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:48:17.660908+00:00",
           "group_repetitions": {},
@@ -20790,7 +20790,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/904262b7411d6241/bench_append_only_log_repair_kernels_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/904262b7411d6241/bench_append_only_log_repair_kernels_local",
             "--bench"
           ],
           "elapsed_seconds": 9.909586668014526,
@@ -20802,7 +20802,7 @@
             "BENCH_APPEND_ONLY_LOG_REPAIR_METRICS": "helper_rpc,recover_install",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:41:07.816914+00:00",
           "group_repetitions": {},
@@ -20870,7 +20870,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/904262b7411d6241/bench_append_only_log_repair_kernels_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/904262b7411d6241/bench_append_only_log_repair_kernels_local",
             "--bench"
           ],
           "elapsed_seconds": 15.832317113876343,
@@ -20882,7 +20882,7 @@
             "BENCH_APPEND_ONLY_LOG_REPAIR_METRICS": "helper_rpc,recover_install",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:41:40.109386+00:00",
           "group_repetitions": {},
@@ -20950,7 +20950,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/904262b7411d6241/bench_append_only_log_repair_kernels_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/904262b7411d6241/bench_append_only_log_repair_kernels_local",
             "--bench"
           ],
           "elapsed_seconds": 29.31625533103943,
@@ -20962,7 +20962,7 @@
             "BENCH_APPEND_ONLY_LOG_REPAIR_METRICS": "helper_rpc,recover_install",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:43:40.523096+00:00",
           "group_repetitions": {},
@@ -21030,7 +21030,7 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/904262b7411d6241/bench_append_only_log_repair_kernels_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/904262b7411d6241/bench_append_only_log_repair_kernels_local",
             "--bench"
           ],
           "elapsed_seconds": 8.043486833572388,
@@ -21042,7 +21042,7 @@
             "BENCH_APPEND_ONLY_LOG_REPAIR_METRICS": "helper_rpc,recover_install",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TREE_HEIGHT": "50",
             "BENCH_APPEND_ONLY_LOG_REPAIR_TRIALS": "13",
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures"
           },
           "finished_utc": "2026-10-17T02:40:46.414515+00:00",
           "group_repetitions": {},
@@ -21110,12 +21110,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
             "--bench"
           ],
           "elapsed_seconds": 272.4159095287323,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_SAMPLE_GROUPS": "{\"client\": 13}",
             "BENCH_TREEPIR_COMPARISON_HEIGHT": "16",
             "BENCH_TREEPIR_COMPARISON_REPLIES": "real",
@@ -21173,12 +21173,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
             "--bench"
           ],
           "elapsed_seconds": 271.7739496231079,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_SAMPLE_GROUPS": "{\"client\": 13}",
             "BENCH_TREEPIR_COMPARISON_HEIGHT": "16",
             "BENCH_TREEPIR_COMPARISON_REPLIES": "real",
@@ -21236,12 +21236,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
             "--bench"
           ],
           "elapsed_seconds": 455.52316522598267,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_SAMPLE_GROUPS": "{\"client\": 23}",
             "BENCH_TREEPIR_COMPARISON_HEIGHT": "16",
             "BENCH_TREEPIR_COMPARISON_REPLIES": "real",
@@ -21299,12 +21299,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
             "--bench"
           ],
           "elapsed_seconds": 831.7743909358978,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_SAMPLE_GROUPS": "{\"client\": 43}",
             "BENCH_TREEPIR_COMPARISON_HEIGHT": "16",
             "BENCH_TREEPIR_COMPARISON_REPLIES": "real",
@@ -21362,11 +21362,11 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
             "--bench"
           ],
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_SAMPLE_GROUPS": "{\"client\": 83}",
             "BENCH_TREEPIR_COMPARISON_HEIGHT": "16",
             "BENCH_TREEPIR_COMPARISON_REPLIES": "real",
@@ -23073,12 +23073,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
             "--bench"
           ],
           "elapsed_seconds": 3652.0000128746033,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_SAMPLE_GROUPS": "{\"online\": 13, \"preprocess\": 11}",
             "BENCH_TREEPIR_COMPARISON_COLOR": "0",
             "BENCH_TREEPIR_COMPARISON_HEIGHT": "32",
@@ -23135,12 +23135,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
             "--bench"
           ],
           "elapsed_seconds": 550.0363330841064,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_SAMPLE_GROUPS": "{\"online\": 13, \"preprocess\": 0}",
             "BENCH_TREEPIR_COMPARISON_COLOR": "0",
             "BENCH_TREEPIR_COMPARISON_HEIGHT": "32",
@@ -23504,12 +23504,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
             "--bench"
           ],
           "elapsed_seconds": 3657.094912290573,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_SAMPLE_GROUPS": "{\"online\": 13, \"preprocess\": 11}",
             "BENCH_TREEPIR_COMPARISON_COLOR": "31",
             "BENCH_TREEPIR_COMPARISON_HEIGHT": "32",
@@ -23566,12 +23566,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
             "--bench"
           ],
           "elapsed_seconds": 3656.175551891327,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_SAMPLE_GROUPS": "{\"online\": 13, \"preprocess\": 11}",
             "BENCH_TREEPIR_COMPARISON_COLOR": "31",
             "BENCH_TREEPIR_COMPARISON_HEIGHT": "32",
@@ -23628,12 +23628,12 @@
             "/usr/bin/taskset",
             "--cpu-list",
             "2",
-            "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
+            "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/binaries/a54a64fb6a2c5d77/bench_treepir_comparison_local",
             "--bench"
           ],
           "elapsed_seconds": 6817.176708221436,
           "env": {
-            "BENCH_FIXTURE_DIR": "/home/nicolas/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
+            "BENCH_FIXTURE_DIR": "/home/anonymous/Documents/undinelog-publication-artifact/results/runs/20261017T012510Z-full-a1dd1b9f80/fixtures",
             "BENCH_SAMPLE_GROUPS": "{\"online\": 23, \"preprocess\": 21}",
             "BENCH_TREEPIR_COMPARISON_COLOR": "31",
             "BENCH_TREEPIR_COMPARISON_HEIGHT": "32",

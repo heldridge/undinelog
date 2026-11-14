@@ -52,7 +52,7 @@
    Compiling clap_lex v0.7.7
    Compiling itoa v1.0.17
    Compiling clap_builder v4.5.55
-   Compiling ypir v0.1.0 (/home/nicolas/Documents/undinelog-publication-artifact/undine/third_party/ypir)
+   Compiling ypir v0.1.0 (/home/anonymous/Documents/undinelog-publication-artifact/undine/third_party/ypir)
    Compiling blake3 v1.8.3
    Compiling sha2 v0.10.9
    Compiling fastrand v2.5.0
@@ -82,7 +82,7 @@
    Compiling serde_derive v1.0.228
    Compiling clap_derive v4.5.55
    Compiling test-log-macros v0.2.21
-   Compiling spiral-rs v0.3.0 (/home/nicolas/Documents/undinelog-publication-artifact/undine/third_party/spiral-rs)
+   Compiling spiral-rs v0.3.0 (/home/anonymous/Documents/undinelog-publication-artifact/undine/third_party/spiral-rs)
    Compiling zeroize v1.8.2
    Compiling test-log v0.2.21
    Compiling ark-ff v0.4.2
@@ -91,7 +91,7 @@
    Compiling ark-poly v0.4.2
    Compiling ark-ec v0.4.2
    Compiling ark-bls12-381 v0.4.0
-   Compiling paper-a-optimized v0.1.0 (/home/nicolas/Documents/undinelog-publication-artifact/undine)
-   Compiling append-only-log-demo v0.1.0 (/home/nicolas/Documents/undinelog-publication-artifact/undine/apps/appendOnlyLog)
+   Compiling paper-a-optimized v0.1.0 (/home/anonymous/Documents/undinelog-publication-artifact/undine)
+   Compiling append-only-log-demo v0.1.0 (/home/anonymous/Documents/undinelog-publication-artifact/undine/apps/appendOnlyLog)
     Finished `release` profile [optimized] target(s) in 23.23s
-     Running tests/benchmark_setup.rs (/home/nicolas/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/build-undine/release/deps/benchmark_setup-864c87cc8fa43a7e)
+     Running tests/benchmark_setup.rs (/home/anonymous/Documents/undinelog-publication-artifact/results/diagnostics/20261017-setup-lifetime/build-undine/release/deps/benchmark_setup-864c87cc8fa43a7e)
