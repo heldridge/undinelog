@@ -58,6 +58,6 @@
    Compiling ark-poly v0.4.2
    Compiling ark-ec v0.4.2
    Compiling ark-bls12-381 v0.4.0
-   Compiling paper-a-optimized v0.1.0 (/home/nicolas/Documents/undinelog-publication-artifact/borg)
-   Compiling append-only-log-demo v0.1.0 (/home/nicolas/Documents/undinelog-publication-artifact/borg/apps/appendOnlyLog)
+   Compiling paper-a-optimized v0.1.0 (/home/anonymous/Documents/undinelog-publication-artifact/borg)
+   Compiling append-only-log-demo v0.1.0 (/home/anonymous/Documents/undinelog-publication-artifact/borg/apps/appendOnlyLog)
     Finished `bench` profile [optimized] target(s) in 22.07s

@@ -1,5 +1,5 @@
-   Compiling paper-a-optimized v0.1.0 (/home/nicolas/Documents/undinelog-publication-artifact/undine)
-   Compiling append-only-log-demo v0.1.0 (/home/nicolas/Documents/undinelog-publication-artifact/undine/apps/appendOnlyLog)
+   Compiling paper-a-optimized v0.1.0 (/home/anonymous/Documents/undinelog-publication-artifact/undine)
+   Compiling append-only-log-demo v0.1.0 (/home/anonymous/Documents/undinelog-publication-artifact/undine/apps/appendOnlyLog)
 warning: unused import: `super::*`
   --> benches/support/local_setup.rs:39:9
    |

@@ -1,4 +1,4 @@
-   Compiling paper-a-optimized v0.1.0 (/home/nicolas/Documents/undinelog-publication-artifact/borg)
+   Compiling paper-a-optimized v0.1.0 (/home/anonymous/Documents/undinelog-publication-artifact/borg)
 warning: unused import: `super::*`
   --> benches/support/local_setup.rs:39:9
    |

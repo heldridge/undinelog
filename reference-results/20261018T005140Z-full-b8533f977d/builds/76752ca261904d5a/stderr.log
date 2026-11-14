@@ -1,4 +1,4 @@
-   Compiling paper-a-optimized v0.1.0 (/home/nicolas/Documents/undinelog-publication-artifact/borg)
+   Compiling paper-a-optimized v0.1.0 (/home/anonymous/Documents/undinelog-publication-artifact/borg)
 warning: unused imports: `SYMBOL_LAYOUT_ONE_PER_CODEWORD`, `default_helper_indices`, `encode_segment_from_values`, and `fair_layout_for_params`
    --> benches/support/rs_striped_baseline.rs:268:9
     |
